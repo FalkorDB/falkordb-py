@@ -1,0 +1,16 @@
+[tool.poetry]
+name = "falkordb"
+version = "0.1.0"
+description = ""
+authors = ["swilly22 <roi.lipman@falkordb.com>"]
+readme = "README.md"
+packages = [{include = "falkordb_py"}]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+redis = "^5.0.1"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
