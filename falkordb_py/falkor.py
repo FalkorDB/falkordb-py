@@ -49,7 +49,7 @@ class FalkorDB():
             lib_version='1.0.0',
             username=None,
             retry=None,
-            redis_connect_func=None,
+            connect_func=None,
             credential_provider=None,
             protocol=2
         ):
@@ -81,7 +81,7 @@ class FalkorDB():
                            health_check_interval=health_check_interval,
                            client_name=client_name, lib_name=lib_name,
                            lib_version=lib_version, username=username,
-                           retry=retry, redis_connect_func=redis_connect_func,
+                           retry=retry, redis_connect_func=connect_func,
                            credential_provider=credential_provider,
                            protocol=protocol)
 
@@ -92,12 +92,12 @@ class FalkorDB():
     @classmethod
     def from_url(cls, url: str, **kwargs) -> None:
         """
-        Creates a new Falkor instance from a Redis URL.
+        Creates a new Falkor instance from a URL.
 
         Args:
             cls: The class itself.
-            url (str): The Redis URL.
-            **kwargs: Additional keyword arguments to pass to the `redis.from_url` function.
+            url (str): The URL.
+            kwargs: Additional keyword arguments to pass to the ``FalkorDB.from_url`` function.
 
         Returns:
             Falkor: A new Falkor instance.
