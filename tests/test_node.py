@@ -1,5 +1,5 @@
 import pytest
-from falkordb_py import Node
+from falkordb import Node
 
 
 @pytest.fixture

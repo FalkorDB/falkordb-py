@@ -1,6 +1,6 @@
 import pytest
 from redis import Redis
-from falkordb_py import FalkorDB, Graph, Edge, Node, Path, Operation
+from falkordb import FalkorDB, Graph, Edge, Node, Path, Operation
 from redis.exceptions import ResponseError
 
 

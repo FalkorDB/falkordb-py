@@ -4,7 +4,7 @@ version = "0.1.0"
 description = ""
 authors = ["swilly22 <roi.lipman@falkordb.com>"]
 readme = "README.md"
-packages = [{include = "falkordb_py"}]
+packages = [{include = "falkordb"}]
 
 [tool.poetry.dependencies]
 python = "^3.11"

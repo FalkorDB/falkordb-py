@@ -1,5 +1,5 @@
 import pytest
-from falkordb_py import Node, Edge, Path
+from falkordb import Node, Edge, Path
 
 
 def test_init():

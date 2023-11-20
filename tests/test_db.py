@@ -1,5 +1,5 @@
 import pytest
-from falkordb_py import FalkorDB
+from falkordb import FalkorDB
 
 
 @pytest.fixture
