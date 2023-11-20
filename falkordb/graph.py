@@ -8,8 +8,11 @@ from .helpers import quote_string, stringify_param_value
 
 # procedures
 DB_LABELS             = "DB.LABELS"
+GRAPH_INDEXES         = "DB.INDEXES"
 DB_PROPERTYKEYS       = "DB.PROPERTYKEYS"
-DB_RELATIONSHIPTYPES = "DB.RELATIONSHIPTYPES"
+DB_RELATIONSHIPTYPES  = "DB.RELATIONSHIPTYPES"
+QUERY_VECTOR_NODE_IDX = "DB.IDX.VECTOR.QUERYNODES"
+QUERY_VECTOR_EDGE_IDX = "DB.IDX.VECTOR.QUERYRELATIONSHIPS"
 
 # commands
 LIST_CMD              = "GRAPH.LIST"
@@ -200,7 +203,8 @@ class Graph():
         self._nodes = {}
         self._edges = {}
 
-    def query(self, q: str, params=None, timeout=None, read_only=False, profile=False) -> QueryResult:
+    def query(self, q: str, params=None, timeout=None, read_only=False,
+              profile=False) -> QueryResult:
         """
         Executes a query against the graph.
 
@@ -483,26 +487,26 @@ class Graph():
         return params_header
 
     # procedures
-    def call_procedure(self, procedure: str, *args, read_only=True, **kwargs) -> QueryResult:
+    def call_procedure(self, procedure: str, read_only=True, args=None, emit=None) -> QueryResult:
         """
         Call a procedure.
 
         Args:
             procedure (str): The procedure to call.
-            args: Procedure arguments.
             read_only (bool): Whether the procedure is read-only.
-            kwargs: Additional keyword arguments.
+            args: Procedure arguments.
+            emit: Procedure yield.
 
         Returns:
             QueryResult: The result of the procedure call.
 
         """
+        args = args or []
         args = [quote_string(arg) for arg in args]
         q = f"CALL {procedure}({','.join(args)})"
 
-        y = kwargs.get("y", None)
-        if y is not None:
-            q += f"YIELD {','.join(y)}"
+        if emit is not None and len(emit) > 0:
+            q += f"YIELD {','.join(emit)}"
 
         return self.query(q, read_only=read_only)
 
@@ -535,3 +539,268 @@ class Graph():
 
         """
         return self.call_procedure(DB_PROPERTYKEYS).result_set
+
+    # index operations
+
+    def _drop_index(self, idx_type, entity_type, label, attribute):
+        """Drop a graph index.
+
+        Args:
+            idx_type (str): The type of index ("RANGE", "FULLTEXT", "VECTOR").
+            entity_type (str): The type of entity ("NODE" or "EDGE").
+            label (str): The label of the node or edge.
+            attribute (str): The attribute to drop the index on.
+
+        Returns:
+            Any: The result of the index dropping query.
+        """
+        # set pattern
+        if entity_type == "NODE":
+            pattern = f"(e:{label})"
+        elif entity_type == "EDGE":
+            pattern = f"()-[e:{label}]->()"
+        else:
+            raise ValueError("Invalid entity type")
+
+        # build drop index command
+        if idx_type == "RANGE":
+            q = f"DROP INDEX FOR {pattern} ON (e.{attribute})"
+        elif idx_type == "VECTOR":
+            q = f"DROP VECTOR INDEX FOR {pattern} ON (e.{attribute})"
+        elif idx_type == "FULLTEXT":
+            q = f"DROP FULLTEXT INDEX FOR {pattern} ON (e.{attribute})"
+        else:
+            raise ValueError("Invalid index type")
+
+        return self.query(q)
+
+    def drop_node_range_index(self, label, attribute):
+        """Drop a range index for a node.
+
+        Args:
+            label (str): The label of the node.
+            attribute (str): The attribute to drop the index on.
+
+        Returns:
+            Any: The result of the index dropping query.
+        """
+        return self._drop_index("RANGE", "NODE", label, attribute)
+
+    def drop_node_fulltext_index(self, label, attribute):
+        """Drop a full-text index for a node.
+
+        Args:
+            label (str): The label of the node.
+            attribute (str): The attribute to drop the index on.
+
+        Returns:
+            Any: The result of the index dropping query.
+        """
+        return self._drop_index("FULLTEXT", "NODE", label, attribute)
+
+    def drop_node_vector_index(self, label, attribute):
+        """Drop a vector index for a node.
+
+        Args:
+            label (str): The label of the node.
+            attribute (str): The attribute to drop the index on.
+
+        Returns:
+            Any: The result of the index dropping query.
+        """
+        return self._drop_index("VECTOR", "NODE", label, attribute)
+
+    def drop_edge_range_index(self, label, attribute):
+        """Drop a range index for an edge.
+
+        Args:
+            label (str): The label of the edge.
+            attribute (str): The attribute to drop the index on.
+
+        Returns:
+            Any: The result of the index dropping query.
+        """
+        return self._drop_index("RANGE", "EDGE", label, attribute)
+
+    def drop_edge_fulltext_index(self, label, attribute):
+        """Drop a full-text index for an edge.
+
+        Args:
+            label (str): The label of the edge.
+            attribute (str): The attribute to drop the index on.
+
+        Returns:
+            Any: The result of the index dropping query.
+        """
+        return self._drop_index("FULLTEXT", "EDGE", label, attribute)
+
+    def drop_edge_vector_index(self, label, attribute):
+        """Drop a vector index for an edge.
+
+        Args:
+            label (str): The label of the edge.
+            attribute (str): The attribute to drop the index on.
+
+        Returns:
+            Any: The result of the index dropping query.
+        """
+        return self._drop_index("VECTOR", "EDGE", label, attribute)
+
+    def list_indices(self):
+        """Retrieve a list of graph indices.
+
+        Returns:
+            list: List of graph indices.
+        """
+        return self.call_procedure(GRAPH_INDEXES, read_only=True)
+
+    def _create_typed_index(self, idx_type, entity_type, label, *properties,
+                            options=None) -> QueryResult:
+        """Create a typed index for nodes or edges.
+
+        Args:
+            idx_type (str): The type of index ("RANGE", "FULLTEXT", "VECTOR").
+            entity_type (str): The type of entity ("NODE" or "EDGE").
+            label (str): The label of the node or edge.
+            properties: Variable number of property names to be indexed.
+            options (dict, optional): Additional options for the index.
+
+        Returns:
+            Any: The result of the index creation query.
+        """
+        if entity_type == "NODE":
+            pattern = f"(e:{label})"
+        elif entity_type == "EDGE":
+            pattern = f"()-[e:{label}]->()"
+        else:
+            raise ValueError("Invalid entity type")
+
+        if idx_type == "RANGE":
+            idx_type = ""
+
+        q = f"CREATE {idx_type} INDEX FOR {pattern} ON ("
+        q += ",".join(map("e.{0}".format, properties))
+        q += ")"
+
+        if options is not None:
+            # convert options to a Cypher map
+            options_map = "{"
+            for key, value in options.items():
+                if isinstance(value, str):
+                    options_map += key + ":'" + value + "',"
+                else:
+                    options_map += key + ':' + str(value) + ','
+            options_map = options_map[:-1] + "}"
+            q += f" OPTIONS {options_map}"
+
+        return self.query(q)
+
+    def create_node_range_index(self, label: str, *properties) -> QueryResult:
+        """Create a range index for a node.
+
+        Args:
+            label (str): The label of the node.
+            properties: Variable number of property names to be indexed.
+
+        Returns:
+            Any: The result of the index creation query.
+        """
+        return self._create_typed_index("RANGE", "NODE", label, *properties)
+
+    def create_node_fulltext_index(self, label: str, *properties) -> QueryResult:
+        """Create a full-text index for a node.
+
+        Args:
+            label (str): The label of the node.
+            properties: Variable number of property names to be indexed.
+
+        Returns:
+            Any: The result of the index creation query.
+        """
+        return self._create_typed_index("FULLTEXT", "NODE", label, *properties)
+
+    def create_node_vector_index(self, label: str, *properties, dim=0,
+                                 similarity_function="euclidean") -> QueryResult:
+        """Create a vector index for a node.
+
+        Args:
+            label (str): The label of the node.
+            properties: Variable number of property names to be indexed.
+            dim (int, optional): The dimension of the vector.
+            similarity_function (str, optional): The similarity function for the vector.
+
+        Returns:
+            Any: The result of the index creation query.
+        """
+        options = {'dimension': dim, 'similarityFunction': similarity_function}
+        return self._create_typed_index("VECTOR", "NODE", label, *properties, options=options)
+
+    def create_edge_range_index(self, relation: str, *properties) -> QueryResult:
+        """Create a range index for an edge.
+
+        Args:
+            relation (str): The relation of the edge.
+            properties: Variable number of property names to be indexed.
+
+        Returns:
+            Any: The result of the index creation query.
+        """
+        return self._create_typed_index("RANGE", "EDGE", relation, *properties)
+
+    def create_edge_fulltext_index(self, relation: str, *properties) -> QueryResult:
+        """Create a full-text index for an edge.
+
+        Args:
+            relation (str): The relation of the edge.
+            properties: Variable number of property names to be indexed.
+
+        Returns:
+            Any: The result of the index creation query.
+        """
+        return self._create_typed_index("FULLTEXT", "EDGE", relation, *properties)
+
+    def create_edge_vector_index(self, relation: str, *properties, dim=0,
+                                 similarity_function="euclidean") -> QueryResult:
+        """Create a vector index for an edge.
+
+        Args:
+            relation (str): The relation of the edge.
+            properties: Variable number of property names to be indexed.
+            dim (int, optional): The dimension of the vector.
+            similarity_function (str, optional): The similarity function for the vector.
+
+        Returns:
+            Any: The result of the index creation query.
+        """
+        options = {'dimension': dim, 'similarityFunction': similarity_function}
+        return self._create_typed_index("VECTOR", "EDGE", relation, *properties, options=options)
+
+    def query_node_vector_index(self, label: str, attribute: str, k: int,
+                                q: List[float]) -> QueryResult:
+        """Query a vector index for nodes.
+
+        Args:
+            label (str): The label of the node.
+            attribute (str): The attribute of the vector.
+            k (int): The number of results to retrieve.
+            q (str): The query string.
+
+        Returns:
+            Any: The result of the vector index query.
+        """
+        return self.call_procedure(QUERY_VECTOR_NODE_IDX, args=[label, attribute, k, q])
+
+    def query_edge_vector_index(self, relation: str, attribute: str, k: int,
+                                q: List[float]) -> QueryResult:
+        """Query a vector index for edges.
+
+        Args:
+            relation (str): The relation of the edge.
+            attribute (str): The attribute of the vector.
+            k (int): The number of results to retrieve.
+            q (str): The query string.
+
+        Returns:
+            Any: The result of the vector index query.
+        """
+        return self.call_procedure(QUERY_VECTOR_EDGE_IDX, args=[relation, attribute, k, q])
