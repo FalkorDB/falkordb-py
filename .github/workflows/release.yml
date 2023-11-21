@@ -1,54 +1,21 @@
-# Run this job on pushes to `main`, and for pull requests. If you don't specify
-# `branches: [main], then this actions runs _twice_ on pull requests, which is
-# annoying.
-
+# Run this job on tagging
+name: Release to PYPI
 on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 jobs:
-  test:
+  publish:
     runs-on: ubuntu-latest
 
-    # Service containers to run with `test-job`
-    services:
-      # Label used to access the service container
-      falkordb:
-        # Docker Hub image
-        image: falkordb/falkordb:edge
-        # Map port 6379 on the Docker host to port 6379 on the FalkorDB container
-        ports:
-          - 6379:6379
-
     steps:
-      - uses: actions/checkout@v2
-
-      # If you wanted to use multiple Python versions, you'd have specify a matrix in the job and
-      # reference the matrixe python version here.
-      - uses: actions/setup-python@v2
+      - uses: actions/checkout@v3
+      - name: Build and publish to pypi
+        uses: JRubics/poetry-publish@v1.17
         with:
-          python-version: 3.10.11
-
-      # Install Poetry. You could do this manually, or there are several actions that do this.
-      # `snok/install-poetry` seems to be minimal yet complete, and really just calls out to
-      # Poetry's default install script, which feels correct. I pin the Poetry version here
-      # because Poetry does occasionally change APIs between versions and I don't want my
-      # actions to break if it does.
-      #
-      # The key configuration value here is `virtualenvs-in-project: true`: this creates the
-      # venv as a `.venv` in your testing directory
-      - uses: snok/install-poetry@v1
-        with:
-          version: 1.7.1
-          virtualenvs-create: true
-          virtualenvs-in-project: true
-
-
-      # Install dependencies.
-      - run: poetry install --no-interaction
-
-
-      # And finally run tests. I'm using pytest and all my pytest config is in my `pyproject.toml`
-      # so this line is super-simple. But it could be as complex as you need.
-      - run: poetry run pytest
+          pypi_token: ${{ secrets.PYPI_TEST_API_TOKEN }}
+          repository_name: "falkordb-py"
+          repository_url: "https://test.pypi.org/legacy/"
+          ignore_dev_requirements: "yes"
