@@ -149,7 +149,7 @@ class FalkorDB():
 
         """
 
-        return self.connection.execute_command(CONFIG_CMD, "GET", name)
+        return self.connection.execute_command(CONFIG_CMD, "GET", name)[1]
 
     def config_set(self, name: str, value=None):
         """

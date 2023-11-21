@@ -205,7 +205,7 @@ def __parse_node(value, graph):
     if len(value[1]) > 0:
         labels = [graph.get_label(inner_label) for inner_label in value[1]]
     properties = __parse_entity_properties(value[2], graph)
-    return Node(node_id=node_id, label=labels, properties=properties)
+    return Node(node_id=node_id, alias="", label=labels, properties=properties)
 
 def __parse_edge(value, graph):
     """

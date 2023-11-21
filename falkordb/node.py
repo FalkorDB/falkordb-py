@@ -19,7 +19,7 @@ class Node:
             None
         """
         self.id    = node_id
-        self.alias = alias or random_string()
+        self.alias = random_string() if alias is None else alias
 
         if isinstance(label, list):
             self.label = [l for l in label if isinstance(l, str) and l != ""]
