@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, Union
 from .helpers import quote_string, random_string
 
 class Node:
@@ -8,7 +8,8 @@ class Node:
 
     def __init__(self, node_id: Optional[int] = None,
                  alias: Optional[str] = None,
-                 labels: Optional[List[str]] = None, properties=None):
+                 labels: Optional[Union[str, List[str]]] = None,
+                 properties=None):
         """
         Create a new node.
 
@@ -21,15 +22,14 @@ class Node:
         Returns:
             None
         """
-        self.id    = node_id
-        self.alias = random_string() if alias is None else alias
+        self.id     = node_id
+        self.alias  = random_string() if alias is None else alias
+        self.labels = None
 
         if isinstance(labels, list):
             self.labels = [l for l in labels if isinstance(l, str) and l != ""]
-        elif isinstance(labels, str):
+        elif isinstance(labels, str) and labels != "":
             self.labels = [labels]
-        else:
-            self.labels = None
 
         self.properties = properties or {}
 
