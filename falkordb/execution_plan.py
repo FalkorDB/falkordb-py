@@ -33,7 +33,7 @@ class Operation:
         profile_stats (ProfileStats): Profile statistics for the operation.
     """
 
-    def __init__(self, name, args=None, profile_stats=None):
+    def __init__(self, name: str, args=None, profile_stats: bool = None):
         """
         Creates a new Operation instance.
 
@@ -123,7 +123,7 @@ class ExecutionPlan:
         self.plan = plan
         self.structured_plan = self._operation_tree()
 
-    def __compare_operations(self, root_a, root_b):
+    def __compare_operations(self, root_a, root_b) -> bool:
         """
         Compares execution plan operation trees.
 

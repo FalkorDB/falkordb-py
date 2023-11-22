@@ -1,8 +1,9 @@
-import redis
 from typing import List
+import redis
 from .graph import Graph
 
 # config command
+LIST_CMD   = "GRAPH.LIST"
 CONFIG_CMD = "GRAPH.CONFIG"
 
 class FalkorDB():
@@ -90,7 +91,7 @@ class FalkorDB():
         self.execute_command = conn.execute_command
 
     @classmethod
-    def from_url(cls, url: str, **kwargs) -> None:
+    def from_url(cls, url: str, **kwargs) -> "FalkorDB":
         """
         Creates a new Falkor instance from a URL.
 
@@ -105,7 +106,8 @@ class FalkorDB():
 
         falkor = cls()
 
-        falkor.connection      = redis.from_url(url, **kwargs)
+        conn = redis.from_url(url, **kwargs)
+        falkor.connection      = conn
         falkor.flushdb         = conn.flushdb
         falkor.execute_command = conn.execute_command
 
@@ -122,7 +124,7 @@ class FalkorDB():
             Graph: A new Graph instance associated with the selected graph.
         """
         if not isinstance(graph_id, str) or graph_id == "":
-            raise TypeError("Expected a string parameter, but received {}.".format(type(graph_id)))
+            raise TypeError(f"Expected a string parameter, but received {type(graph_id)}.")
 
         return Graph(self, graph_id)
 
@@ -151,7 +153,7 @@ class FalkorDB():
 
         return self.connection.execute_command(CONFIG_CMD, "GET", name)[1]
 
-    def config_set(self, name: str, value=None):
+    def config_set(self, name: str, value=None) -> None:
         """
         Update a FalkorDB configuration.
 

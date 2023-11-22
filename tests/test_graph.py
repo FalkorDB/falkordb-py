@@ -13,7 +13,7 @@ def test_graph_creation(client):
     graph = client
 
     john = Node(
-        label="person",
+        labels="person",
         properties={
             "name": "John Doe",
             "age": 33,
@@ -23,7 +23,7 @@ def test_graph_creation(client):
     )
     graph.add_node(john)
 
-    japan = Node(label="country", properties={"name": "Japan"})
+    japan = Node(labels="country", properties={"name": "Japan"})
     graph.add_node(japan)
 
     edge = Edge(john, "visited", japan, properties={"purpose": "pleasure"})
@@ -61,7 +61,7 @@ def test_array_functions(client):
 
     a = Node(
         node_id=0,
-        label="person",
+        labels="person",
         properties={"name": "a", "age": 32, "array": [0, 1, 2]},
     )
 
@@ -75,8 +75,8 @@ def test_array_functions(client):
 
 
 def test_path(client):
-    node0  = Node(node_id=0, label="L1")
-    node1  = Node(node_id=1, label="L1")
+    node0  = Node(node_id=0, labels="L1")
+    node1  = Node(node_id=1, labels="L1")
     edge01 = Edge(node0, "R1", node1, edge_id=0, properties={"value": 1})
 
     graph = client
@@ -119,8 +119,8 @@ def test_map(client):
 
     assert actual == expected
 
-    src  = Node(node_id=0, label="L1", properties={"v": 0})
-    dest = Node(node_id=1, label="L2", properties={"v":2})
+    src  = Node(node_id=0, labels="L1", properties={"v": 0})
+    dest = Node(node_id=1, labels="L2", properties={"v":2})
     e    = Edge(src, "R1", dest, edge_id=0, properties={"value": 1})
 
     g.add_node(src)
@@ -168,12 +168,12 @@ def test_index_response(client):
 def test_stringify_query_result(client):
     g = client
 
-    john = Node(alias="a", label="person",
+    john = Node(alias="a", labels="person",
                 properties={ "name": "John Doe", "age": 33, "gender": "male",
                             "status": "single", })
     g.add_node(john)
 
-    japan = Node(alias="b", label="country", properties={"name": "Japan"})
+    japan = Node(alias="b", labels="country", properties={"name": "Japan"})
     g.add_node(japan)
 
     e = Edge(john, "visited", japan, properties={"purpose": "pleasure"})
@@ -210,8 +210,8 @@ def test_stringify_query_result(client):
 
 def test_optional_match(client):
     # build a graph of form (a)-[R]->(b)
-    src = Node(node_id=0, label="L1", properties={"value": "a"})
-    dest = Node(node_id=1, label="L1", properties={"value": "b"})
+    src = Node(node_id=0, labels="L1", properties={"value": "a"})
+    dest = Node(node_id=1, labels="L1", properties={"value": "b"})
 
     e = Edge(src, "R", dest, edge_id=0)
 
@@ -323,7 +323,7 @@ def _test_list_keys(client):
 def test_multi_label(client):
     g = client
 
-    node = Node(label=["l", "ll"])
+    node = Node(labels=["l", "ll"])
     g.add_node(node)
     g.commit()
 
@@ -333,13 +333,13 @@ def test_multi_label(client):
     assert result_node == node
 
     try:
-        Node(label=1)
+        Node(labels=1)
         assert False
     except AssertionError:
         assert True
 
     try:
-        Node(label=["l", 1])
+        Node(labels=["l", 1])
         assert False
     except AssertionError:
         assert True

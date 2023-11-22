@@ -27,12 +27,12 @@ def test_to_string():
 def test_stringify():
     john = Node(
         alias="a",
-        label="person",
+        labels="person",
         properties={"name": 'John Doe', "age": 33, "someArray": [1, 2, 3]},
     )
 
     japan = Node(alias="b",
-                 label="country",
+                 labels="country",
                  properties={"name": 'Japan'}
     )
 

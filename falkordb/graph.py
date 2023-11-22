@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Dict, Optional
 from .node import Node
 from .edge import Edge
 from .query_result import QueryResult
@@ -15,7 +15,6 @@ QUERY_VECTOR_NODE_IDX = "DB.IDX.VECTOR.QUERYNODES"
 QUERY_VECTOR_EDGE_IDX = "DB.IDX.VECTOR.QUERYRELATIONSHIPS"
 
 # commands
-LIST_CMD              = "GRAPH.LIST"
 QUERY_CMD             = "GRAPH.QUERY"
 DELETE_CMD            = "GRAPH.DELETE"
 EXPLAIN_CMD           = "GRAPH.EXPLAIN"
@@ -29,7 +28,7 @@ class Graph():
     Graph, collection of nodes and edges.
     """
 
-    def __init__(self, client, key):
+    def __init__(self, client, key: str):
         """
         Create a new graph.
 
@@ -51,7 +50,7 @@ class Graph():
         self._relationship_types = []  # list of relation types
 
     @property
-    def key(self):
+    def key(self) -> str:
         """
         Get the graph key.
 
@@ -62,7 +61,7 @@ class Graph():
 
         return self._key
 
-    def add_node(self, node: Node):
+    def add_node(self, node: Node) -> None:
         """
         Adds a new node to the graph.
 
@@ -76,7 +75,7 @@ class Graph():
 
         self._nodes[node.alias] = node
 
-    def add_edge(self, edge: Edge):
+    def add_edge(self, edge: Edge) -> None:
         """
         Adds a new edge to the graph.
         Edge ends are also added in case they're missing.
@@ -119,7 +118,7 @@ class Graph():
 
         return len(self._edges)
 
-    def remove_node(self, node: Node):
+    def remove_node(self, node: Node) -> None:
         """
         Removes a node and all of its incoming and outgoing edges from the graph.
 
@@ -143,7 +142,7 @@ class Graph():
         # remove node
         del self._nodes[node.alias]
 
-    def remove_edge(self, edge: Edge):
+    def remove_edge(self, edge: Edge) -> None:
         """
         Removes an edge from the graph.
 
@@ -157,7 +156,7 @@ class Graph():
 
         del self._edges[edge.alias]
 
-    def commit(self):
+    def commit(self) -> QueryResult:
         """
         Commits the graph into the database.
 
@@ -190,7 +189,7 @@ class Graph():
 
         return self.query(query)
 
-    def flush(self):
+    def flush(self) -> None:
         """
         Flushes the graph into the database and clears the graph.
 
@@ -203,8 +202,9 @@ class Graph():
         self._nodes = {}
         self._edges = {}
 
-    def query(self, q: str, params=None, timeout=None, read_only=False,
-              profile=False) -> QueryResult:
+    def query(self, q: str, params: Optional[Dict[str, object]] = None,
+              timeout: Optional[int] = None, read_only: bool = False,
+              profile: bool = False) -> QueryResult:
         """
         Executes a query against the graph.
 
@@ -270,7 +270,7 @@ class Graph():
 
         return self.query(query)
 
-    def delete(self):
+    def delete(self) -> None:
         """
         Deletes the graph.
 
@@ -336,7 +336,7 @@ class Graph():
         plan = self.execute_command(EXPLAIN_CMD, self.key, query)
         return ExecutionPlan(plan)
 
-    def __clear_schema(self):
+    def __clear_schema(self) -> None:
         """
         Clear the graph schema.
 
@@ -349,7 +349,7 @@ class Graph():
         self._properties = []
         self._relationship_types = []
 
-    def __refresh_schema(self):
+    def __refresh_schema(self) -> None:
         """
         Refresh the graph schema.
 
@@ -363,7 +363,7 @@ class Graph():
         self.__refresh_relations()
         self.__refresh_attributes()
 
-    def __refresh_labels(self):
+    def __refresh_labels(self) -> None:
         """
         Refresh labels.
 
@@ -376,7 +376,7 @@ class Graph():
         # unpack data
         self._labels = [l[0] for _, l in enumerate(lbls)]
 
-    def __refresh_relations(self):
+    def __refresh_relations(self) -> None:
         """
         Refresh relationship types.
 
@@ -390,7 +390,7 @@ class Graph():
         # unpack data
         self._relationship_types = [r[0] for _, r in enumerate(rels)]
 
-    def __refresh_attributes(self):
+    def __refresh_attributes(self) -> None:
         """
         Refresh property keys.
 
@@ -487,7 +487,9 @@ class Graph():
         return params_header
 
     # procedures
-    def call_procedure(self, procedure: str, read_only=True, args=None, emit=None) -> QueryResult:
+    def call_procedure(self, procedure: str, read_only: bool = True,
+                       args: Optional[List] = None,
+                       emit: Optional[List[str]] = None) -> QueryResult:
         """
         Call a procedure.
 
@@ -542,7 +544,8 @@ class Graph():
 
     # index operations
 
-    def _drop_index(self, idx_type, entity_type, label, attribute):
+    def _drop_index(self, idx_type: str, entity_type: str, label: str,
+                    attribute: str) -> QueryResult:
         """Drop a graph index.
 
         Args:
@@ -574,7 +577,7 @@ class Graph():
 
         return self.query(q)
 
-    def drop_node_range_index(self, label, attribute):
+    def drop_node_range_index(self, label: str, attribute: str) -> QueryResult:
         """Drop a range index for a node.
 
         Args:
@@ -586,7 +589,7 @@ class Graph():
         """
         return self._drop_index("RANGE", "NODE", label, attribute)
 
-    def drop_node_fulltext_index(self, label, attribute):
+    def drop_node_fulltext_index(self, label: str, attribute: str) -> QueryResult:
         """Drop a full-text index for a node.
 
         Args:
@@ -598,7 +601,7 @@ class Graph():
         """
         return self._drop_index("FULLTEXT", "NODE", label, attribute)
 
-    def drop_node_vector_index(self, label, attribute):
+    def drop_node_vector_index(self, label: str, attribute: str) -> QueryResult:
         """Drop a vector index for a node.
 
         Args:
@@ -610,7 +613,7 @@ class Graph():
         """
         return self._drop_index("VECTOR", "NODE", label, attribute)
 
-    def drop_edge_range_index(self, label, attribute):
+    def drop_edge_range_index(self, label: str, attribute: str) -> QueryResult:
         """Drop a range index for an edge.
 
         Args:
@@ -622,7 +625,7 @@ class Graph():
         """
         return self._drop_index("RANGE", "EDGE", label, attribute)
 
-    def drop_edge_fulltext_index(self, label, attribute):
+    def drop_edge_fulltext_index(self, label: str, attribute: str) -> QueryResult:
         """Drop a full-text index for an edge.
 
         Args:
@@ -634,7 +637,7 @@ class Graph():
         """
         return self._drop_index("FULLTEXT", "EDGE", label, attribute)
 
-    def drop_edge_vector_index(self, label, attribute):
+    def drop_edge_vector_index(self, label: str, attribute: str) -> QueryResult:
         """Drop a vector index for an edge.
 
         Args:
@@ -646,7 +649,7 @@ class Graph():
         """
         return self._drop_index("VECTOR", "EDGE", label, attribute)
 
-    def list_indices(self):
+    def list_indices(self) -> QueryResult:
         """Retrieve a list of graph indices.
 
         Returns:
@@ -654,8 +657,8 @@ class Graph():
         """
         return self.call_procedure(GRAPH_INDEXES, read_only=True)
 
-    def _create_typed_index(self, idx_type, entity_type, label, *properties,
-                            options=None) -> QueryResult:
+    def _create_typed_index(self, idx_type: str, entity_type: str, label: str,
+                            *properties: List[str], options=None) -> QueryResult:
         """Create a typed index for nodes or edges.
 
         Args:
@@ -719,8 +722,8 @@ class Graph():
         """
         return self._create_typed_index("FULLTEXT", "NODE", label, *properties)
 
-    def create_node_vector_index(self, label: str, *properties, dim=0,
-                                 similarity_function="euclidean") -> QueryResult:
+    def create_node_vector_index(self, label: str, *properties, dim: int = 0,
+                                 similarity_function: str = "euclidean") -> QueryResult:
         """Create a vector index for a node.
 
         Args:
@@ -759,8 +762,8 @@ class Graph():
         """
         return self._create_typed_index("FULLTEXT", "EDGE", relation, *properties)
 
-    def create_edge_vector_index(self, relation: str, *properties, dim=0,
-                                 similarity_function="euclidean") -> QueryResult:
+    def create_edge_vector_index(self, relation: str, *properties, dim: int = 0,
+                                 similarity_function: str = "euclidean") -> QueryResult:
         """Create a vector index for an edge.
 
         Args:

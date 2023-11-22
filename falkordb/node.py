@@ -1,3 +1,4 @@
+from typing import List, Optional
 from .helpers import quote_string, random_string
 
 class Node:
@@ -5,14 +6,16 @@ class Node:
     A graph node.
     """
 
-    def __init__(self, node_id=None, alias=None, label=None, properties=None):
+    def __init__(self, node_id: Optional[int] = None,
+                 alias: Optional[str] = None,
+                 labels: Optional[List[str]] = None, properties=None):
         """
         Create a new node.
 
         Args:
             node_id: The ID of the node.
             alias: An alias for the node (default is a random string).
-            label: The label or list of labels for the node.
+            labels: The label or list of labels for the node.
             properties: The properties of the node.
 
         Returns:
@@ -21,12 +24,12 @@ class Node:
         self.id    = node_id
         self.alias = random_string() if alias is None else alias
 
-        if isinstance(label, list):
-            self.label = [l for l in label if isinstance(l, str) and l != ""]
-        elif isinstance(label, str):
-            self.label = [label]
+        if isinstance(labels, list):
+            self.labels = [l for l in labels if isinstance(l, str) and l != ""]
+        elif isinstance(labels, str):
+            self.labels = [labels]
         else:
-            self.label = []
+            self.labels = None
 
         self.properties = properties or {}
 
@@ -47,7 +50,7 @@ class Node:
 
         return res
 
-    def __str__(self):
+    def __str__(self) -> str:
         """
         Get a string representation of the node.
 
@@ -57,8 +60,8 @@ class Node:
         res = "("
         if self.alias:
             res += self.alias
-        if self.label:
-            res += ":" + ":".join(self.label)
+        if self.labels:
+            res += ":" + ":".join(self.labels)
         if self.properties:
             props = ",".join(
                 key + ":" + str(quote_string(val))
@@ -69,7 +72,7 @@ class Node:
 
         return res
 
-    def __eq__(self, rhs):
+    def __eq__(self, rhs) -> bool:
         """
         Check if two nodes are equal.
 
@@ -87,8 +90,8 @@ class Node:
         if self.id is not None and rhs.id is not None and self.id != rhs.id:
             return False
 
-        # Label should match.
-        if self.label != rhs.label:
+        # Labels should match.
+        if self.labels != rhs.labels:
             return False
 
         # Quick check for the number of properties.
