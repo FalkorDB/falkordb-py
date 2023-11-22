@@ -1,3 +1,5 @@
+from typing import Optional
+from .node import Node
 from .helpers import quote_string, random_string
 
 class Edge:
@@ -5,7 +7,9 @@ class Edge:
     An edge connecting two nodes.
     """
 
-    def __init__(self, src_node, relation, dest_node, edge_id=None, alias=None, properties=None):
+    def __init__(self, src_node: Node, relation: str, dest_node: Node,
+                 edge_id: Optional[int] = None, alias: Optional[str] = None,
+                 properties=None):
         """
         Create a new edge.
 
@@ -50,7 +54,7 @@ class Edge:
 
         return res
 
-    def __str__(self):
+    def __str__(self) -> str:
         """
         Get a string representation of the edge.
 
@@ -58,7 +62,10 @@ class Edge:
             str: A string representation of the edge.
         """
         # Source node
-        res = "(" + self.src_node.alias + ")"
+        if isinstance(self.src_node, Node):
+            res = "(" + self.src_node.alias + ")"
+        else:
+            res = "()"
 
         # Edge
         res += "-["
@@ -73,11 +80,14 @@ class Edge:
         res += "]->"
 
         # Dest node
-        res += "(" + self.dest_node.alias + ")"
+        if isinstance(self.dest_node, Node):
+            res += "(" + self.dest_node.alias + ")"
+        else:
+            res += "()"
 
         return res
 
-    def __eq__(self, rhs):
+    def __eq__(self, rhs) -> bool:
         """
         Check if two edges are equal.
 

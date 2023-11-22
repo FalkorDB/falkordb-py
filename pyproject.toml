@@ -7,9 +7,11 @@ readme = "README.md"
 packages = [{include = "falkordb"}]
 
 [tool.poetry.dependencies]
-python = "^3.11"
+python = "^3.10"
 redis = "^5.0.1"
 
+[tool.poetry.group.test.dependencies]
+pytest = "^7.0.0"
 
 [build-system]
 requires = ["poetry-core"]

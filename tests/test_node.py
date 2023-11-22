@@ -5,10 +5,10 @@ from falkordb import Node
 @pytest.fixture
 def fixture():
     no_args     = Node(alias="n")
-    no_props    = Node(node_id=1, alias="n", label="l")
+    no_props    = Node(node_id=1, alias="n", labels="l")
     no_label    = Node(node_id=1, alias="n", properties={"a": "a"})
     props_only  = Node(alias="n", properties={"a": "a", "b": 10})
-    multi_label = Node(node_id=1, alias="n", label=["l", "ll"])
+    multi_label = Node(node_id=1, alias="n", labels=["l", "ll"])
 
     return no_args, no_props, props_only, no_label, multi_label
 
@@ -34,14 +34,14 @@ def test_stringify(fixture):
 
 
 def test_comparision():
-    assert Node()                                != Node(properties={"a": 10})
-    assert Node()                                == Node()
-    assert Node(node_id=1)                       == Node(node_id=1)
-    assert Node(node_id=1)                       != Node(node_id=2)
-    assert Node(node_id=1, alias="a")            == Node(node_id=1, alias="b")
-    assert Node(node_id=1, alias="a")            == Node(node_id=1, alias="a")
-    assert Node(node_id=1, label="a")            == Node(node_id=1, label="a")
-    assert Node(node_id=1, label="a")            != Node(node_id=1, label="b")
-    assert Node(alias="a", label="l")            != Node(alias="a", label="l1")
-    assert Node(properties={"a": 10})            == Node(properties={"a": 10})
-    assert Node(node_id=1, alias="a", label="l") == Node(node_id=1, alias="a", label="l")
+    assert Node()                                 != Node(properties={"a": 10})
+    assert Node()                                 == Node()
+    assert Node(node_id=1)                        == Node(node_id=1)
+    assert Node(node_id=1)                        != Node(node_id=2)
+    assert Node(node_id=1, alias="a")             == Node(node_id=1, alias="b")
+    assert Node(node_id=1, alias="a")             == Node(node_id=1, alias="a")
+    assert Node(node_id=1, labels="a")            == Node(node_id=1, labels="a")
+    assert Node(node_id=1, labels="a")            != Node(node_id=1, labels="b")
+    assert Node(alias="a", labels="l")            != Node(alias="a", labels="l1")
+    assert Node(properties={"a": 10})             == Node(properties={"a": 10})
+    assert Node(node_id=1, alias="a", labels="l") == Node(node_id=1, alias="a", labels="l")

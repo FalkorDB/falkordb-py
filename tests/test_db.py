@@ -11,25 +11,28 @@ def client(request):
 def test_config(client):
     db = client
     config_name = "RESULTSET_SIZE"
-    config_value = 3
+
+    # save olf configuration value
+    prev_value = int(db.config_get(config_name))
 
     # set configuration
-    response = db.config_set(config_name, config_value)
+    response = db.config_set(config_name, 3)
     assert response == "OK"
 
     # make sure config been updated
-    response = db.config_get(config_name)
-    expected_response = [config_name, config_value]
-    assert response == expected_response
+    new_value = int(db.config_get(config_name))
+    assert new_value == 3
 
-    config_name = "QUERY_MEM_CAPACITY"
-    config_value = 1 << 20  # 1MB
-
-    # set configuration
-    response = db.config_set(config_name, config_value)
+    # restore original value
+    response = db.config_set(config_name, prev_value)
     assert response == "OK"
 
-    # make sure config been updated
-    response = db.config_get(config_name)
-    expected_response = [config_name, config_value]
-    assert response == expected_response
+    # trying to get / set invalid configuration
+    with pytest.raises(Exception):
+        db.config_get("none_existing_conf")
+
+    with pytest.raises(Exception):
+        db.config_set("none_existing_conf", 1)
+
+    with pytest.raises(Exception):
+        db.config_set(config_name, "invalid value")

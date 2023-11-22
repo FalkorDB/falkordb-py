@@ -21,7 +21,7 @@ def quote_string(v):
 
     return f'"{v}"'
 
-def random_string(length=10):
+def random_string(length: int = 10) -> str:
     """
     Returns a random N character long string.
     """

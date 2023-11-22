@@ -1,3 +1,4 @@
+from typing import List
 from .edge import Edge
 from .node import Node
 
@@ -18,7 +19,7 @@ class Path:
         print(path)
         # Output: <(node1)-(edge1)->(node2)>
     """
-    def __init__(self, nodes, edges):
+    def __init__(self, nodes: List[Node], edges: List[Edge]):
         if not (isinstance(nodes, list) and isinstance(edges, list)):
             raise TypeError("nodes and edges must be list")
 
@@ -36,7 +37,7 @@ class Path:
         """
         return cls([], [])
 
-    def nodes(self):
+    def nodes(self) -> List[Node]:
         """
         Returns the list of nodes in the path.
 
@@ -45,7 +46,7 @@ class Path:
         """
         return self._nodes
 
-    def edges(self):
+    def edges(self) -> List[Edge]:
         """
         Returns the list of edges in the path.
 
@@ -54,7 +55,7 @@ class Path:
         """
         return self._edges
 
-    def get_node(self, index):
+    def get_node(self, index) -> Node:
         """
         Returns the node at the specified index in the path.
 
@@ -69,7 +70,7 @@ class Path:
 
         return None
 
-    def get_edge(self, index):
+    def get_edge(self, index) -> Edge:
         """
         Returns the edge at the specified index in the path.
 
@@ -152,7 +153,7 @@ class Path:
         self.append_type = Node
         return self
 
-    def __eq__(self, other):
+    def __eq__(self, other) -> bool:
         """
         Compares two Path instances for equality based on their nodes and edges.
 
@@ -168,7 +169,7 @@ class Path:
 
         return self.nodes() == other.nodes() and self.edges() == other.edges()
 
-    def __str__(self):
+    def __str__(self) -> str:
         """
         Returns a string representation of the path, including nodes and edges.
 

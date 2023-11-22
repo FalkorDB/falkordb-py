@@ -84,7 +84,7 @@ def __parse_unknown(value, graph):
     """
     sys.stderr.write("Unknown type\n")
 
-def __parse_null(value, graph):
+def __parse_null(value, graph) -> None:
     """
     Parse a null value.
 
@@ -97,7 +97,7 @@ def __parse_null(value, graph):
     """
     return None
 
-def __parse_string(value, graph):
+def __parse_string(value, graph) -> str:
     """
     Parse the value as a string.
 
@@ -189,7 +189,7 @@ def __parse_entity_properties(props, graph):
 
     return properties
 
-def __parse_node(value, graph):
+def __parse_node(value, graph) -> Node:
     """
     Parse the value to a node.
 
@@ -205,9 +205,9 @@ def __parse_node(value, graph):
     if len(value[1]) > 0:
         labels = [graph.get_label(inner_label) for inner_label in value[1]]
     properties = __parse_entity_properties(value[2], graph)
-    return Node(node_id=node_id, label=labels, properties=properties)
+    return Node(node_id=node_id, alias="", labels=labels, properties=properties)
 
-def __parse_edge(value, graph):
+def __parse_edge(value, graph) -> Edge:
     """
     Parse the value to an edge.
 
@@ -225,7 +225,7 @@ def __parse_edge(value, graph):
     properties = __parse_entity_properties(value[4], graph)
     return Edge(src_node_id, relation, dest_node_id, edge_id=edge_id, properties=properties)
 
-def __parse_path(value, graph):
+def __parse_path(value, graph) -> Path:
     """
     Parse the value to a path.
 
@@ -240,7 +240,7 @@ def __parse_path(value, graph):
     edges = parse_scalar(value[1], graph)
     return Path(nodes, edges)
 
-def __parse_map(value, graph):
+def __parse_map(value, graph) -> OrderedDict:
     """
     Parse the value as a map.
 
@@ -311,7 +311,7 @@ class QueryResult:
     """
         Represents the result of a query operation on a graph.
     """
-    def __init__(self, graph, response, profile=False):
+    def __init__(self, graph, response, profile: bool = False):
         """
         Initializes a QueryResult instance.
 
@@ -431,7 +431,7 @@ class QueryResult:
         self.result_set = [x[0: x.index(",")].strip() for x in response]
 
     @property
-    def labels_added(self):
+    def labels_added(self) -> int:
         """
         Get the number of labels added in the query.
 
@@ -442,7 +442,7 @@ class QueryResult:
         return self.__get_statistics(LABELS_ADDED)
 
     @property
-    def labels_removed(self):
+    def labels_removed(self) -> int:
         """
         Get the number of labels removed in the query.
 
@@ -452,7 +452,7 @@ class QueryResult:
         return self.__get_statistics(LABELS_REMOVED)
 
     @property
-    def nodes_created(self):
+    def nodes_created(self) -> int:
         """
         Get the number of nodes created in the query.
 
@@ -462,7 +462,7 @@ class QueryResult:
         return self.__get_statistics(NODES_CREATED)
 
     @property
-    def nodes_deleted(self):
+    def nodes_deleted(self) -> int:
         """
         Get the number of nodes deleted in the query.
 
@@ -472,7 +472,7 @@ class QueryResult:
         return self.__get_statistics(NODES_DELETED)
 
     @property
-    def properties_set(self):
+    def properties_set(self) -> int:
         """
         Get the number of properties set in the query.
 
@@ -482,7 +482,7 @@ class QueryResult:
         return self.__get_statistics(PROPERTIES_SET)
 
     @property
-    def properties_removed(self):
+    def properties_removed(self) -> int:
         """
         Get the number of properties removed in the query.
 
@@ -492,7 +492,7 @@ class QueryResult:
         return self.__get_statistics(PROPERTIES_REMOVED)
 
     @property
-    def relationships_created(self):
+    def relationships_created(self) -> int:
         """
         Get the number of relationships created in the query.
 
@@ -502,7 +502,7 @@ class QueryResult:
         return self.__get_statistics(RELATIONSHIPS_CREATED)
 
     @property
-    def relationships_deleted(self):
+    def relationships_deleted(self) -> int:
         """
         Get the number of relationships deleted in the query.
 
@@ -512,7 +512,7 @@ class QueryResult:
         return self.__get_statistics(RELATIONSHIPS_DELETED)
 
     @property
-    def indices_created(self):
+    def indices_created(self) -> int:
         """
         Get the number of indices created in the query.
 
@@ -522,7 +522,7 @@ class QueryResult:
         return self.__get_statistics(INDICES_CREATED)
 
     @property
-    def indices_deleted(self):
+    def indices_deleted(self) -> int:
         """
         Get the number of indices deleted in the query.
 
@@ -532,7 +532,7 @@ class QueryResult:
         return self.__get_statistics(INDICES_DELETED)
 
     @property
-    def cached_execution(self):
+    def cached_execution(self) -> bool:
         """
         Check if the query execution plan was cached.
 
@@ -542,7 +542,7 @@ class QueryResult:
         return self.__get_statistics(CACHED_EXECUTION) == 1
 
     @property
-    def run_time_ms(self):
+    def run_time_ms(self) -> float:
         """
         Get the server execution time of the query.
 
