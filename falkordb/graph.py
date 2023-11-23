@@ -61,6 +61,30 @@ class Graph():
 
         return self._key
 
+    @property
+    def number_of_nodes(self) -> int:
+        """
+        Returns the number of nodes in the graph.
+
+        Returns:
+            int: Number of nodes in the graph.
+
+        """
+
+        return len(self._nodes)
+
+    @property
+    def number_of_edges(self) -> int:
+        """
+        Returns the number of edges in the graph.
+
+        Returns:
+            int: Number of edges in the graph.
+
+        """
+
+        return len(self._edges)
+
     def add_node(self, node: Node) -> None:
         """
         Adds a new node to the graph.
@@ -95,28 +119,6 @@ class Graph():
             self.add_node(edge.dest_node)
 
         self._edges[edge.alias] = edge
-
-    def number_of_nodes(self) -> int:
-        """
-        Returns the number of nodes in the graph.
-
-        Returns:
-            int: Number of nodes in the graph.
-
-        """
-
-        return len(self._nodes)
-
-    def number_of_edges(self) -> int:
-        """
-        Returns the number of edges in the graph.
-
-        Returns:
-            int: Number of edges in the graph.
-
-        """
-
-        return len(self._edges)
 
     def remove_node(self, node: Node) -> None:
         """
@@ -252,6 +254,25 @@ class Graph():
             self.__refresh_schema()
             # re-issue query
             return self.query(q, params, timeout, read_only)
+
+    def ro_query(self, q: str, params: Optional[Dict[str, object]] = None,
+              timeout: Optional[int] = None, read_only: bool = False,
+              profile: bool = False) -> QueryResult:
+        """
+        Executes a read-only query against the graph.
+
+        Args:
+            q (str): The query.
+            params (dict): Query parameters.
+            timeout (int): Maximum query runtime in milliseconds.
+            profile (bool): Profiles the query.
+
+        Returns:
+            QueryResult: query result set.
+
+        """
+        return self.query(q, params=params, timeout=timeout, read_only=True,
+                          profile=profile)
 
     def merge(self, pattern) -> QueryResult:
         """
@@ -489,7 +510,8 @@ class Graph():
     # procedures
     def call_procedure(self, procedure: str, read_only: bool = True,
                        args: Optional[List] = None,
-                       emit: Optional[List[str]] = None) -> QueryResult:
+                       emit: Optional[List[str]] = None,
+                       params: Optional[Dict[str, object]] = None) -> QueryResult:
         """
         Call a procedure.
 
@@ -510,7 +532,7 @@ class Graph():
         if emit is not None and len(emit) > 0:
             q += f"YIELD {','.join(emit)}"
 
-        return self.query(q, read_only=read_only)
+        return self.query(q, read_only=read_only, params=params)
 
     def labels(self) -> List[str]:
         """
