@@ -266,6 +266,7 @@ class ExecutionPlan:
                     current.append_child(child)
                 current = child
                 i += 1
+                stack.append(child)
             elif op_level == level + 1:
                 # if the operation is child of the current operation
                 # add it as child and set as current operation
