@@ -11,8 +11,8 @@ DB_LABELS             = "DB.LABELS"
 GRAPH_INDEXES         = "DB.INDEXES"
 DB_PROPERTYKEYS       = "DB.PROPERTYKEYS"
 DB_RELATIONSHIPTYPES  = "DB.RELATIONSHIPTYPES"
-QUERY_VECTOR_NODE_IDX = "DB.IDX.VECTOR.QUERYNODES"
-QUERY_VECTOR_EDGE_IDX = "DB.IDX.VECTOR.QUERYRELATIONSHIPS"
+QUERY_VECTOR_NODE_IDX = "db.idx.vector.queryNodes"
+QUERY_VECTOR_EDGE_IDX = "db.idx.vector.queryRelationships"
 
 # commands
 QUERY_CMD             = "GRAPH.QUERY"
@@ -807,7 +807,10 @@ class Graph():
         Returns:
             Any: The result of the vector index query.
         """
-        return self.call_procedure(QUERY_VECTOR_NODE_IDX, args=[label, attribute, k, q])
+
+        params = {'label': label, 'attribute': attribute, 'k': k, 'q': q}
+        query = f"CALL {QUERY_VECTOR_NODE_IDX}($label, $attribute, $k, vecf32($q))"
+        return self.ro_query(query, params=params)
 
     def query_edge_vector_index(self, relation: str, attribute: str, k: int,
                                 q: List[float]) -> QueryResult:
@@ -822,4 +825,7 @@ class Graph():
         Returns:
             Any: The result of the vector index query.
         """
-        return self.call_procedure(QUERY_VECTOR_EDGE_IDX, args=[relation, attribute, k, q])
+
+        params = {'relation': relation, 'attribute': attribute, 'k': k, 'q': q}
+        query = f"CALL {QUERY_VECTOR_EDGE_IDX}($relation, $attribute, $k, vecf32($q))"
+        return self.ro_query(query, params=params)
