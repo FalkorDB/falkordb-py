@@ -18,8 +18,8 @@ class ProfileStats:
             records_produced (int): The number of records produced.
             execution_time (float): The execution time in milliseconds.
         """
+        self.execution_time   = execution_time
         self.records_produced = records_produced
-        self.execution_time = execution_time
 
 
 class Operation:
@@ -42,10 +42,24 @@ class Operation:
             args (str, optional): Operation arguments.
             profile_stats (ProfileStats, optional): Profile statistics for the operation.
         """
-        self.name = name
-        self.args = args
-        self.children = []
+        self.name          = name
+        self.args          = args
+        self.children      = []
         self.profile_stats = profile_stats
+
+    @property
+    def execution_time(self) -> int:
+        """
+        returns operation's execution time in ms
+        """
+        return self.profile_stats.execution_time
+
+    @property
+    def records_produced(self) -> int:
+        """
+        returns number of records produced by operation.
+        """
+        return self.profile_stats.records_produced
 
     def append_child(self, child):
         """
@@ -217,9 +231,9 @@ class ExecutionPlan:
             Operation: Root of the structured operation tree.
         """
         # initial state
-        i = 0
-        level = 0
-        stack = []
+        i       = 0
+        level   = 0
+        stack   = []
         current = None
 
         def create_operation(args):

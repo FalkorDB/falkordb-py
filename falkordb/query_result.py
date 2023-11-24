@@ -311,14 +311,13 @@ class QueryResult:
     """
         Represents the result of a query operation on a graph.
     """
-    def __init__(self, graph, response, profile: bool = False):
+    def __init__(self, graph, response):
         """
         Initializes a QueryResult instance.
 
         Args:
             graph: The graph on which the query was executed.
             response: The response from the server.
-            profile (bool): A boolean indicating if the query command was "GRAPH.PROFILE".
         """
         self.graph      = graph
         self.header     = []
@@ -330,8 +329,6 @@ class QueryResult:
 
         if len(response) == 1:
             self._raw_stats = response[0]
-        elif profile:
-            self.__parse_profile(response)
         else:
             # start by parsing statistics, matches the one we have
             self._raw_stats = response[-1]
@@ -420,15 +417,6 @@ class QueryResult:
         ]
 
         return records
-
-    def __parse_profile(self, response):
-        """
-        Parse the profile from the response.
-
-        Args:
-            response: The response containing the profile information.
-        """
-        self.result_set = [x[0: x.index(",")].strip() for x in response]
 
     @property
     def labels_added(self) -> int:

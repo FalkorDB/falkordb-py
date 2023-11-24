@@ -205,8 +205,7 @@ class Graph():
         self._edges = {}
 
     def query(self, q: str, params: Optional[Dict[str, object]] = None,
-              timeout: Optional[int] = None, read_only: bool = False,
-              profile: bool = False) -> QueryResult:
+              timeout: Optional[int] = None, read_only: bool = False) -> QueryResult:
         """
         Executes a query against the graph.
 
@@ -215,7 +214,6 @@ class Graph():
             params (dict): Query parameters.
             timeout (int): Maximum query runtime in milliseconds.
             read_only (bool): Executes a readonly query if set to True.
-            profile (bool): Profiles the query.
 
         Returns:
             QueryResult: query result set.
@@ -231,10 +229,7 @@ class Graph():
         # construct query command
         # ask for compact result-set format
         # specify known graph version
-        if profile:
-            cmd = PROFILE_CMD
-        else:
-            cmd = RO_QUERY_CMD if read_only else QUERY_CMD
+        cmd = RO_QUERY_CMD if read_only else QUERY_CMD
         command = [cmd, self.key, query, "--compact"]
 
         # include timeout is specified
@@ -246,7 +241,7 @@ class Graph():
         # issue query
         try:
             response = self.execute_command(*command)
-            return QueryResult(self, response, profile)
+            return QueryResult(self, response)
         except VersionMismatchException as e:
             # client view over the graph schema is out of sync
             # set client version and refresh local schema
@@ -256,8 +251,7 @@ class Graph():
             return self.query(q, params, timeout, read_only)
 
     def ro_query(self, q: str, params: Optional[Dict[str, object]] = None,
-              timeout: Optional[int] = None, read_only: bool = False,
-              profile: bool = False) -> QueryResult:
+              timeout: Optional[int] = None, read_only: bool = False) -> QueryResult:
         """
         Executes a read-only query against the graph.
 
@@ -265,14 +259,12 @@ class Graph():
             q (str): The query.
             params (dict): Query parameters.
             timeout (int): Maximum query runtime in milliseconds.
-            profile (bool): Profiles the query.
 
         Returns:
             QueryResult: query result set.
 
         """
-        return self.query(q, params=params, timeout=timeout, read_only=True,
-                          profile=profile)
+        return self.query(q, params=params, timeout=timeout, read_only=True)
 
     def merge(self, pattern) -> QueryResult:
         """
@@ -303,23 +295,6 @@ class Graph():
         self.__clear_schema()
         return self.execute_command(DELETE_CMD, self.key)
 
-    def profile(self, query: str):
-        """
-        Execute a query and produce an execution plan augmented with metrics
-        for each operation's execution. Return a string representation of a
-        query execution plan, with details on results produced by and time
-        spent in each operation.
-
-        Args:
-            query (str): The query to profile.
-
-        Returns:
-            str: The profile information.
-
-        """
-
-        return self.query(query, profile=True)
-
     def slowlog(self):
         """
         Get a list containing up to 10 of the slowest queries issued
@@ -337,6 +312,25 @@ class Graph():
         """
 
         return self.execute_command(SLOWLOG_CMD, self.key)
+
+    def profile(self, query: str, params=None) -> ExecutionPlan:
+        """
+        Execute a query and produce an execution plan augmented with metrics
+        for each operation's execution. Return an execution plan,
+        with details on results produced by and time spent in each operation.
+
+        Args:
+            query (str): The query to profile.
+            params (dict): Query parameters.
+
+        Returns:
+            ExecutionPlan: The profile information.
+
+        """
+
+        query = self.__build_params_header(params) + query
+        plan = self.execute_command(PROFILE_CMD, self.key, query)
+        return ExecutionPlan(plan)
 
     def explain(self, query: str, params=None) -> ExecutionPlan:
         """
