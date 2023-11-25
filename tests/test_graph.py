@@ -1,13 +1,13 @@
 import pytest
 from redis import ResponseError
-from falkordb import FalkorDB, Graph, Edge, Node, Path, Operation
+from falkordb import DB, Graph, Edge, Node, Path, Operation
 
 
 @pytest.fixture
 def client(request):
-    f = FalkorDB(host='localhost', port=6379)
-    f.flushdb()
-    return Graph(f, "g")
+    db = DB(host='localhost', port=6379)
+    db.flushdb()
+    return Graph(db, "g")
 
 def test_graph_creation(client):
     graph = client

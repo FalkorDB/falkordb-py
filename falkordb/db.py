@@ -6,9 +6,9 @@ from .graph import Graph
 LIST_CMD   = "GRAPH.LIST"
 CONFIG_CMD = "GRAPH.CONFIG"
 
-class FalkorDB():
+class DB():
     """
-    FalkorDB Class for interacting with a FalkorDB server.
+    DB Class for interacting with a FalkorDB server.
     """
 
     def __init__(
@@ -46,7 +46,7 @@ class FalkorDB():
             single_connection_client=False,
             health_check_interval=0,
             client_name=None,
-            lib_name='FalkorDB-py',
+            lib_name='FalkorDB',
             lib_version='1.0.0',
             username=None,
             retry=None,
@@ -91,27 +91,27 @@ class FalkorDB():
         self.execute_command = conn.execute_command
 
     @classmethod
-    def from_url(cls, url: str, **kwargs) -> "FalkorDB":
+    def from_url(cls, url: str, **kwargs) -> "DB":
         """
-        Creates a new Falkor instance from a URL.
+        Creates a new DB instance from a URL.
 
         Args:
             cls: The class itself.
             url (str): The URL.
-            kwargs: Additional keyword arguments to pass to the ``FalkorDB.from_url`` function.
+            kwargs: Additional keyword arguments to pass to the ``DB.from_url`` function.
 
         Returns:
-            Falkor: A new Falkor instance.
+            DB: A new DB instance.
         """
 
-        falkor = cls()
+        db = cls()
 
         conn = redis.from_url(url, **kwargs)
-        falkor.connection      = conn
-        falkor.flushdb         = conn.flushdb
-        falkor.execute_command = conn.execute_command
+        db.connection      = conn
+        db.flushdb         = conn.flushdb
+        db.execute_command = conn.execute_command
 
-        return falkor
+        return db
 
     def select_graph(self, graph_id: str) -> Graph:
         """
@@ -141,7 +141,7 @@ class FalkorDB():
 
     def config_get(self, name: str) -> int | str:
         """
-        Retrieve a FalkorDB configuration.
+        Retrieve a DB level configuration.
 
         Args:
             name (str): The name of the configuration.
@@ -155,7 +155,7 @@ class FalkorDB():
 
     def config_set(self, name: str, value=None) -> None:
         """
-        Update a FalkorDB configuration.
+        Update a DB level configuration.
 
         Args:
             name (str): The name of the configuration.

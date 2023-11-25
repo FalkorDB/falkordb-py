@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "falkordb"
+name = "FalkorDB"
 version = "0.1.0"
 description = ""
 authors = ["swilly22 <roi.lipman@falkordb.com>"]
