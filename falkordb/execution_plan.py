@@ -135,7 +135,27 @@ class ExecutionPlan:
             plan = [b.decode() for b in plan]
 
         self.plan = plan
+        self.operations = []
         self.structured_plan = self._operation_tree()
+        self.operations.reverse()
+
+    def collect_operations(self, op_name):
+        """
+        Collects all operations with specified name from plan
+
+        Args:
+            op_name (string): Name of operation to collect
+
+        Returns:
+            List[Operation]: All operations with the specified name
+        """
+        ops = []
+
+        for op in self.operations:
+            if op.name == op_name:
+                ops.append(op)
+
+        return ops
 
     def __compare_operations(self, root_a, root_b) -> bool:
         """
@@ -200,6 +220,9 @@ class ExecutionPlan:
         # compare execution trees
         return self.__compare_operations(root_a, root_b)
 
+    def __iter__(self):
+        return iter(self.operations)
+
     def _operation_traverse(self, op, op_f, aggregate_f, combine_f):
         """
         Traverses the operation tree recursively applying functions.
@@ -261,6 +284,8 @@ class ExecutionPlan:
                 # if the operation level equal to the current level
                 # set the current operation and move next
                 child = create_operation(current_op.split("|"))
+                self.operations.append(child)
+
                 if current:
                     current = stack.pop()
                     current.append_child(child)
@@ -271,6 +296,8 @@ class ExecutionPlan:
                 # if the operation is child of the current operation
                 # add it as child and set as current operation
                 child = create_operation(current_op.split("|"))
+                self.operations.append(child)
+
                 current.append_child(child)
                 stack.append(current)
                 current = child
