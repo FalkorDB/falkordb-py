@@ -1,5 +1,5 @@
 from typing import List, Optional, Union
-from .helpers import quote_string, random_string
+from .helpers import quote_string
 
 class Node:
     """
@@ -7,7 +7,7 @@ class Node:
     """
 
     def __init__(self, node_id: Optional[int] = None,
-                 alias: Optional[str] = None,
+                 alias: Optional[str] = '',
                  labels: Optional[Union[str, List[str]]] = None,
                  properties=None):
         """
@@ -15,7 +15,7 @@ class Node:
 
         Args:
             node_id: The ID of the node.
-            alias: An alias for the node (default is a random string).
+            alias: An alias for the node (default is empty string).
             labels: The label or list of labels for the node.
             properties: The properties of the node.
 
@@ -23,7 +23,7 @@ class Node:
             None
         """
         self.id     = node_id
-        self.alias  = random_string() if alias is None else alias
+        self.alias  = alias
         self.labels = None
 
         if isinstance(labels, list):

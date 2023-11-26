@@ -1,7 +1,3 @@
-import random
-import string
-
-
 def quote_string(v):
     """
     FalkorDB strings must be quoted,
@@ -20,14 +16,6 @@ def quote_string(v):
     v = v.replace('"', '\\"')
 
     return f'"{v}"'
-
-def random_string(length: int = 10) -> str:
-    """
-    Returns a random N character long string.
-    """
-    return "".join(
-        random.choice(string.ascii_lowercase) for x in range(length)
-    )
 
 def stringify_param_value(value):
     """

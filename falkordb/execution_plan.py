@@ -135,9 +135,10 @@ class ExecutionPlan:
             plan = [b.decode() for b in plan]
 
         self.plan = plan
-        self.operations = []
+        self.operations = {}
         self.structured_plan = self._operation_tree()
-        self.operations.reverse()
+        for key in self.operations:
+            self.operations[key].reverse()
 
     def collect_operations(self, op_name):
         """
@@ -149,6 +150,10 @@ class ExecutionPlan:
         Returns:
             List[Operation]: All operations with the specified name
         """
+        if op_name in self.operations:
+            return self.operations[op_name]
+        return []
+
         ops = []
 
         for op in self.operations:
@@ -284,7 +289,9 @@ class ExecutionPlan:
                 # if the operation level equal to the current level
                 # set the current operation and move next
                 child = create_operation(current_op.split("|"))
-                self.operations.append(child)
+                if child.name not in self.operations:
+                    self.operations[child.name] = []
+                self.operations[child.name].append(child)
 
                 if current:
                     current = stack.pop()
@@ -296,7 +303,9 @@ class ExecutionPlan:
                 # if the operation is child of the current operation
                 # add it as child and set as current operation
                 child = create_operation(current_op.split("|"))
-                self.operations.append(child)
+                if child.name not in self.operations:
+                    self.operations[child.name] = []
+                self.operations[child.name].append(child)
 
                 current.append_child(child)
                 stack.append(current)

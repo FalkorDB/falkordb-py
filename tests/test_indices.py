@@ -1,6 +1,6 @@
 import pytest
 from redis import ResponseError
-from falkordb import DB, Graph, Edge, Node
+from falkordb import FalkorDB, Graph, Edge, Node
 from collections import OrderedDict
 
 class Index():
@@ -12,7 +12,7 @@ class Index():
 
 @pytest.fixture
 def client(request):
-    db = DB(host='localhost', port=6379)
+    db = FalkorDB(host='localhost', port=6379)
     db.flushdb()
     return Graph(db, "g")
 

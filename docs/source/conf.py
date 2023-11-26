@@ -13,8 +13,8 @@ sys.path.insert(0, os.path.abspath('../..'))
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 project = 'FalkorDB-py'
-copyright = '2023, Roi Lipman'
-author = 'Roi Lipman'
+copyright = '2023, FalkorDB inc'
+author = 'FalkorDB inc'
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration

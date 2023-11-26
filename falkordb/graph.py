@@ -1,9 +1,7 @@
 from typing import List, Dict, Optional
-from .node import Node
-from .edge import Edge
 from .query_result import QueryResult
 from .execution_plan import ExecutionPlan
-from .exceptions import VersionMismatchException
+from .exceptions import SchemaVersionMismatchException
 from .helpers import quote_string, stringify_param_value
 
 # procedures
@@ -11,8 +9,6 @@ DB_LABELS             = "DB.LABELS"
 GRAPH_INDEXES         = "DB.INDEXES"
 DB_PROPERTYKEYS       = "DB.PROPERTYKEYS"
 DB_RELATIONSHIPTYPES  = "DB.RELATIONSHIPTYPES"
-QUERY_VECTOR_NODE_IDX = "db.idx.vector.queryNodes"
-QUERY_VECTOR_EDGE_IDX = "db.idx.vector.queryRelationships"
 
 # commands
 QUERY_CMD             = "GRAPH.QUERY"
@@ -23,335 +19,20 @@ PROFILE_CMD           = "GRAPH.PROFILE"
 RO_QUERY_CMD          = "GRAPH.RO_QUERY"
 
 
-class Graph():
+class GraphSchema():
     """
-    Graph, collection of nodes and edges.
     """
-
-    def __init__(self, client, key: str):
+    def __init__(self, graph: 'Graph', labels: List[str], relationships: List[str],
+                 properties: List[str]):
         """
-        Create a new graph.
-
-        Args:
-            client: The client object.
-            key (str): Graph ID
-
         """
-
-        self._key            = key # graph ID
-        self.client          = client
-        self.execute_command = client.execute_command
-
-        self.version = 0               # graph version
-        self._nodes = {}               # set of nodes
-        self._edges = {}               # set of edges
-        self._labels = []              # list of node labels
-        self._properties = []          # list of properties
-        self._relationship_types = []  # list of relation types
-
-    @property
-    def key(self) -> str:
-        """
-        Get the graph key.
-
-        Returns:
-            str: The graph key.
-
-        """
-
-        return self._key
-
-    @property
-    def number_of_nodes(self) -> int:
-        """
-        Returns the number of nodes in the graph.
-
-        Returns:
-            int: Number of nodes in the graph.
-
-        """
-
-        return len(self._nodes)
-
-    @property
-    def number_of_edges(self) -> int:
-        """
-        Returns the number of edges in the graph.
-
-        Returns:
-            int: Number of edges in the graph.
-
-        """
-
-        return len(self._edges)
-
-    def add_node(self, node: Node) -> None:
-        """
-        Adds a new node to the graph.
-
-        Args:
-            node (Node): The new node to add.
-
-        Returns:
-            None
-
-        """
-
-        self._nodes[node.alias] = node
-
-    def add_edge(self, edge: Edge) -> None:
-        """
-        Adds a new edge to the graph.
-        Edge ends are also added in case they're missing.
-
-        Args:
-            edge (Edge): The new edge to add.
-
-        Returns:
-            None
-
-        """
-
-        if not self._nodes[edge.src_node.alias]:
-            self.add_node(edge.src_node)
-
-        if not self._nodes[edge.dest_node.alias]:
-            self.add_node(edge.dest_node)
-
-        self._edges[edge.alias] = edge
-
-    def remove_node(self, node: Node) -> None:
-        """
-        Removes a node and all of its incoming and outgoing edges from the graph.
-
-        Args:
-            node (Node): The node to remove.
-
-        Returns:
-            None
-
-        """
-
-        # remove all incoming and outgoing edges of 'node'
-        edges_to_remove = []
-        for e in self._edges:
-            if node in (e.src_node, e.dest_node):
-                edges_to_remove.append(e)
-
-        for e in edges_to_remove:
-            del self._edges[e]
-
-        # remove node
-        del self._nodes[node.alias]
-
-    def remove_edge(self, edge: Edge) -> None:
-        """
-        Removes an edge from the graph.
-
-        Args:
-            edge (Edge): The edge to remove.
-
-        Returns:
-            None
-
-        """
-
-        del self._edges[edge.alias]
-
-    def commit(self) -> QueryResult:
-        """
-        Commits the graph into the database.
-
-        Returns:
-            None
-
-        """
-
-        node_count = len(self._nodes)
-        edge_count = len(self._edges)
-
-        # empty graph
-        if node_count == 0 and edge_count == 0:
-            return None
-
-        query = "CREATE "
-
-        nodes_str = ""
-        if node_count:
-            nodes_str = ",".join([str(n[1]) for n in self._nodes.items()])
-
-        edges_str = ""
-        if edge_count:
-            edges_str= ",".join([str(e[1]) for e in self._edges.items()])
-
-        if node_count > 0 and edge_count > 0:
-            query += nodes_str + "," + edges_str
-        else:
-            query += nodes_str + edges_str
-
-        return self.query(query)
-
-    def flush(self) -> None:
-        """
-        Flushes the graph into the database and clears the graph.
-
-        Returns:
-            None
-
-        """
-
-        self.commit()
-        self._nodes = {}
-        self._edges = {}
-
-    def query(self, q: str, params: Optional[Dict[str, object]] = None,
-              timeout: Optional[int] = None, read_only: bool = False) -> QueryResult:
-        """
-        Executes a query against the graph.
-
-        Args:
-            q (str): The query.
-            params (dict): Query parameters.
-            timeout (int): Maximum query runtime in milliseconds.
-            read_only (bool): Executes a readonly query if set to True.
-
-        Returns:
-            QueryResult: query result set.
-
-        """
-
-        # maintain original 'q'
-        query = q
-
-        # handle query parameters
-        query = self.__build_params_header(params) + query
-
-        # construct query command
-        # ask for compact result-set format
-        # specify known graph version
-        cmd = RO_QUERY_CMD if read_only else QUERY_CMD
-        command = [cmd, self.key, query, "--compact"]
-
-        # include timeout is specified
-        if isinstance(timeout, int):
-            command.extend(["timeout", timeout])
-        elif timeout is not None:
-            raise Exception("Timeout argument must be a positive integer")
-
-        # issue query
-        try:
-            response = self.execute_command(*command)
-            return QueryResult(self, response)
-        except VersionMismatchException as e:
-            # client view over the graph schema is out of sync
-            # set client version and refresh local schema
-            self.version = e.version
-            self.__refresh_schema()
-            # re-issue query
-            return self.query(q, params, timeout, read_only)
-
-    def ro_query(self, q: str, params: Optional[Dict[str, object]] = None,
-              timeout: Optional[int] = None, read_only: bool = False) -> QueryResult:
-        """
-        Executes a read-only query against the graph.
-
-        Args:
-            q (str): The query.
-            params (dict): Query parameters.
-            timeout (int): Maximum query runtime in milliseconds.
-
-        Returns:
-            QueryResult: query result set.
-
-        """
-        return self.query(q, params=params, timeout=timeout, read_only=True)
-
-    def merge(self, pattern) -> QueryResult:
-        """
-        Merge pattern.
-
-        Args:
-            pattern: The pattern to merge.
-
-        Returns:
-            QueryResult: The result of the merge.
-
-        """
-
-        query = "MERGE "
-        query += str(pattern)
-
-        return self.query(query)
-
-    def delete(self) -> None:
-        """
-        Deletes the graph.
-
-        Returns:
-            None
-
-        """
-
-        self.__clear_schema()
-        return self.execute_command(DELETE_CMD, self.key)
-
-    def slowlog(self):
-        """
-        Get a list containing up to 10 of the slowest queries issued
-        against the graph.
-
-        Each item in the list has the following structure:
-        1. a unix timestamp at which the log entry was processed
-        2. the issued command
-        3. the issued query
-        4. the amount of time needed for its execution, in milliseconds.
-
-        Returns:
-            List: List of slow log entries.
-
-        """
-
-        return self.execute_command(SLOWLOG_CMD, self.key)
-
-    def profile(self, query: str, params=None) -> ExecutionPlan:
-        """
-        Execute a query and produce an execution plan augmented with metrics
-        for each operation's execution. Return an execution plan,
-        with details on results produced by and time spent in each operation.
-
-        Args:
-            query (str): The query to profile.
-            params (dict): Query parameters.
-
-        Returns:
-            ExecutionPlan: The profile information.
-
-        """
-
-        query = self.__build_params_header(params) + query
-        plan = self.execute_command(PROFILE_CMD, self.key, query)
-        return ExecutionPlan(plan)
-
-    def explain(self, query: str, params=None) -> ExecutionPlan:
-        """
-        Get the execution plan for a given query.
-        GRAPH.EXPLAIN returns an ExecutionPlan object.
-
-        Args:
-            query (str): The query for which to get the execution plan.
-            params (dict): Query parameters.
-
-        Returns:
-            ExecutionPlan: The execution plan.
-
-        """
-
-        query = self.__build_params_header(params) + query
-
-        plan = self.execute_command(EXPLAIN_CMD, self.key, query)
-        return ExecutionPlan(plan)
-
-    def __clear_schema(self) -> None:
+        self.graph         = graph
+        self.labels        = labels
+        self.properties    = properties
+        self.relationships = relationships
+        self.version       = 0 # graph schema version
+
+    def clear(self):
         """
         Clear the graph schema.
 
@@ -360,25 +41,11 @@ class Graph():
 
         """
 
-        self._labels = []
-        self._properties = []
-        self._relationship_types = []
+        self.labels        = []
+        self.properties    = []
+        self.relationships = []
 
-    def __refresh_schema(self) -> None:
-        """
-        Refresh the graph schema.
-
-        Returns:
-            None
-
-        """
-
-        self.__clear_schema()
-        self.__refresh_labels()
-        self.__refresh_relations()
-        self.__refresh_attributes()
-
-    def __refresh_labels(self) -> None:
+    def refresh_labels(self) -> None:
         """
         Refresh labels.
 
@@ -386,12 +53,10 @@ class Graph():
             None
 
         """
-        lbls = self.labels()
+        result_set = self.graph.query(f"CALL {DB_LABELS}()").result_set
+        self.labels = [l[0] for l in result_set]
 
-        # unpack data
-        self._labels = [l[0] for _, l in enumerate(lbls)]
-
-    def __refresh_relations(self) -> None:
+    def refresh_relations(self) -> None:
         """
         Refresh relationship types.
 
@@ -400,12 +65,10 @@ class Graph():
 
         """
 
-        rels = self.relationship_types()
+        result_set = self.graph.query(f"CALL {DB_RELATIONSHIPTYPES}()").result_set
+        self.relationships = [r[0] for r in result_set]
 
-        # unpack data
-        self._relationship_types = [r[0] for _, r in enumerate(rels)]
-
-    def __refresh_attributes(self) -> None:
+    def refresh_properties(self) -> None:
         """
         Refresh property keys.
 
@@ -414,10 +77,22 @@ class Graph():
 
         """
 
-        props = self.property_keys()
+        result_set = self.graph.query(f"CALL {DB_PROPERTYKEYS}()").result_set
+        self.properties = [p[0] for p in result_set]
 
-        # unpack data
-        self._properties = [p[0] for _, p in enumerate(props)]
+    def refresh_schema(self) -> None:
+        """
+        Refresh the graph schema.
+
+        Returns:
+            None
+
+        """
+
+        self.clear()
+        self.refresh_labels()
+        self.refresh_relations()
+        self.refresh_properties()
 
     def get_label(self, idx: int) -> str:
         """
@@ -432,11 +107,11 @@ class Graph():
         """
 
         try:
-            label = self._labels[idx]
+            label = self.labels[idx]
         except IndexError:
             # refresh labels
-            self.__refresh_labels()
-            label = self._labels[idx]
+            self.refresh_labels()
+            label = self.labels[idx]
         return label
 
     def get_relation(self, idx: int) -> str:
@@ -452,11 +127,11 @@ class Graph():
         """
 
         try:
-            relationship_type = self._relationship_types[idx]
+            relationship_type = self.relationships[idx]
         except IndexError:
             # refresh relationship types
-            self.__refresh_relations()
-            relationship_type = self._relationship_types[idx]
+            self.refresh_relations()
+            relationship_type = self.relationships[idx]
         return relationship_type
 
     def get_property(self, idx: int) -> str:
@@ -472,12 +147,190 @@ class Graph():
         """
 
         try:
-            p = self._properties[idx]
+            p = self.properties[idx]
         except IndexError:
             # refresh properties
-            self.__refresh_attributes()
-            p = self._properties[idx]
+            self.refresh_properties()
+            p = self.properties[idx]
         return p
+
+
+class Graph():
+    """
+    Graph, collection of nodes and edges.
+    """
+
+    def __init__(self, client, name: str):
+        """
+        Create a new graph.
+
+        Args:
+            client: The client object.
+            name (str): Graph ID
+
+        """
+
+        self._name           = name
+        self.client          = client
+        self.schema          = GraphSchema(self, [], [], [])
+        self.execute_command = client.execute_command
+
+    @property
+    def name(self) -> str:
+        """
+        Get the graph name.
+
+        Returns:
+            str: The graph name.
+
+        """
+
+        return self._name
+
+    def _query(self, q: str, params: Optional[Dict[str, object]] = None,
+              timeout: Optional[int] = None, read_only: bool = False) -> QueryResult:
+        # maintain original 'q'
+        query = q
+
+        # handle query parameters
+        query = self.__build_params_header(params) + query
+
+        # construct query command
+        # ask for compact result-set format
+        # specify known graph version
+        cmd = RO_QUERY_CMD if read_only else QUERY_CMD
+        command = [cmd, self.name, query, "--compact"]
+
+        # include timeout is specified
+        if isinstance(timeout, int):
+            command.extend(["timeout", timeout])
+        elif timeout is not None:
+            raise Exception("Timeout argument must be a positive integer")
+
+        # issue query
+        try:
+            response = self.execute_command(*command)
+            return QueryResult(self, response)
+        except SchemaVersionMismatchException as e:
+            # client view over the graph schema is out of sync
+            # set client version and refresh local schema
+            self.schema.version = e.version
+            self.schema.refresh()
+            raise e
+
+    def query(self, q: str, params: Optional[Dict[str, object]] = None,
+              timeout: Optional[int] = None) -> QueryResult:
+        """
+        Executes a query against the graph.
+        See: https://docs.falkordb.com/commands/graph.query.html
+
+        Args:
+            q (str): The query.
+            params (dict): Query parameters.
+            timeout (int): Maximum query runtime in milliseconds.
+
+        Returns:
+            QueryResult: query result set.
+
+        """
+
+        return self._query(q, params=params, timeout=timeout, read_only=False)
+
+    def ro_query(self, q: str, params: Optional[Dict[str, object]] = None,
+              timeout: Optional[int] = None) -> QueryResult:
+        """
+        Executes a read-only query against the graph.
+        See: https://docs.falkordb.com/commands/graph.ro_query.html
+
+        Args:
+            q (str): The query.
+            params (dict): Query parameters.
+            timeout (int): Maximum query runtime in milliseconds.
+
+        Returns:
+            QueryResult: query result set.
+
+        """
+
+        return self._query(q, params=params, timeout=timeout, read_only=True)
+
+    def delete(self) -> None:
+        """
+        Deletes the graph.
+        See: https://docs.falkordb.com/commands/graph.delete.html
+
+        Returns:
+            None
+
+        """
+
+        self.schema.clear()
+        return self.execute_command(DELETE_CMD, self._name)
+
+    def slowlog(self):
+        """
+        Get a list containing up to 10 of the slowest queries issued
+        against the graph.
+
+        Each item in the list has the following structure:
+        1. a unix timestamp at which the log entry was processed
+        2. the issued command
+        3. the issued query
+        4. the amount of time needed for its execution, in milliseconds.
+
+        See: https://docs.falkordb.com/commands/graph.slowlog.html
+
+        Returns:
+            List: List of slow log entries.
+
+        """
+
+        return self.execute_command(SLOWLOG_CMD, self._name)
+
+    def slowlog_reset(self):
+        """
+        """
+        self.execute_command(SLOWLOG_CMD, self._name, "RESET")
+
+    def profile(self, query: str, params=None) -> ExecutionPlan:
+        """
+        Execute a query and produce an execution plan augmented with metrics
+        for each operation's execution. Return an execution plan,
+        with details on results produced by and time spent in each operation.
+        See: https://docs.falkordb.com/commands/graph.profile.html
+
+        Args:
+            query (str): The query to profile.
+            params (dict): Query parameters.
+
+        Returns:
+            ExecutionPlan: The profile information.
+
+        """
+
+        query = self.__build_params_header(params) + query
+        plan = self.execute_command(PROFILE_CMD, self._name, query)
+        return ExecutionPlan(plan)
+
+    def explain(self, query: str, params=None) -> ExecutionPlan:
+        """
+        Get the execution plan for a given query.
+        GRAPH.EXPLAIN returns an ExecutionPlan object.
+        See: https://docs.falkordb.com/commands/graph.explain.html
+
+        Args:
+            query (str): The query for which to get the execution plan.
+            params (dict): Query parameters.
+
+        Returns:
+            ExecutionPlan: The execution plan.
+
+        """
+
+        query = self.__build_params_header(params) + query
+
+        plan = self.execute_command(EXPLAIN_CMD, self._name, query)
+        return ExecutionPlan(plan)
 
     def __build_params_header(self, params: dict) -> str:
         """
@@ -504,8 +357,7 @@ class Graph():
     # procedures
     def call_procedure(self, procedure: str, read_only: bool = True,
                        args: Optional[List] = None,
-                       emit: Optional[List[str]] = None,
-                       params: Optional[Dict[str, object]] = None) -> QueryResult:
+                       emit: Optional[List[str]] = None) -> QueryResult:
         """
         Call a procedure.
 
@@ -519,44 +371,28 @@ class Graph():
             QueryResult: The result of the procedure call.
 
         """
+
+        # make sure strings arguments are quoted
         args = args or []
         args = [quote_string(arg) for arg in args]
+
+        # convert arguments to query parameters
+        # CALL <proc>(1) -> CYPHER param_0=1 CALL <proc>($param_0)
+        params = {}
+        for arg, i in enumerate(args):
+            param_name = f'param{i}'
+            params[param_name] = arg
+            args[i] = param_name
+
         q = f"CALL {procedure}({','.join(args)})"
 
         if emit is not None and len(emit) > 0:
             q += f"YIELD {','.join(emit)}"
 
-        return self.query(q, read_only=read_only, params=params)
+        if read_only:
+            return self.ro_query(q, params=params)
 
-    def labels(self) -> List[str]:
-        """
-        Get node labels.
-
-        Returns:
-            List: List of node labels.
-
-        """
-        return self.call_procedure(DB_LABELS).result_set
-
-    def relationship_types(self) -> List[str]:
-        """
-        Get relationship types.
-
-        Returns:
-            List: List of relationship types.
-
-        """
-        return self.call_procedure(DB_RELATIONSHIPTYPES).result_set
-
-    def property_keys(self) -> List[str]:
-        """
-        Get property keys.
-
-        Returns:
-            List: List of property keys.
-
-        """
-        return self.call_procedure(DB_PROPERTYKEYS).result_set
+        return self.query(q, params=params)
 
     # index operations
 
@@ -595,6 +431,7 @@ class Graph():
 
     def drop_node_range_index(self, label: str, attribute: str) -> QueryResult:
         """Drop a range index for a node.
+        See: https://docs.falkordb.com/commands/graph.query.html#deleting-an-index-for-a-node-label
 
         Args:
             label (str): The label of the node.
@@ -607,6 +444,7 @@ class Graph():
 
     def drop_node_fulltext_index(self, label: str, attribute: str) -> QueryResult:
         """Drop a full-text index for a node.
+        See: https://docs.falkordb.com/commands/graph.query.html#deleting-an-index-for-a-node-label
 
         Args:
             label (str): The label of the node.
@@ -619,6 +457,7 @@ class Graph():
 
     def drop_node_vector_index(self, label: str, attribute: str) -> QueryResult:
         """Drop a vector index for a node.
+        See: https://docs.falkordb.com/commands/graph.query.html#deleting-an-index-for-a-node-label
 
         Args:
             label (str): The label of the node.
@@ -631,6 +470,7 @@ class Graph():
 
     def drop_edge_range_index(self, label: str, attribute: str) -> QueryResult:
         """Drop a range index for an edge.
+        See: https://docs.falkordb.com/commands/graph.query.html#deleting-an-index-for-a-relationship-type
 
         Args:
             label (str): The label of the edge.
@@ -643,6 +483,7 @@ class Graph():
 
     def drop_edge_fulltext_index(self, label: str, attribute: str) -> QueryResult:
         """Drop a full-text index for an edge.
+        See: https://docs.falkordb.com/commands/graph.query.html#deleting-an-index-for-a-relationship-type
 
         Args:
             label (str): The label of the edge.
@@ -655,6 +496,7 @@ class Graph():
 
     def drop_edge_vector_index(self, label: str, attribute: str) -> QueryResult:
         """Drop a vector index for an edge.
+        See: https://docs.falkordb.com/commands/graph.query.html#deleting-an-index-for-a-relationship-type
 
         Args:
             label (str): The label of the edge.
@@ -667,6 +509,7 @@ class Graph():
 
     def list_indices(self) -> QueryResult:
         """Retrieve a list of graph indices.
+        See: https://docs.falkordb.com/commands/graph.query.html#procedures
 
         Returns:
             list: List of graph indices.
@@ -716,6 +559,7 @@ class Graph():
 
     def create_node_range_index(self, label: str, *properties) -> QueryResult:
         """Create a range index for a node.
+        See: https://docs.falkordb.com/commands/graph.query.html#creating-an-index-for-a-node-label
 
         Args:
             label (str): The label of the node.
@@ -728,6 +572,7 @@ class Graph():
 
     def create_node_fulltext_index(self, label: str, *properties) -> QueryResult:
         """Create a full-text index for a node.
+        See: https://docs.falkordb.com/commands/graph.query.html#creating-a-full-text-index-for-a-node-label
 
         Args:
             label (str): The label of the node.
@@ -741,6 +586,7 @@ class Graph():
     def create_node_vector_index(self, label: str, *properties, dim: int = 0,
                                  similarity_function: str = "euclidean") -> QueryResult:
         """Create a vector index for a node.
+        See: https://docs.falkordb.com/commands/graph.query.html#vector-indexing
 
         Args:
             label (str): The label of the node.
@@ -756,6 +602,7 @@ class Graph():
 
     def create_edge_range_index(self, relation: str, *properties) -> QueryResult:
         """Create a range index for an edge.
+        See: https://docs.falkordb.com/commands/graph.query.html#creating-an-index-for-a-relationship-type
 
         Args:
             relation (str): The relation of the edge.
@@ -768,6 +615,7 @@ class Graph():
 
     def create_edge_fulltext_index(self, relation: str, *properties) -> QueryResult:
         """Create a full-text index for an edge.
+        See: https://docs.falkordb.com/commands/graph.query.html#full-text-indexing
 
         Args:
             relation (str): The relation of the edge.
@@ -781,6 +629,7 @@ class Graph():
     def create_edge_vector_index(self, relation: str, *properties, dim: int = 0,
                                  similarity_function: str = "euclidean") -> QueryResult:
         """Create a vector index for an edge.
+        See: https://docs.falkordb.com/commands/graph.query.html#vector-indexing
 
         Args:
             relation (str): The relation of the edge.
@@ -793,39 +642,3 @@ class Graph():
         """
         options = {'dimension': dim, 'similarityFunction': similarity_function}
         return self._create_typed_index("VECTOR", "EDGE", relation, *properties, options=options)
-
-    def query_node_vector_index(self, label: str, attribute: str, k: int,
-                                q: List[float]) -> QueryResult:
-        """Query a vector index for nodes.
-
-        Args:
-            label (str): The label of the node.
-            attribute (str): The attribute of the vector.
-            k (int): The number of results to retrieve.
-            q (str): The query string.
-
-        Returns:
-            Any: The result of the vector index query.
-        """
-
-        params = {'label': label, 'attribute': attribute, 'k': k, 'q': q}
-        query = f"CALL {QUERY_VECTOR_NODE_IDX}($label, $attribute, $k, vecf32($q))"
-        return self.ro_query(query, params=params)
-
-    def query_edge_vector_index(self, relation: str, attribute: str, k: int,
-                                q: List[float]) -> QueryResult:
-        """Query a vector index for edges.
-
-        Args:
-            relation (str): The relation of the edge.
-            attribute (str): The attribute of the vector.
-            k (int): The number of results to retrieve.
-            q (str): The query string.
-
-        Returns:
-            Any: The result of the vector index query.
-        """
-
-        params = {'relation': relation, 'attribute': attribute, 'k': k, 'q': q}
-        query = f"CALL {QUERY_VECTOR_EDGE_IDX}($relation, $attribute, $k, vecf32($q))"
-        return self.ro_query(query, params=params)

@@ -27,16 +27,6 @@ class Path:
         self._edges = edges
         self.append_type = Node
 
-    @classmethod
-    def new_empty_path(cls):
-        """
-        Creates a new empty Path instance.
-
-        Returns:
-            Path: An empty Path instance.
-        """
-        return cls([], [])
-
     def nodes(self) -> List[Node]:
         """
         Returns the list of nodes in the path.
@@ -120,38 +110,6 @@ class Path:
             int: Number of nodes in the path.
         """
         return len(self._nodes)
-
-    def add_node(self, node: Node):
-        """
-        Adds a node to the path. Raises an AssertionError if the provided element is not of the expected type.
-
-        Args:
-            node (Node): The node to be added.
-
-        Returns:
-            Path: The updated path instance.
-        """
-        if not isinstance(node, self.append_type):
-            raise AssertionError("Add Edge before adding Node")
-        self._nodes.append(node)
-        self.append_type = Edge
-        return self
-
-    def add_edge(self, edge: Edge):
-        """
-        Adds an edge to the path. Raises an AssertionError if the provided element is not of the expected type.
-
-        Args:
-            edge (Edge): The edge to be added.
-
-        Returns:
-            Path: The updated path instance.
-        """
-        if not isinstance(edge, self.append_type):
-            raise AssertionError("Add Node before adding Edge")
-        self._edges.append(edge)
-        self.append_type = Node
-        return self
 
     def __eq__(self, other) -> bool:
         """

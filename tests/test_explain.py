@@ -1,10 +1,10 @@
 import pytest
-from falkordb import DB
+from falkordb import FalkorDB
 
 
 @pytest.fixture
 def client(request):
-    db = DB(host='localhost', port=6379)
+    db = FalkorDB(host='localhost', port=6379)
     return db
 
 

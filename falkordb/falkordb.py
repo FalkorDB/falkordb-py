@@ -6,9 +6,20 @@ from .graph import Graph
 LIST_CMD   = "GRAPH.LIST"
 CONFIG_CMD = "GRAPH.CONFIG"
 
-class DB():
+class FalkorDB():
     """
-    DB Class for interacting with a FalkorDB server.
+    FalkorDB Class for interacting with a FalkorDB server.
+
+    Usage example::
+        from falkordb import FalkorDB
+        # connect to the database and select the 'social' graph
+        db = FalkorDB()
+        graph = db.select_graph("social")
+
+        # get a single 'Person' node from the graph and print its name
+        result = graph.query("MATCH (n:Person) RETURN n LIMIT 1").result_set
+        person = result[0][0]
+        print(node.properties['name'])
     """
 
     def __init__(
@@ -26,7 +37,6 @@ class DB():
             encoding_errors='strict',
             charset=None,
             errors=None,
-            decode_responses=True,
             retry_on_timeout=False,
             retry_on_error=None,
             ssl=False,
@@ -64,7 +74,7 @@ class DB():
                            unix_socket_path=unix_socket_path,
                            encoding=encoding, encoding_errors=encoding_errors,
                            charset=charset, errors=errors,
-                           decode_responses=decode_responses,
+                           decode_responses=True,
                            retry_on_timeout=retry_on_timeout,
                            retry_on_error=retry_on_error, ssl=ssl,
                            ssl_keyfile=ssl_keyfile, ssl_certfile=ssl_certfile,
@@ -91,9 +101,9 @@ class DB():
         self.execute_command = conn.execute_command
 
     @classmethod
-    def from_url(cls, url: str, **kwargs) -> "DB":
+    def from_url(cls, url: str, **kwargs) -> "FalkorDB":
         """
-        Creates a new DB instance from a URL.
+        Creates a new FalkorDB instance from a URL.
 
         Args:
             cls: The class itself.
@@ -105,6 +115,15 @@ class DB():
         """
 
         db = cls()
+
+        # switch from redis:// to falkordb://
+        # falkor://[[username]:[password]]@localhost:6379/0
+        # falkors://[[username]:[password]]@localhost:6379/0
+        # unix://[username@]/path/to/socket.sock?db=0[&password=password]
+        if uri.startswith('falkor://'):
+            uri = 'redis://' + uri[len('falkor://'):]
+        elif uri.startswith('falkors://'):
+            uri = 'rediss://' + uri[len('falkors://'):]
 
         conn = redis.from_url(url, **kwargs)
         db.connection      = conn
@@ -130,10 +149,11 @@ class DB():
 
     def list_graphs(self) -> List[str]:
         """
-        Lists all graph keys in keyspace.
+        Lists all graph names.
+        See: https://docs.falkordb.com/commands/graph.list.html
 
         Returns:            
-            List: List of keys.
+            List: List of graph names.
 
         """
 
@@ -142,6 +162,7 @@ class DB():
     def config_get(self, name: str) -> int | str:
         """
         Retrieve a DB level configuration.
+        For a list of available configurations see: https://docs.falkordb.com/configuration.html#falkordb-configuration-parameters
 
         Args:
             name (str): The name of the configuration.
@@ -156,6 +177,7 @@ class DB():
     def config_set(self, name: str, value=None) -> None:
         """
         Update a DB level configuration.
+        For a list of available configurations see: https://docs.falkordb.com/configuration.html#falkordb-configuration-parameters
 
         Args:
             name (str): The name of the configuration.

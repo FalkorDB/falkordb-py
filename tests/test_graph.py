@@ -1,11 +1,11 @@
 import pytest
 from redis import ResponseError
-from falkordb import DB, Graph, Edge, Node, Path, Operation
+from falkordb import FalkorDB, Graph, Edge, Node, Path, Operation
 
 
 @pytest.fixture
 def client(request):
-    db = DB(host='localhost', port=6379)
+    db = FalkorDB(host='localhost', port=6379)
     db.flushdb()
     return Graph(db, "g")
 
@@ -13,6 +13,7 @@ def test_graph_creation(client):
     graph = client
 
     john = Node(
+        alias="p",
         labels="person",
         properties={
             "name": "John Doe",
@@ -21,20 +22,13 @@ def test_graph_creation(client):
             "status": "single",
         },
     )
-    graph.add_node(john)
 
-    japan = Node(labels="country", properties={"name": "Japan"})
-    graph.add_node(japan)
+    japan = Node(alias="c", labels="country", properties={"name": "Japan"})
 
-    edge = Edge(john, "visited", japan, properties={"purpose": "pleasure"})
-    graph.add_edge(edge)
+    edge = Edge(john, "visited", japan, alias="v", properties={"purpose": "pleasure"})
 
-    graph.commit()
-
-    query = """
-        MATCH (p:person)-[v:visited {purpose:"pleasure"}]->(c:country)
-        RETURN p, v, c"""
-
+    query = f"CREATE {john}, {japan}, {edge} RETURN p,v,c"
+    print(f"query: {query}")
     result = graph.query(query)
 
     person  = result.result_set[0][0]
@@ -62,11 +56,10 @@ def test_array_functions(client):
     a = Node(
         node_id=0,
         labels="person",
-        properties={"name": "a", "age": 32, "array": [0, 1, 2]},
+        properties={"name": "a", "age": 32, "array": [0, 1, 2]}
     )
 
-    graph.add_node(a)
-    graph.flush()
+    graph.query(f"CREATE {a}")
 
     query = "MATCH(n) return collect(n)"
     result = graph.query(query)
@@ -75,17 +68,14 @@ def test_array_functions(client):
 
 
 def test_path(client):
-    node0  = Node(node_id=0, labels="L1")
-    node1  = Node(node_id=1, labels="L1")
+    graph  = client
+    node0  = Node(alias="node0", node_id=0, labels="L1")
+    node1  = Node(alias="node1", node_id=1, labels="L1")
     edge01 = Edge(node0, "R1", node1, edge_id=0, properties={"value": 1})
 
-    graph = client
-    graph.add_node(node0)
-    graph.add_node(node1)
-    graph.add_edge(edge01)
-    graph.flush()
+    graph.query(f"CREATE {node0}, {node1}, {edge01}")
 
-    path01 = Path.new_empty_path().add_node(node0).add_edge(edge01).add_node(node1)
+    path01 = Path([node0, node1], [edge01])
     expected_results = [[path01]]
 
     query = "MATCH p=(:L1)-[:R1]->(:L1) RETURN p"
@@ -119,14 +109,10 @@ def test_map(client):
 
     assert actual == expected
 
-    src  = Node(node_id=0, labels="L1", properties={"v": 0})
-    dest = Node(node_id=1, labels="L2", properties={"v":2})
+    src  = Node(alias="src", node_id=0, labels="L1", properties={"v": 0})
+    dest = Node(alias="dest", node_id=1, labels="L2", properties={"v":2})
     e    = Edge(src, "R1", dest, edge_id=0, properties={"value": 1})
-
-    g.add_node(src)
-    g.add_node(dest)
-    g.add_edge(e)
-    g.flush()
+    g.query(f"CREATE {src}, {dest}, {e}")
 
     query = "MATCH (src)-[e]->(dest) RETURN {src:src, e:e, dest:dest}"
     actual = g.query(query).result_set[0][0]
@@ -171,13 +157,9 @@ def test_stringify_query_result(client):
     john = Node(alias="a", labels="person",
                 properties={ "name": "John Doe", "age": 33, "gender": "male",
                             "status": "single", })
-    g.add_node(john)
-
     japan = Node(alias="b", labels="country", properties={"name": "Japan"})
-    g.add_node(japan)
 
     e = Edge(john, "visited", japan, properties={"purpose": "pleasure"})
-    g.add_edge(e)
 
     assert (
         str(john)
@@ -186,7 +168,7 @@ def test_stringify_query_result(client):
     assert str(e) == """(a)-[:visited{purpose:"pleasure"}]->(b)"""
     assert str(japan) == """(b:country{name:"Japan"})"""
 
-    g.commit()
+    g.query(f"CREATE {john}, {japan}, {e}")
 
     query = """MATCH (p:person)-[v:visited {purpose:"pleasure"}]->(c:country)
                RETURN p, v, c"""
@@ -196,12 +178,10 @@ def test_stringify_query_result(client):
     visit   = result.result_set[0][1]
     country = result.result_set[0][2]
 
-    print(country)
-
-#    assert (
-#        str(person)
-#        == """(:person{age:33,gender:"male",name:"John Doe",status:"single"})"""
-#    )
+    assert (
+        str(person)
+        == """(:person{age:33,gender:"male",name:"John Doe",status:"single"})"""
+    )
     assert str(visit) == """()-[:visited{purpose:"pleasure"}]->()"""
     assert str(country) == """(:country{name:"Japan"})"""
 
@@ -210,16 +190,13 @@ def test_stringify_query_result(client):
 
 def test_optional_match(client):
     # build a graph of form (a)-[R]->(b)
-    src = Node(node_id=0, labels="L1", properties={"value": "a"})
-    dest = Node(node_id=1, labels="L1", properties={"value": "b"})
+    src = Node(alias="src", node_id=0, labels="L1", properties={"value": "a"})
+    dest = Node(alias="dest", node_id=1, labels="L1", properties={"value": "b"})
 
     e = Edge(src, "R", dest, edge_id=0)
 
     g = client
-    g.add_node(src)
-    g.add_node(dest)
-    g.add_edge(e)
-    g.flush()
+    g.query(f"CREATE {src}, {dest}, {e}")
 
     # issue a query that collects all outgoing edges from both nodes
     # (the second has none)
@@ -309,8 +286,7 @@ def test_multi_label(client):
     g = client
 
     node = Node(labels=["l", "ll"])
-    g.add_node(node)
-    g.commit()
+    g.query(f"CREATE {node}")
 
     query = "MATCH (n) RETURN n"
     result = g.query(query)

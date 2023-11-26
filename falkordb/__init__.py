@@ -1,4 +1,4 @@
-from .db             import DB
+from .falkordb       import FalkorDB
 from .node           import Node
 from .edge           import Edge
 from .path           import Path

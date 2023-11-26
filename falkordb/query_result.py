@@ -8,7 +8,7 @@ from redis import ResponseError
 from .edge import Edge
 from .node import Node
 from .path import Path
-from .exceptions import VersionMismatchException
+from .exceptions import SchemaVersionMismatchException
 
 # statistics
 LABELS_ADDED            = "Labels added"
@@ -183,7 +183,7 @@ def __parse_entity_properties(props, graph):
     """
     properties = {}
     for prop in props:
-        prop_name = graph.get_property(prop[0])
+        prop_name = graph.schema.get_property(prop[0])
         prop_value = parse_scalar(prop[1:], graph)
         properties[prop_name] = prop_value
 
@@ -203,7 +203,7 @@ def __parse_node(value, graph) -> Node:
     node_id = int(value[0])
     labels = None
     if len(value[1]) > 0:
-        labels = [graph.get_label(inner_label) for inner_label in value[1]]
+        labels = [graph.schema.get_label(inner_label) for inner_label in value[1]]
     properties = __parse_entity_properties(value[2], graph)
     return Node(node_id=node_id, alias="", labels=labels, properties=properties)
 
@@ -219,7 +219,7 @@ def __parse_edge(value, graph) -> Edge:
         Edge: The parsed Edge instance.
     """
     edge_id = int(value[0])
-    relation = graph.get_relation(value[1])
+    relation = graph.schema.get_relation(value[1])
     src_node_id = int(value[2])
     dest_node_id = int(value[3])
     properties = __parse_entity_properties(value[4], graph)

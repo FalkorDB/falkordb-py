@@ -1,8 +1,8 @@
 [tool.poetry]
 name = "FalkorDB"
-version = "0.1.0"
-description = ""
-authors = ["swilly22 <roi.lipman@falkordb.com>"]
+version = "1.0.0"
+description = "Python client for interacting with FalkorDB database"
+authors = ["FalkorDB inc <info@falkordb.com>"]
 readme = "README.md"
 packages = [{include = "falkordb"}]
 

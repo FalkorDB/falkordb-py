@@ -1,6 +1,6 @@
 from typing import Optional
 from .node import Node
-from .helpers import quote_string, random_string
+from .helpers import quote_string
 
 class Edge:
     """
@@ -8,7 +8,7 @@ class Edge:
     """
 
     def __init__(self, src_node: Node, relation: str, dest_node: Node,
-                 edge_id: Optional[int] = None, alias: Optional[str] = None,
+                 edge_id: Optional[int] = None, alias: Optional[str] = '',
                  properties=None):
         """
         Create a new edge.
@@ -18,7 +18,7 @@ class Edge:
             relation: The relationship type of the edge.
             dest_node: The destination node of the edge.
             edge_id: The ID of the edge.
-            alias: An alias for the edge (default is a random string).
+            alias: An alias for the edge (default is empty string).
             properties: The properties of the edge.
 
         Raises:
@@ -31,7 +31,7 @@ class Edge:
             raise AssertionError("Both src_node & dest_node must be provided")
 
         self.id         = edge_id
-        self.alias      = alias or random_string()
+        self.alias      = alias
         self.src_node   = src_node
         self.dest_node  = dest_node
         self.relation   = relation
@@ -63,12 +63,12 @@ class Edge:
         """
         # Source node
         if isinstance(self.src_node, Node):
-            res = "(" + self.src_node.alias + ")"
+            res = f"({self.src_node.alias})"
         else:
             res = "()"
 
         # Edge
-        res += "-["
+        res += f"-[{self.alias}"
         if self.relation:
             res += ":" + self.relation
         if self.properties:
@@ -76,12 +76,12 @@ class Edge:
                 key + ":" + str(quote_string(val))
                 for key, val in sorted(self.properties.items())
             )
-            res += "{" + props + "}"
+            res += f"{{{props}}}"
         res += "]->"
 
         # Dest node
         if isinstance(self.dest_node, Node):
-            res += "(" + self.dest_node.alias + ")"
+            res += f"({self.dest_node.alias})"
         else:
             res += "()"
 
