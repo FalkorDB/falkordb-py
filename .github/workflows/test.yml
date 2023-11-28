@@ -1,7 +1,7 @@
 # Run this job on pushes to `main`, and for pull requests. If you don't specify
 # `branches: [main], then this actions runs _twice_ on pull requests, which is
 # annoying.
-
+name: Test package
 on:
   push:
     branches: [main]
@@ -22,7 +22,7 @@ jobs:
           - 6379:6379
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       # If you wanted to use multiple Python versions, you'd have specify a matrix in the job and
       # reference the matrixe python version here.
