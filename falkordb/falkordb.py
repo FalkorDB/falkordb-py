@@ -112,14 +112,16 @@ class FalkorDB():
 
         Returns:
             DB: A new DB instance.
+
+        Usage example::
+        db = FalkorDB.from_url("falkor://[[username]:[password]]@localhost:6379")
+        db = FalkorDB.from_url("falkors://[[username]:[password]]@localhost:6379")
+        db = FalkorDB.from_url("unix://[username@]/path/to/socket.sock?db=0[&password=password]")
         """
 
         db = cls()
 
         # switch from redis:// to falkordb://
-        # falkor://[[username]:[password]]@localhost:6379/0
-        # falkors://[[username]:[password]]@localhost:6379/0
-        # unix://[username@]/path/to/socket.sock?db=0[&password=password]
         if uri.startswith('falkor://'):
             uri = 'redis://' + uri[len('falkor://'):]
         elif uri.startswith('falkors://'):

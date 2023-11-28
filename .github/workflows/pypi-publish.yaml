@@ -2,20 +2,16 @@
 name: Release to PYPI
 on:
   push:
-    branches: [main]
-  pull_request:
-  workflow_dispatch:
-
+    tags:
+      - "v*.*.*"
 jobs:
-  publish:
+  build:
     runs-on: ubuntu-latest
-
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Build and publish to pypi
         uses: JRubics/poetry-publish@v1.17
         with:
           pypi_token: ${{ secrets.PYPI_TEST_API_TOKEN }}
-          repository_name: "falkordb-py"
-          repository_url: "https://test.pypi.org/legacy/"
+          build_format: "sdist"
           ignore_dev_requirements: "yes"

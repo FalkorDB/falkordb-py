@@ -1,14 +1,12 @@
 from typing import List, Dict, Optional
+from .graph_schema import GraphSchema
 from .query_result import QueryResult
 from .execution_plan import ExecutionPlan
 from .exceptions import SchemaVersionMismatchException
 from .helpers import quote_string, stringify_param_value
 
 # procedures
-DB_LABELS             = "DB.LABELS"
 GRAPH_INDEXES         = "DB.INDEXES"
-DB_PROPERTYKEYS       = "DB.PROPERTYKEYS"
-DB_RELATIONSHIPTYPES  = "DB.RELATIONSHIPTYPES"
 
 # commands
 QUERY_CMD             = "GRAPH.QUERY"
@@ -17,142 +15,6 @@ EXPLAIN_CMD           = "GRAPH.EXPLAIN"
 SLOWLOG_CMD           = "GRAPH.SLOWLOG"
 PROFILE_CMD           = "GRAPH.PROFILE"
 RO_QUERY_CMD          = "GRAPH.RO_QUERY"
-
-
-class GraphSchema():
-    """
-    """
-    def __init__(self, graph: 'Graph', labels: List[str], relationships: List[str],
-                 properties: List[str]):
-        """
-        """
-        self.graph         = graph
-        self.labels        = labels
-        self.properties    = properties
-        self.relationships = relationships
-        self.version       = 0 # graph schema version
-
-    def clear(self):
-        """
-        Clear the graph schema.
-
-        Returns:
-            None
-
-        """
-
-        self.labels        = []
-        self.properties    = []
-        self.relationships = []
-
-    def refresh_labels(self) -> None:
-        """
-        Refresh labels.
-
-        Returns:
-            None
-
-        """
-        result_set = self.graph.query(f"CALL {DB_LABELS}()").result_set
-        self.labels = [l[0] for l in result_set]
-
-    def refresh_relations(self) -> None:
-        """
-        Refresh relationship types.
-
-        Returns:
-            None
-
-        """
-
-        result_set = self.graph.query(f"CALL {DB_RELATIONSHIPTYPES}()").result_set
-        self.relationships = [r[0] for r in result_set]
-
-    def refresh_properties(self) -> None:
-        """
-        Refresh property keys.
-
-        Returns:
-            None
-
-        """
-
-        result_set = self.graph.query(f"CALL {DB_PROPERTYKEYS}()").result_set
-        self.properties = [p[0] for p in result_set]
-
-    def refresh_schema(self) -> None:
-        """
-        Refresh the graph schema.
-
-        Returns:
-            None
-
-        """
-
-        self.clear()
-        self.refresh_labels()
-        self.refresh_relations()
-        self.refresh_properties()
-
-    def get_label(self, idx: int) -> str:
-        """
-        Returns a label by its index.
-
-        Args:
-            idx (int): The index of the label.
-
-        Returns:
-            str: The label.
-
-        """
-
-        try:
-            label = self.labels[idx]
-        except IndexError:
-            # refresh labels
-            self.refresh_labels()
-            label = self.labels[idx]
-        return label
-
-    def get_relation(self, idx: int) -> str:
-        """
-        Returns a relationship type by its index.
-
-        Args:
-            idx (int): The index of the relation.
-
-        Returns:
-            str: The relationship type.
-
-        """
-
-        try:
-            relationship_type = self.relationships[idx]
-        except IndexError:
-            # refresh relationship types
-            self.refresh_relations()
-            relationship_type = self.relationships[idx]
-        return relationship_type
-
-    def get_property(self, idx: int) -> str:
-        """
-        Returns a property by its index.
-
-        Args:
-            idx (int): The index of the property.
-
-        Returns:
-            str: The property.
-
-        """
-
-        try:
-            p = self.properties[idx]
-        except IndexError:
-            # refresh properties
-            self.refresh_properties()
-            p = self.properties[idx]
-        return p
 
 
 class Graph():
@@ -172,7 +34,7 @@ class Graph():
 
         self._name           = name
         self.client          = client
-        self.schema          = GraphSchema(self, [], [], [])
+        self.schema          = GraphSchema(self)
         self.execute_command = client.execute_command
 
     @property
@@ -189,6 +51,21 @@ class Graph():
 
     def _query(self, q: str, params: Optional[Dict[str, object]] = None,
               timeout: Optional[int] = None, read_only: bool = False) -> QueryResult:
+        """
+        Executes a query against the graph.
+        See: https://docs.falkordb.com/commands/graph.query.html
+
+        Args:
+            q (str): The query.
+            params (dict): Query parameters.
+            timeout (int): Maximum query runtime in milliseconds.
+            read_only (bool): Whether the query is read-only.
+
+        Returns:
+            QueryResult: query result set.
+
+        """
+
         # maintain original 'q'
         query = q
 
@@ -214,8 +91,7 @@ class Graph():
         except SchemaVersionMismatchException as e:
             # client view over the graph schema is out of sync
             # set client version and refresh local schema
-            self.schema.version = e.version
-            self.schema.refresh()
+            self.schema.refresh(e.version)
             raise e
 
     def query(self, q: str, params: Optional[Dict[str, object]] = None,
@@ -289,6 +165,12 @@ class Graph():
 
     def slowlog_reset(self):
         """
+        Reset the slowlog.
+        See: https://docs.falkordb.com/commands/graph.slowlog.html
+
+        Returns:
+            None
+
         """
         self.execute_command(SLOWLOG_CMD, self._name, "RESET")
 
@@ -374,25 +256,24 @@ class Graph():
 
         # make sure strings arguments are quoted
         args = args or []
-        args = [quote_string(arg) for arg in args]
+        # args = [quote_string(arg) for arg in args]
 
-        # convert arguments to query parameters
-        # CALL <proc>(1) -> CYPHER param_0=1 CALL <proc>($param_0)
-        params = {}
-        for arg, i in enumerate(args):
-            param_name = f'param{i}'
-            params[param_name] = arg
-            args[i] = param_name
+        params = None
+        if(len(args) > 0):
+            params = {}
+            # convert arguments to query parameters
+            # CALL <proc>(1) -> CYPHER param_0=1 CALL <proc>($param_0)
+            for i, arg in enumerate(args):
+                param_name = f'param{i}'
+                params[param_name] = arg
+                args[i] = '$' + param_name
 
         q = f"CALL {procedure}({','.join(args)})"
 
         if emit is not None and len(emit) > 0:
             q += f"YIELD {','.join(emit)}"
 
-        if read_only:
-            return self.ro_query(q, params=params)
-
-        return self.query(q, params=params)
+        return self._query(q, params=params, read_only=read_only)
 
     # index operations
 
@@ -514,7 +395,7 @@ class Graph():
         Returns:
             list: List of graph indices.
         """
-        return self.call_procedure(GRAPH_INDEXES, read_only=True)
+        return self.call_procedure(GRAPH_INDEXES)
 
     def _create_typed_index(self, idx_type: str, entity_type: str, label: str,
                             *properties: List[str], options=None) -> QueryResult:

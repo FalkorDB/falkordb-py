@@ -28,10 +28,10 @@ falkordb.execution\_plan module
    :undoc-members:
    :show-inheritance:
 
-falkordb.falkor module
-----------------------
+falkordb.falkordb module
+------------------------
 
-.. automodule:: falkordb.falkor
+.. automodule:: falkordb.falkordb
    :members:
    :undoc-members:
    :show-inheritance:
@@ -40,6 +40,22 @@ falkordb.graph module
 ---------------------
 
 .. automodule:: falkordb.graph
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+falkordb.graph\_schema module
+-----------------------------
+
+.. automodule:: falkordb.graph_schema
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+falkordb.helpers module
+-----------------------
+
+.. automodule:: falkordb.helpers
    :members:
    :undoc-members:
    :show-inheritance:
