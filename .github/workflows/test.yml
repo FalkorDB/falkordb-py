@@ -1,7 +1,7 @@
 # Run this job on pushes to `main`, and for pull requests. If you don't specify
 # `branches: [main], then this actions runs _twice_ on pull requests, which is
 # annoying.
-name: Test package
+name: Test
 on:
   push:
     branches: [main]

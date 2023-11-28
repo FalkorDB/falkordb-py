@@ -3,7 +3,12 @@ name = "FalkorDB"
 version = "1.0.0"
 description = "Python client for interacting with FalkorDB database"
 authors = ["FalkorDB inc <info@falkordb.com>"]
+
 readme = "README.md"
+repository = "http://github.com/falkorDB/falkordb-py"
+homepage = "http://falkordb-py.readthedocs.io"
+keywords = ['FalkorDB', 'GraphDB', 'Cypher']
+
 packages = [{include = "falkordb"}]
 
 [tool.poetry.dependencies]
