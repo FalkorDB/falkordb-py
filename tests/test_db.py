@@ -35,3 +35,10 @@ def test_config(client):
 
     with pytest.raises(Exception):
         db.config_set(config_name, "invalid value")
+
+def test_connect_via_url():
+    # make sure we're able to connect via url
+    db = FalkorDB.from_url("falkor://localhost:6379")
+    g = db.select_graph("g")
+    one = g.query("RETURN 1").result_set[0][0]
+    assert one == 1
