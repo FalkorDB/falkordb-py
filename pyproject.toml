@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "FalkorDB"
-version = "1.0.0-alpha"
+version = "1.0.0-alpha.1"
 description = "Python client for interacting with FalkorDB database"
 authors = ["FalkorDB inc <info@falkordb.com>"]
 
