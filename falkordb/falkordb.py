@@ -122,10 +122,10 @@ class FalkorDB():
         db = cls()
 
         # switch from redis:// to falkordb://
-        if uri.startswith('falkor://'):
-            uri = 'redis://' + uri[len('falkor://'):]
-        elif uri.startswith('falkors://'):
-            uri = 'rediss://' + uri[len('falkors://'):]
+        if url.startswith('falkor://'):
+            url = 'redis://' + url[len('falkor://'):]
+        elif url.startswith('falkors://'):
+            url = 'rediss://' + url[len('falkors://'):]
 
         conn = redis.from_url(url, **kwargs)
         db.connection      = conn
