@@ -1,6 +1,3 @@
-# Run this job on pushes to `main`, and for pull requests. If you don't specify
-# `branches: [main], then this actions runs _twice_ on pull requests, which is
-# annoying.
 name: Test
 on:
   push:
@@ -9,11 +6,10 @@ on:
 
 jobs:
   test:
+    name: Test with Python ${{ matrix.python }}
     runs-on: ubuntu-latest
 
-    # Service containers to run with `test-job`
     services:
-      # Label used to access the service container
       falkordb:
         # Docker Hub image
         image: falkordb/falkordb:edge
@@ -21,34 +17,35 @@ jobs:
         ports:
           - 6379:6379
 
+    strategy:
+      matrix:
+        python: ['3.10', '3.11']
+      fail-fast: false
+
     steps:
       - uses: actions/checkout@v4
 
-      # If you wanted to use multiple Python versions, you'd have specify a matrix in the job and
-      # reference the matrixe python version here.
       - uses: actions/setup-python@v2
         with:
-          python-version: 3.10.11
+          python-version: ${{matrix.python}}
 
-      # Install Poetry. You could do this manually, or there are several actions that do this.
-      # `snok/install-poetry` seems to be minimal yet complete, and really just calls out to
-      # Poetry's default install script, which feels correct. I pin the Poetry version here
-      # because Poetry does occasionally change APIs between versions and I don't want my
-      # actions to break if it does.
-      #
-      # The key configuration value here is `virtualenvs-in-project: true`: this creates the
-      # venv as a `.venv` in your testing directory
       - uses: snok/install-poetry@v1
         with:
           version: 1.7.1
           virtualenvs-create: true
           virtualenvs-in-project: true
 
+      - name: Install dependencies
+        run: poetry install --no-interaction
 
-      # Install dependencies.
-      - run: poetry install --no-interaction
+      - name: Run Tests
+        run: |
+          poetry run coverage run -m pytest
+          poetry run coverage report -m
 
-
-      # And finally run tests. I'm using pytest and all my pytest config is in my `pyproject.toml`
-      # so this line is super-simple. But it could be as complex as you need.
-      - run: poetry run pytest
+      - name: Upload coverage
+        uses: codecov/codecov-action@v3
+        if: matrix.python == '3.10' && matrix.platform != 'macos-11'
+        with:
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}    
