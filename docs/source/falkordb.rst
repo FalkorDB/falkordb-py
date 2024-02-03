@@ -1,6 +1,14 @@
 falkordb package
 ================
 
+Subpackages
+-----------
+
+.. toctree::
+   :maxdepth: 4
+
+   falkordb.asyncio
+
 Submodules
 ----------
 
