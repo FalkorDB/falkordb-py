@@ -29,7 +29,6 @@ async def test_graph_creation(client):
     edge = Edge(john, "visited", japan, alias="v", properties={"purpose": "pleasure"})
 
     query = f"CREATE {john}, {japan}, {edge} RETURN p,v,c"
-    print(f"query: {query}")
     result = await graph.query(query)
 
     person  = result.result_set[0][0]

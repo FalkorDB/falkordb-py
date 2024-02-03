@@ -419,11 +419,6 @@ class QueryResult:
         Returns:
             list: A list of records.
         """
-        #records = [
-        #    [await parse_scalar(cell, self.graph) for cell in row]
-        #    for row in raw_result_set[1]
-        #]
-
         records = []
         for row in raw_result_set[1]:
             record = []

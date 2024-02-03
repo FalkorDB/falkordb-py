@@ -58,7 +58,6 @@ class AsyncGraph(Graph):
         query = q
 
         # handle query parameters
-        print(dir(self))
         query = self._build_params_header(params) + query
 
         # construct query command
