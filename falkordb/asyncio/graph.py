@@ -245,7 +245,7 @@ class AsyncGraph(Graph):
 
     # index operations
 
-    def _drop_index(self, idx_type: str, entity_type: str, label: str,
+    async def _drop_index(self, idx_type: str, entity_type: str, label: str,
                     attribute: str) -> QueryResult:
         """Drop a graph index.
 
@@ -276,9 +276,9 @@ class AsyncGraph(Graph):
         else:
             raise ValueError("Invalid index type")
 
-        return self.query(q)
+        return await self.query(q)
 
-    def drop_node_range_index(self, label: str, attribute: str) -> QueryResult:
+    async def drop_node_range_index(self, label: str, attribute: str) -> QueryResult:
         """Drop a range index for a node.
         See: https://docs.falkordb.com/commands/graph.query.html#deleting-an-index-for-a-node-label
 
@@ -289,9 +289,9 @@ class AsyncGraph(Graph):
         Returns:
             Any: The result of the index dropping query.
         """
-        return self._drop_index("RANGE", "NODE", label, attribute)
+        return await self._drop_index("RANGE", "NODE", label, attribute)
 
-    def drop_node_fulltext_index(self, label: str, attribute: str) -> QueryResult:
+    async def drop_node_fulltext_index(self, label: str, attribute: str) -> QueryResult:
         """Drop a full-text index for a node.
         See: https://docs.falkordb.com/commands/graph.query.html#deleting-an-index-for-a-node-label
 
@@ -302,9 +302,9 @@ class AsyncGraph(Graph):
         Returns:
             Any: The result of the index dropping query.
         """
-        return self._drop_index("FULLTEXT", "NODE", label, attribute)
+        return await self._drop_index("FULLTEXT", "NODE", label, attribute)
 
-    def drop_node_vector_index(self, label: str, attribute: str) -> QueryResult:
+    async def drop_node_vector_index(self, label: str, attribute: str) -> QueryResult:
         """Drop a vector index for a node.
         See: https://docs.falkordb.com/commands/graph.query.html#deleting-an-index-for-a-node-label
 
@@ -315,9 +315,9 @@ class AsyncGraph(Graph):
         Returns:
             Any: The result of the index dropping query.
         """
-        return self._drop_index("VECTOR", "NODE", label, attribute)
+        return await self._drop_index("VECTOR", "NODE", label, attribute)
 
-    def drop_edge_range_index(self, label: str, attribute: str) -> QueryResult:
+    async def drop_edge_range_index(self, label: str, attribute: str) -> QueryResult:
         """Drop a range index for an edge.
         See: https://docs.falkordb.com/commands/graph.query.html#deleting-an-index-for-a-relationship-type
 
@@ -328,9 +328,9 @@ class AsyncGraph(Graph):
         Returns:
             Any: The result of the index dropping query.
         """
-        return self._drop_index("RANGE", "EDGE", label, attribute)
+        return await self._drop_index("RANGE", "EDGE", label, attribute)
 
-    def drop_edge_fulltext_index(self, label: str, attribute: str) -> QueryResult:
+    async def drop_edge_fulltext_index(self, label: str, attribute: str) -> QueryResult:
         """Drop a full-text index for an edge.
         See: https://docs.falkordb.com/commands/graph.query.html#deleting-an-index-for-a-relationship-type
 
@@ -341,9 +341,9 @@ class AsyncGraph(Graph):
         Returns:
             Any: The result of the index dropping query.
         """
-        return self._drop_index("FULLTEXT", "EDGE", label, attribute)
+        return await self._drop_index("FULLTEXT", "EDGE", label, attribute)
 
-    def drop_edge_vector_index(self, label: str, attribute: str) -> QueryResult:
+    async def drop_edge_vector_index(self, label: str, attribute: str) -> QueryResult:
         """Drop a vector index for an edge.
         See: https://docs.falkordb.com/commands/graph.query.html#deleting-an-index-for-a-relationship-type
 
@@ -354,16 +354,16 @@ class AsyncGraph(Graph):
         Returns:
             Any: The result of the index dropping query.
         """
-        return self._drop_index("VECTOR", "EDGE", label, attribute)
+        return await self._drop_index("VECTOR", "EDGE", label, attribute)
 
-    def list_indices(self) -> QueryResult:
+    async def list_indices(self) -> QueryResult:
         """Retrieve a list of graph indices.
         See: https://docs.falkordb.com/commands/graph.query.html#procedures
 
         Returns:
             list: List of graph indices.
         """
-        return self.call_procedure(GRAPH_INDEXES)
+        return await self.call_procedure(GRAPH_INDEXES)
 
     async def _create_typed_index(self, idx_type: str, entity_type: str, label: str,
                             *properties: List[str], options=None) -> QueryResult:
