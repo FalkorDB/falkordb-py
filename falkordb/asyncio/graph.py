@@ -1,9 +1,11 @@
 from typing import List, Dict, Optional
 from .graph_schema import GraphSchema
 from .query_result import QueryResult
-from .execution_plan import ExecutionPlan
-from .exceptions import SchemaVersionMismatchException
-from .helpers import quote_string, stringify_param_value
+
+from falkordb.graph          import Graph
+from falkordb.helpers        import quote_string, stringify_param_value
+from falkordb.exceptions     import SchemaVersionMismatchException
+from falkordb.execution_plan import ExecutionPlan
 
 # procedures
 GRAPH_INDEXES = "DB.INDEXES"
@@ -17,7 +19,7 @@ PROFILE_CMD   = "GRAPH.PROFILE"
 RO_QUERY_CMD  = "GRAPH.RO_QUERY"
 
 
-class Graph():
+class AsyncGraph(Graph):
     """
     Graph, collection of nodes and edges.
     """
@@ -32,27 +34,13 @@ class Graph():
 
         """
 
-        self._name           = name
-        self.client          = client
-        self.schema          = GraphSchema(self)
-        self.execute_command = client.execute_command
+        super().__init__(client, name)
+        self.schema = GraphSchema(self)
 
-    @property
-    def name(self) -> str:
-        """
-        Get the graph name.
-
-        Returns:
-            str: The graph name.
-
-        """
-
-        return self._name
-
-    def _query(self, q: str, params: Optional[Dict[str, object]] = None,
+    async def _query(self, q: str, params: Optional[Dict[str, object]] = None,
               timeout: Optional[int] = None, read_only: bool = False) -> QueryResult:
         """
-        Executes a query against the graph.
+        Executes a query asynchronously against the graph.
         See: https://docs.falkordb.com/commands/graph.query.html
 
         Args:
@@ -86,18 +74,20 @@ class Graph():
 
         # issue query
         try:
-            response = self.execute_command(*command)
-            return QueryResult(self, response)
+            response = await self.execute_command(*command)
+            query_result = QueryResult(self)
+            await query_result.parse(response)
+            return query_result
         except SchemaVersionMismatchException as e:
             # client view over the graph schema is out of sync
             # set client version and refresh local schema
             self.schema.refresh(e.version)
             raise e
 
-    def query(self, q: str, params: Optional[Dict[str, object]] = None,
+    async def query(self, q: str, params: Optional[Dict[str, object]] = None,
               timeout: Optional[int] = None) -> QueryResult:
         """
-        Executes a query against the graph.
+        Executes a query asynchronously against the graph.
         See: https://docs.falkordb.com/commands/graph.query.html
 
         Args:
@@ -110,9 +100,9 @@ class Graph():
 
         """
 
-        return self._query(q, params=params, timeout=timeout, read_only=False)
+        return await self._query(q, params=params, timeout=timeout, read_only=False)
 
-    def ro_query(self, q: str, params: Optional[Dict[str, object]] = None,
+    async def ro_query(self, q: str, params: Optional[Dict[str, object]] = None,
               timeout: Optional[int] = None) -> QueryResult:
         """
         Executes a read-only query against the graph.
@@ -128,9 +118,9 @@ class Graph():
 
         """
 
-        return self._query(q, params=params, timeout=timeout, read_only=True)
+        return await self._query(q, params=params, timeout=timeout, read_only=True)
 
-    def delete(self) -> None:
+    async def delete(self) -> None:
         """
         Deletes the graph.
         See: https://docs.falkordb.com/commands/graph.delete.html
@@ -141,9 +131,9 @@ class Graph():
         """
 
         self.schema.clear()
-        return self.execute_command(DELETE_CMD, self._name)
+        return await self.execute_command(DELETE_CMD, self._name)
 
-    def slowlog(self):
+    async def slowlog(self):
         """
         Get a list containing up to 10 of the slowest queries issued
         against the graph.
@@ -161,9 +151,9 @@ class Graph():
 
         """
 
-        return self.execute_command(SLOWLOG_CMD, self._name)
+        return await self.execute_command(SLOWLOG_CMD, self._name)
 
-    def slowlog_reset(self):
+    async def slowlog_reset(self):
         """
         Reset the slowlog.
         See: https://docs.falkordb.com/commands/graph.slowlog.html
@@ -172,9 +162,9 @@ class Graph():
             None
 
         """
-        self.execute_command(SLOWLOG_CMD, self._name, "RESET")
+        await self.execute_command(SLOWLOG_CMD, self._name, "RESET")
 
-    def profile(self, query: str, params=None) -> ExecutionPlan:
+    async def profile(self, query: str, params=None) -> ExecutionPlan:
         """
         Execute a query and produce an execution plan augmented with metrics
         for each operation's execution. Return an execution plan,
@@ -191,10 +181,10 @@ class Graph():
         """
 
         query = self._build_params_header(params) + query
-        plan = self.execute_command(PROFILE_CMD, self._name, query)
+        plan = await self.execute_command(PROFILE_CMD, self._name, query)
         return ExecutionPlan(plan)
 
-    def explain(self, query: str, params=None) -> ExecutionPlan:
+    async def explain(self, query: str, params=None) -> ExecutionPlan:
         """
         Get the execution plan for a given query.
         GRAPH.EXPLAIN returns an ExecutionPlan object.
@@ -211,33 +201,11 @@ class Graph():
 
         query = self._build_params_header(params) + query
 
-        plan = self.execute_command(EXPLAIN_CMD, self._name, query)
+        plan = await self.execute_command(EXPLAIN_CMD, self._name, query)
         return ExecutionPlan(plan)
 
-    def _build_params_header(self, params: dict) -> str:
-        """
-        Build parameters header.
-
-        Args:
-            params (dict): The parameters.
-
-        Returns:
-            str: The parameters header.
-
-        """
-
-        if params is None:
-            return ""
-        if not isinstance(params, dict):
-            raise TypeError("'params' must be a dict")
-        # header starts with "CYPHER"
-        params_header = "CYPHER "
-        for key, value in params.items():
-            params_header += str(key) + "=" + stringify_param_value(value) + " "
-        return params_header
-
     # procedures
-    def call_procedure(self, procedure: str, read_only: bool = True,
+    async def call_procedure(self, procedure: str, read_only: bool = True,
                        args: Optional[List] = None,
                        emit: Optional[List[str]] = None) -> QueryResult:
         """
@@ -273,7 +241,7 @@ class Graph():
         if emit is not None and len(emit) > 0:
             q += f"YIELD {','.join(emit)}"
 
-        return self._query(q, params=params, read_only=read_only)
+        return await self._query(q, params=params, read_only=read_only)
 
     # index operations
 
