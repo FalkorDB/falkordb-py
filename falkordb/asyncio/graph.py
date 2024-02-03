@@ -365,7 +365,7 @@ class AsyncGraph(Graph):
         """
         return self.call_procedure(GRAPH_INDEXES)
 
-    def _create_typed_index(self, idx_type: str, entity_type: str, label: str,
+    async def _create_typed_index(self, idx_type: str, entity_type: str, label: str,
                             *properties: List[str], options=None) -> QueryResult:
         """Create a typed index for nodes or edges.
 
@@ -404,9 +404,9 @@ class AsyncGraph(Graph):
             options_map = options_map[:-1] + "}"
             q += f" OPTIONS {options_map}"
 
-        return self.query(q)
+        return await self.query(q)
 
-    def create_node_range_index(self, label: str, *properties) -> QueryResult:
+    async def create_node_range_index(self, label: str, *properties) -> QueryResult:
         """Create a range index for a node.
         See: https://docs.falkordb.com/commands/graph.query.html#creating-an-index-for-a-node-label
 
@@ -417,9 +417,10 @@ class AsyncGraph(Graph):
         Returns:
             Any: The result of the index creation query.
         """
-        return self._create_typed_index("RANGE", "NODE", label, *properties)
+        res = await self._create_typed_index("RANGE", "NODE", label, *properties)
+        return res
 
-    def create_node_fulltext_index(self, label: str, *properties) -> QueryResult:
+    async def create_node_fulltext_index(self, label: str, *properties) -> QueryResult:
         """Create a full-text index for a node.
         See: https://docs.falkordb.com/commands/graph.query.html#creating-a-full-text-index-for-a-node-label
 
@@ -430,9 +431,10 @@ class AsyncGraph(Graph):
         Returns:
             Any: The result of the index creation query.
         """
-        return self._create_typed_index("FULLTEXT", "NODE", label, *properties)
+        res = await self._create_typed_index("FULLTEXT", "NODE", label, *properties)
+        return res
 
-    def create_node_vector_index(self, label: str, *properties, dim: int = 0,
+    async def create_node_vector_index(self, label: str, *properties, dim: int = 0,
                                  similarity_function: str = "euclidean") -> QueryResult:
         """Create a vector index for a node.
         See: https://docs.falkordb.com/commands/graph.query.html#vector-indexing
@@ -447,9 +449,10 @@ class AsyncGraph(Graph):
             Any: The result of the index creation query.
         """
         options = {'dimension': dim, 'similarityFunction': similarity_function}
-        return self._create_typed_index("VECTOR", "NODE", label, *properties, options=options)
+        res = await self._create_typed_index("VECTOR", "NODE", label, *properties, options=options)
+        return res
 
-    def create_edge_range_index(self, relation: str, *properties) -> QueryResult:
+    async def create_edge_range_index(self, relation: str, *properties) -> QueryResult:
         """Create a range index for an edge.
         See: https://docs.falkordb.com/commands/graph.query.html#creating-an-index-for-a-relationship-type
 
@@ -460,9 +463,10 @@ class AsyncGraph(Graph):
         Returns:
             Any: The result of the index creation query.
         """
-        return self._create_typed_index("RANGE", "EDGE", relation, *properties)
+        res = await self._create_typed_index("RANGE", "EDGE", relation, *properties)
+        return res
 
-    def create_edge_fulltext_index(self, relation: str, *properties) -> QueryResult:
+    async def create_edge_fulltext_index(self, relation: str, *properties) -> QueryResult:
         """Create a full-text index for an edge.
         See: https://docs.falkordb.com/commands/graph.query.html#full-text-indexing
 
@@ -473,9 +477,10 @@ class AsyncGraph(Graph):
         Returns:
             Any: The result of the index creation query.
         """
-        return self._create_typed_index("FULLTEXT", "EDGE", relation, *properties)
+        res = await self._create_typed_index("FULLTEXT", "EDGE", relation, *properties)
+        return res
 
-    def create_edge_vector_index(self, relation: str, *properties, dim: int = 0,
+    async def create_edge_vector_index(self, relation: str, *properties, dim: int = 0,
                                  similarity_function: str = "euclidean") -> QueryResult:
         """Create a vector index for an edge.
         See: https://docs.falkordb.com/commands/graph.query.html#vector-indexing
@@ -490,4 +495,5 @@ class AsyncGraph(Graph):
             Any: The result of the index creation query.
         """
         options = {'dimension': dim, 'similarityFunction': similarity_function}
-        return self._create_typed_index("VECTOR", "EDGE", relation, *properties, options=options)
+        res = await self._create_typed_index("VECTOR", "EDGE", relation, *properties, options=options)
+        return res
