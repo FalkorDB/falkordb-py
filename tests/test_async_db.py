@@ -1,16 +1,12 @@
 import pytest
 import asyncio
 from falkordb.asyncio import FalkorDB
-
-
-@pytest.fixture
-def client(request):
-    return FalkorDB(host='localhost', port=6379)
-
+from redis.asyncio import BlockingConnectionPool
 
 @pytest.mark.asyncio
-async def test_config(client):
-    db = client
+async def test_config():
+    pool = BlockingConnectionPool(max_connections=16, timeout=None, decode_responses=True)
+    db = FalkorDB(connection_pool=pool)
     config_name = "RESULTSET_SIZE"
 
     # save olf configuration value
@@ -38,10 +34,18 @@ async def test_config(client):
     with pytest.raises(Exception):
         await db.config_set(config_name, "invalid value")
 
+    # close the connection pool
+    await pool.aclose()
+
 @pytest.mark.asyncio
 async def test_connect_via_url():
+    pool = BlockingConnectionPool(max_connections=16, timeout=None, decode_responses=True)
+    db = FalkorDB(connection_pool=pool)
+
     # make sure we're able to connect via url
-    db = FalkorDB.from_url("falkor://localhost:6379")
     g = db.select_graph("async_db")
     one = (await g.query("RETURN 1")).result_set[0][0]
     assert one == 1
+
+    # close the connection pool
+    await pool.aclose()

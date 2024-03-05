@@ -1,13 +1,15 @@
 import pytest
 import asyncio
 from falkordb.asyncio import FalkorDB
+from redis.asyncio import BlockingConnectionPool
 
 @pytest.mark.asyncio
 async def test_graph_copy():
     # create a simple graph and clone it
     # make sure graphs are the same
 
-    db = FalkorDB(host='localhost', port=6379)
+    pool = BlockingConnectionPool(max_connections=16, timeout=None, decode_responses=True)
+    db = FalkorDB(connection_pool=pool)
     src = db.select_graph("async_src")
 
     # create entities
@@ -64,3 +66,6 @@ async def test_graph_copy():
     src_res = await src.list_constraints()
     dest_res = await dest.list_constraints()
     assert(src_res == dest_res)
+
+    # close the connection pool
+    await pool.aclose()

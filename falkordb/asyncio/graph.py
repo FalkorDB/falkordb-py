@@ -130,7 +130,7 @@ class AsyncGraph(Graph):
             clone (str): Name of cloned graph
 
         Returns:
-            Graph: the cloned graph
+            AsyncGraph: the cloned graph
         """
 
         await self.execute_command(COPY_CMD, self._name, clone)

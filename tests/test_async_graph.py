@@ -2,17 +2,14 @@ import pytest
 from redis import ResponseError
 from falkordb.asyncio import FalkorDB
 from falkordb import Edge, Node, Path, Operation
+from redis.asyncio import BlockingConnectionPool
 
-
-@pytest.fixture
-async def client(request):
-    db = FalkorDB(host='localhost', port=6379)
-    await db.flushdb()
-    return db.select_graph("async_graph")
 
 @pytest.mark.asyncio
-async def test_graph_creation(client):
-    graph = client
+async def test_graph_creation():
+    pool = BlockingConnectionPool(max_connections=16, timeout=None, decode_responses=True)
+    db = FalkorDB(connection_pool=pool)
+    graph = db.select_graph("async_graph")
 
     john = Node(
         alias="p",
@@ -44,10 +41,17 @@ async def test_graph_creation(client):
     result = await graph.query(query)
     assert [1, 2.3, "4", True, False, None] == result.result_set[0][0]
 
+    # close the connection pool
+    await pool.aclose()
 
 @pytest.mark.asyncio
-async def test_array_functions(client):
-    graph = client
+async def test_array_functions():
+    pool = BlockingConnectionPool(max_connections=16, timeout=None, decode_responses=True)
+    db = FalkorDB(connection_pool=pool)
+    graph = db.select_graph("async_graph")
+
+    await graph.delete()
+
     query = """RETURN [0,1,2]"""
     result = await graph.query(query)
     assert [0, 1, 2] == result.result_set[0][0]
@@ -65,10 +69,17 @@ async def test_array_functions(client):
 
     assert [a] == result.result_set[0][0]
 
+    # close the connection pool
+    await pool.aclose()
 
 @pytest.mark.asyncio
-async def test_path(client):
-    graph  = client
+async def test_path():
+    pool = BlockingConnectionPool(max_connections=16, timeout=None, decode_responses=True)
+    db = FalkorDB(connection_pool=pool)
+    graph = db.select_graph("async_graph")
+
+    await graph.delete()
+
     node0  = Node(alias="node0", node_id=0, labels="L1")
     node1  = Node(alias="node1", node_id=1, labels="L1")
     edge01 = Edge(node0, "R1", node1, edge_id=0, properties={"value": 1})
@@ -82,10 +93,15 @@ async def test_path(client):
     result = await graph.query(query)
     assert expected_results == result.result_set
 
+    # close the connection pool
+    await pool.aclose()
 
 @pytest.mark.asyncio
-async def test_param(client):
-    graph = client
+async def test_param():
+    pool = BlockingConnectionPool(max_connections=16, timeout=None, decode_responses=True)
+    db = FalkorDB(connection_pool=pool)
+    graph = db.select_graph("async_graph")
+
     params = [1, 2.3, "str", True, False, None, [0, 1, 2], r"\" RETURN 1337 //"]
     query = "RETURN $param"
     for param in params:
@@ -93,10 +109,16 @@ async def test_param(client):
         expected_results = [[param]]
         assert expected_results == result.result_set
 
+    # close the connection pool
+    await pool.aclose()
 
 @pytest.mark.asyncio
-async def test_map(client):
-    g = client
+async def test_map():
+    pool = BlockingConnectionPool(max_connections=16, timeout=None, decode_responses=True)
+    db = FalkorDB(connection_pool=pool)
+    g = db.select_graph("async_graph")
+
+    await g.delete()
 
     query = "RETURN {a:1, b:'str', c:NULL, d:[1,2,3], e:True, f:{x:1, y:2}}"
     actual = (await g.query(query)).result_set[0][0]
@@ -121,9 +143,15 @@ async def test_map(client):
     expected = { "src": src, "e": e, "dest": dest }
     assert actual == expected
 
+    # close the connection pool
+    await pool.aclose()
+
 @pytest.mark.asyncio
-async def test_point(client):
-    g = client
+async def test_point():
+    pool = BlockingConnectionPool(max_connections=16, timeout=None, decode_responses=True)
+    db = FalkorDB(connection_pool=pool)
+    g = db.select_graph("async_graph")
+
     query = "RETURN point({latitude: 32.070794860, longitude: 34.820751118})"
     expected_lat = 32.070794860
     expected_lon = 34.820751118
@@ -138,10 +166,15 @@ async def test_point(client):
     assert abs(actual["latitude"] - expected_lat) < 0.001
     assert abs(actual["longitude"] - expected_lon) < 0.001
 
+    # close the connection pool
+    await pool.aclose()
 
 @pytest.mark.asyncio
-async def test_index_response(client):
-    g = client
+async def test_index_response():
+    pool = BlockingConnectionPool(max_connections=16, timeout=None, decode_responses=True)
+    db = FalkorDB(connection_pool=pool)
+    g = db.select_graph("async_graph")
+
     result_set = await g.query("CREATE INDEX ON :person(age)")
     assert 1 == result_set.indices_created
 
@@ -154,10 +187,14 @@ async def test_index_response(client):
     with pytest.raises(ResponseError):
         await g.query("DROP INDEX ON :person(age)")
 
+    # close the connection pool
+    await pool.aclose()
 
 @pytest.mark.asyncio
-async def test_stringify_query_result(client):
-    g = client
+async def test_stringify_query_result():
+    pool = BlockingConnectionPool(max_connections=16, timeout=None, decode_responses=True)
+    db = FalkorDB(connection_pool=pool)
+    g = db.select_graph("async_graph")
 
     john = Node(alias="a", labels="person",
                 properties={ "name": "John Doe", "age": 33, "gender": "male",
@@ -190,16 +227,23 @@ async def test_stringify_query_result(client):
     assert str(visit) == """()-[:visited{purpose:"pleasure"}]->()"""
     assert str(country) == """(:country{name:"Japan"})"""
 
+    # close the connection pool
+    await pool.aclose()
 
 @pytest.mark.asyncio
-async def test_optional_match(client):
+async def test_optional_match():
+    pool = BlockingConnectionPool(max_connections=16, timeout=None, decode_responses=True)
+    db = FalkorDB(connection_pool=pool)
+    g = db.select_graph("async_graph")
+
+    await g.delete()
+
     # build a graph of form (a)-[R]->(b)
     src = Node(alias="src", node_id=0, labels="L1", properties={"value": "a"})
     dest = Node(alias="dest", node_id=1, labels="L1", properties={"value": "b"})
 
     e = Edge(src, "R", dest, edge_id=0)
 
-    g = client
     await g.query(f"CREATE {src}, {dest}, {e}")
 
     # issue a query that collects all outgoing edges from both nodes
@@ -213,10 +257,14 @@ async def test_optional_match(client):
     result = await g.query(query)
     assert expected_results == result.result_set
 
+    # close the connection pool
+    await pool.aclose()
 
 @pytest.mark.asyncio
-async def test_cached_execution(client):
-    g = client
+async def test_cached_execution():
+    pool = BlockingConnectionPool(max_connections=16, timeout=None, decode_responses=True)
+    db = FalkorDB(connection_pool=pool)
+    g = db.select_graph("async_graph")
 
     result = await g.query("RETURN $param", {"param": 0})
     assert result.cached_execution is False
@@ -224,10 +272,17 @@ async def test_cached_execution(client):
     result = await g.query("RETURN $param", {"param": 0})
     assert result.cached_execution is True
 
+    # close the connection pool
+    await pool.aclose()
 
 @pytest.mark.asyncio
-async def test_slowlog(client):
-    g = client
+async def test_slowlog():
+    pool = BlockingConnectionPool(max_connections=16, timeout=None, decode_responses=True)
+    db = FalkorDB(connection_pool=pool)
+    g = db.select_graph("async_graph")
+
+    await g.delete()
+
     create_query = """CREATE (:Rider {name:'Valentino Rossi'})-[:rides]->(:Team {name:'Yamaha'}),
                              (:Rider {name:'Dani Pedrosa'})-[:rides]->(:Team {name:'Honda'}),
                              (:Rider {name:'Andrea Dovizioso'})-[:rides]->(:Team {name:'Ducati'})"""
@@ -238,11 +293,16 @@ async def test_slowlog(client):
     assert results[0][1] == "GRAPH.QUERY"
     assert results[0][2] == create_query
 
+    # close the connection pool
+    await pool.aclose()
 
 @pytest.mark.xfail(strict=False)
 @pytest.mark.asyncio
-async def test_query_timeout(client):
-    g = client
+async def test_query_timeout():
+    pool = BlockingConnectionPool(max_connections=16, timeout=None, decode_responses=True)
+    db = FalkorDB(connection_pool=pool)
+    g = db.select_graph("async_graph")
+
     # build a graph with 1000 nodes
     await g.query("UNWIND range(0, 1000) as val CREATE ({v: val})")
     # issue a long-running query with a 1-millisecond timeout
@@ -254,43 +314,31 @@ async def test_query_timeout(client):
         await g.query("RETURN 1", timeout="str")
         assert False is False
 
+    # close the connection pool
+    await pool.aclose()
 
 @pytest.mark.asyncio
-async def test_read_only_query(client):
-    g = client
+async def test_read_only_query():
+    pool = BlockingConnectionPool(max_connections=16, timeout=None, decode_responses=True)
+    db = FalkorDB(connection_pool=pool)
+    g = db.select_graph("async_graph")
+
     with pytest.raises(Exception):
         # issue a write query, specifying read-only true
         # call should fail
         await g.query("CREATE ()", read_only=True)
         assert False is False
 
-
-def _test_list_keys(client):
-    g = client
-    result = g.list_keys()
-    assert result == []
-
-    client.graph("G").query("RETURN 1")
-    result = client.graph().list_keys()
-    assert result == ["G"]
-
-    client.graph("X").query("RETURN 1")
-    result = client.graph().list_keys()
-    assert result == ["G", "X"]
-
-    client.delete("G")
-    client.rename("X", "Z")
-    result = client.graph().list_keys()
-    assert result == ["Z"]
-
-    client.delete("Z")
-    result = client.graph().list_keys()
-    assert result == []
-
+    # close the connection pool
+    await pool.aclose()
 
 @pytest.mark.asyncio
-async def test_multi_label(client):
-    g = client
+async def test_multi_label():
+    pool = BlockingConnectionPool(max_connections=16, timeout=None, decode_responses=True)
+    db = FalkorDB(connection_pool=pool)
+    g = db.select_graph("async_graph")
+
+    await g.delete()
 
     node = Node(labels=["l", "ll"])
     await g.query(f"CREATE {node}")
@@ -312,83 +360,15 @@ async def test_multi_label(client):
     except AssertionError:
         assert True
 
+    # close the connection pool
+    await pool.aclose()
 
 @pytest.mark.asyncio
-async def test_cache_sync(client):
-    pass
-    return
-    # This test verifies that client internal graph schema cache stays
-    # in sync with the graph schema
-    #
-    # Client B will try to get Client A out of sync by:
-    # 1. deleting the graph
-    # 2. reconstructing the graph in a different order, this will casuse
-    #    a differance in the current mapping between string IDs and the
-    #    mapping Client A is aware of
-    #
-    # Client A should pick up on the changes by comparing graph versions
-    # and resyncing its cache.
+async def test_execution_plan():
+    pool = BlockingConnectionPool(max_connections=16, timeout=None, decode_responses=True)
+    db = FalkorDB(connection_pool=pool)
+    g = db.select_graph("async_graph")
 
-    A = client.graph("cache-sync")
-    B = client.graph("cache-sync")
-
-    # Build order:
-    # 1. introduce label 'L' and 'K'
-    # 2. introduce attribute 'x' and 'q'
-    # 3. introduce relationship-type 'R' and 'S'
-
-    await A.query("CREATE (:L)")
-    await B.query("CREATE (:K)")
-    await A.query("MATCH (n) SET n.x = 1")
-    await B.query("MATCH (n) SET n.q = 1")
-    await A.query("MATCH (n) CREATE (n)-[:R]->()")
-    await B.query("MATCH (n) CREATE (n)-[:S]->()")
-
-    # Cause client A to populate its cache
-    await A.query("MATCH (n)-[e]->() RETURN n, e")
-
-    assert len(A._labels) == 2
-    assert len(A._properties) == 2
-    assert len(A._relationship_types) == 2
-    assert A._labels[0] == "L"
-    assert A._labels[1] == "K"
-    assert A._properties[0] == "x"
-    assert A._properties[1] == "q"
-    assert A._relationship_types[0] == "R"
-    assert A._relationship_types[1] == "S"
-
-    # Have client B reconstruct the graph in a different order.
-    B.delete()
-
-    # Build order:
-    # 1. introduce relationship-type 'R'
-    # 2. introduce label 'L'
-    # 3. introduce attribute 'x'
-    await B.query("CREATE ()-[:S]->()")
-    await B.query("CREATE ()-[:R]->()")
-    await B.query("CREATE (:K)")
-    await B.query("CREATE (:L)")
-    await B.query("MATCH (n) SET n.q = 1")
-    await B.query("MATCH (n) SET n.x = 1")
-
-    # A's internal cached mapping is now out of sync
-    # issue a query and make sure A's cache is synced.
-    await A.query("MATCH (n)-[e]->() RETURN n, e")
-
-    assert len(A._labels) == 2
-    assert len(A._properties) == 2
-    assert len(A._relationship_types) == 2
-    assert A._labels[0] == "K"
-    assert A._labels[1] == "L"
-    assert A._properties[0] == "q"
-    assert A._properties[1] == "x"
-    assert A._relationship_types[0] == "S"
-    assert A._relationship_types[1] == "R"
-
-
-@pytest.mark.asyncio
-async def test_execution_plan(client):
-    g = client
     create_query = """CREATE
                       (:Rider {name:'Valentino Rossi'})-[:rides]->(:Team {name:'Yamaha'}),
                       (:Rider {name:'Dani Pedrosa'})-[:rides]->(:Team {name:'Honda'}),
@@ -404,10 +384,15 @@ async def test_execution_plan(client):
     expected = "Results\n    Project\n        Conditional Traverse | (t)->(r:Rider)\n            Filter\n                Node By Label Scan | (t:Team)"
     assert str(result) == expected
 
+    # close the connection pool
+    await pool.aclose()
 
 @pytest.mark.asyncio
-async def test_explain(client):
-    g = client
+async def test_explain():
+    pool = BlockingConnectionPool(max_connections=16, timeout=None, decode_responses=True)
+    db = FalkorDB(connection_pool=pool)
+    g = db.select_graph("async_graph")
+
     # graph creation / population
     create_query = """CREATE
                       (:Rider {name:'Valentino Rossi'})-[:rides]->(:Team {name:'Yamaha'}),
@@ -487,3 +472,6 @@ Project
     )
 
     assert result.structured_plan == expected
+
+    # close the connection pool
+    await pool.aclose()

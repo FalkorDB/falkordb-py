@@ -1,15 +1,14 @@
 import pytest
 from falkordb.asyncio import FalkorDB
+from redis.asyncio import BlockingConnectionPool
 
-
-@pytest.fixture
-def client(request):
-    db = FalkorDB(host='localhost', port=6379)
-    return db.select_graph("async_profile")
 
 @pytest.mark.asyncio
-async def test_profile(client):
-    g = client
+async def test_profile():
+    pool = BlockingConnectionPool(max_connections=16, timeout=None, decode_responses=True)
+    db = FalkorDB(connection_pool=pool)
+    g = db.select_graph("async_profile")
+
     plan = await g.profile("UNWIND range(0, 3) AS x RETURN x")
 
     results_op = plan.structured_plan
@@ -27,9 +26,15 @@ async def test_profile(client):
     assert(len(unwind_op.children) == 0)
     assert(unwind_op.profile_stats.records_produced == 4)
 
+    # close the connection pool
+    await pool.aclose()
+
 @pytest.mark.asyncio
-async def test_cartesian_product_profile(client):
-    g = client
+async def test_cartesian_product_profile():
+    pool = BlockingConnectionPool(max_connections=16, timeout=None, decode_responses=True)
+    db = FalkorDB(connection_pool=pool)
+    g = db.select_graph("async_profile")
+
     plan = await g.profile("MATCH (a), (b) RETURN *")
 
     results_op = plan.structured_plan
@@ -57,3 +62,6 @@ async def test_cartesian_product_profile(client):
     assert(scan_b_op.name == 'All Node Scan')
     assert(len(scan_b_op.children) == 0)
     assert(scan_b_op.profile_stats.records_produced == 0)
+
+    # close the connection pool
+    await pool.aclose()

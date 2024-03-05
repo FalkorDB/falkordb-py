@@ -3,6 +3,7 @@ from redis import ResponseError
 from falkordb import Edge, Node
 from falkordb.asyncio import FalkorDB
 from collections import OrderedDict
+from redis.asyncio import BlockingConnectionPool
 
 class Index():
     def __init__(self, raw_response):
@@ -11,15 +12,12 @@ class Index():
         self.types       = raw_response[2]
         self.entity_type = raw_response[5]
 
-@pytest.fixture
-async def client(request):
-    db = FalkorDB(host='localhost', port=6379)
-    await db.flushdb()
-    return db.select_graph("async_indices")
-
 @pytest.mark.asyncio
-async def test_node_index_creation(client):
-    graph = client
+async def test_node_index_creation():
+    pool = BlockingConnectionPool(max_connections=16, timeout=None, decode_responses=True)
+    db = FalkorDB(connection_pool=pool)
+    graph = db.select_graph("async_indices")
+
     lbl = "N"
 
     # create node indices
@@ -91,9 +89,16 @@ async def test_node_index_creation(client):
     assert(index.types['desc'] == ['VECTOR'])
     assert(index.entity_type   == 'NODE')
 
+    # close the connection pool
+    await pool.aclose()
+
 @pytest.mark.asyncio
-async def test_edge_index_creation(client):
-    graph = client
+async def test_edge_index_creation():
+    pool = BlockingConnectionPool(max_connections=16, timeout=None, decode_responses=True)
+    db = FalkorDB(connection_pool=pool)
+    graph = db.select_graph("async_indices")
+    await graph.delete()
+
     rel = "R"
 
     # create edge indices
@@ -165,9 +170,15 @@ async def test_edge_index_creation(client):
     assert(index.types['desc'] == ['VECTOR'])
     assert(index.entity_type   == 'RELATIONSHIP')
 
+    # close the connection pool
+    await pool.aclose()
+
 @pytest.mark.asyncio
-async def test_node_index_drop(client):
-    graph = client
+async def test_node_index_drop():
+    pool = BlockingConnectionPool(max_connections=16, timeout=None, decode_responses=True)
+    db = FalkorDB(connection_pool=pool)
+    graph = db.select_graph("async_indices")
+    await graph.delete()
 
     # create an index and delete it
     lbl = 'N'
@@ -225,9 +236,15 @@ async def test_node_index_drop(client):
     res = await graph.list_indices()
     assert(len(res.result_set) == 0)
 
+    # close the connection pool
+    await pool.aclose()
+
 @pytest.mark.asyncio
-async def test_edge_index_drop(client):
-    graph = client
+async def test_edge_index_drop():
+    pool = BlockingConnectionPool(max_connections=16, timeout=None, decode_responses=True)
+    db = FalkorDB(connection_pool=pool)
+    graph = db.select_graph("async_indices")
+    await graph.delete()
 
     # create an index and delete it
     rel = 'R'
@@ -285,3 +302,5 @@ async def test_edge_index_drop(client):
     res = await graph.list_indices()
     assert(len(res.result_set) == 0)
 
+    # close the connection pool
+    await pool.aclose()

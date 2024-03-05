@@ -1,9 +1,12 @@
 import pytest
 import asyncio
 from falkordb.asyncio import FalkorDB
+from redis.asyncio import BlockingConnectionPool
 
+@pytest.mark.asyncio
 async def test_constraints():
-    db = FalkorDB(host='localhost', port=6379)
+    pool = BlockingConnectionPool(max_connections=16, timeout=None, decode_responses=True)
+    db = FalkorDB(connection_pool=pool)
     g = db.select_graph("async_constraints")
 
     # create node constraints
@@ -31,9 +34,14 @@ async def test_constraints():
     constraints = await g.list_constraints()
     assert(len(constraints) == 0)
 
+    # close the connection pool
+    await pool.aclose()
+
+@pytest.mark.asyncio
 async def test_create_existing_constraint():
     # trying to create an existing constraint
-    db = FalkorDB(host='localhost', port=6379)
+    pool = BlockingConnectionPool(max_connections=16, timeout=None, decode_responses=True)
+    db = FalkorDB(connection_pool=pool)
     g = db.select_graph("async_constraints")
 
     # create node constraints
@@ -44,3 +52,5 @@ async def test_create_existing_constraint():
     except Exception as e:
         assert("Constraint already exists" == str(e))
 
+    # close the connection pool
+    await pool.aclose()
