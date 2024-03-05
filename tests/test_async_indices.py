@@ -17,6 +17,7 @@ async def client(request):
     await db.flushdb()
     return db.select_graph("async_indices")
 
+@pytest.mark.asyncio
 async def test_node_index_creation(client):
     graph = client
     lbl = "N"
@@ -90,6 +91,7 @@ async def test_node_index_creation(client):
     assert(index.types['desc'] == ['VECTOR'])
     assert(index.entity_type   == 'NODE')
 
+@pytest.mark.asyncio
 async def test_edge_index_creation(client):
     graph = client
     rel = "R"
@@ -163,6 +165,7 @@ async def test_edge_index_creation(client):
     assert(index.types['desc'] == ['VECTOR'])
     assert(index.entity_type   == 'RELATIONSHIP')
 
+@pytest.mark.asyncio
 async def test_node_index_drop(client):
     graph = client
 
@@ -222,6 +225,7 @@ async def test_node_index_drop(client):
     res = await graph.list_indices()
     assert(len(res.result_set) == 0)
 
+@pytest.mark.asyncio
 async def test_edge_index_drop(client):
     graph = client
 

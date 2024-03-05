@@ -10,6 +10,7 @@ async def client(request):
     await db.flushdb()
     return db.select_graph("async_graph")
 
+@pytest.mark.asyncio
 async def test_graph_creation(client):
     graph = client
 
@@ -44,6 +45,7 @@ async def test_graph_creation(client):
     assert [1, 2.3, "4", True, False, None] == result.result_set[0][0]
 
 
+@pytest.mark.asyncio
 async def test_array_functions(client):
     graph = client
     query = """RETURN [0,1,2]"""
@@ -64,6 +66,7 @@ async def test_array_functions(client):
     assert [a] == result.result_set[0][0]
 
 
+@pytest.mark.asyncio
 async def test_path(client):
     graph  = client
     node0  = Node(alias="node0", node_id=0, labels="L1")
@@ -80,6 +83,7 @@ async def test_path(client):
     assert expected_results == result.result_set
 
 
+@pytest.mark.asyncio
 async def test_param(client):
     graph = client
     params = [1, 2.3, "str", True, False, None, [0, 1, 2], r"\" RETURN 1337 //"]
@@ -90,6 +94,7 @@ async def test_param(client):
         assert expected_results == result.result_set
 
 
+@pytest.mark.asyncio
 async def test_map(client):
     g = client
 
@@ -116,6 +121,7 @@ async def test_map(client):
     expected = { "src": src, "e": e, "dest": dest }
     assert actual == expected
 
+@pytest.mark.asyncio
 async def test_point(client):
     g = client
     query = "RETURN point({latitude: 32.070794860, longitude: 34.820751118})"
@@ -133,6 +139,7 @@ async def test_point(client):
     assert abs(actual["longitude"] - expected_lon) < 0.001
 
 
+@pytest.mark.asyncio
 async def test_index_response(client):
     g = client
     result_set = await g.query("CREATE INDEX ON :person(age)")
@@ -148,6 +155,7 @@ async def test_index_response(client):
         await g.query("DROP INDEX ON :person(age)")
 
 
+@pytest.mark.asyncio
 async def test_stringify_query_result(client):
     g = client
 
@@ -183,6 +191,7 @@ async def test_stringify_query_result(client):
     assert str(country) == """(:country{name:"Japan"})"""
 
 
+@pytest.mark.asyncio
 async def test_optional_match(client):
     # build a graph of form (a)-[R]->(b)
     src = Node(alias="src", node_id=0, labels="L1", properties={"value": "a"})
@@ -205,6 +214,7 @@ async def test_optional_match(client):
     assert expected_results == result.result_set
 
 
+@pytest.mark.asyncio
 async def test_cached_execution(client):
     g = client
 
@@ -215,6 +225,7 @@ async def test_cached_execution(client):
     assert result.cached_execution is True
 
 
+@pytest.mark.asyncio
 async def test_slowlog(client):
     g = client
     create_query = """CREATE (:Rider {name:'Valentino Rossi'})-[:rides]->(:Team {name:'Yamaha'}),
@@ -229,6 +240,7 @@ async def test_slowlog(client):
 
 
 @pytest.mark.xfail(strict=False)
+@pytest.mark.asyncio
 async def test_query_timeout(client):
     g = client
     # build a graph with 1000 nodes
@@ -243,6 +255,7 @@ async def test_query_timeout(client):
         assert False is False
 
 
+@pytest.mark.asyncio
 async def test_read_only_query(client):
     g = client
     with pytest.raises(Exception):
@@ -275,6 +288,7 @@ def _test_list_keys(client):
     assert result == []
 
 
+@pytest.mark.asyncio
 async def test_multi_label(client):
     g = client
 
@@ -299,6 +313,7 @@ async def test_multi_label(client):
         assert True
 
 
+@pytest.mark.asyncio
 async def test_cache_sync(client):
     pass
     return
@@ -371,6 +386,7 @@ async def test_cache_sync(client):
     assert A._relationship_types[1] == "R"
 
 
+@pytest.mark.asyncio
 async def test_execution_plan(client):
     g = client
     create_query = """CREATE
@@ -389,6 +405,7 @@ async def test_execution_plan(client):
     assert str(result) == expected
 
 
+@pytest.mark.asyncio
 async def test_explain(client):
     g = client
     # graph creation / population

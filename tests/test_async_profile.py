@@ -7,6 +7,7 @@ def client(request):
     db = FalkorDB(host='localhost', port=6379)
     return db.select_graph("async_profile")
 
+@pytest.mark.asyncio
 async def test_profile(client):
     g = client
     plan = await g.profile("UNWIND range(0, 3) AS x RETURN x")
@@ -26,6 +27,7 @@ async def test_profile(client):
     assert(len(unwind_op.children) == 0)
     assert(unwind_op.profile_stats.records_produced == 4)
 
+@pytest.mark.asyncio
 async def test_cartesian_product_profile(client):
     g = client
     plan = await g.profile("MATCH (a), (b) RETURN *")

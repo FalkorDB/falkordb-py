@@ -8,6 +8,7 @@ def client(request):
     return FalkorDB(host='localhost', port=6379)
 
 
+@pytest.mark.asyncio
 async def test_config(client):
     db = client
     config_name = "RESULTSET_SIZE"
@@ -37,6 +38,7 @@ async def test_config(client):
     with pytest.raises(Exception):
         await db.config_set(config_name, "invalid value")
 
+@pytest.mark.asyncio
 async def test_connect_via_url():
     # make sure we're able to connect via url
     db = FalkorDB.from_url("falkor://localhost:6379")

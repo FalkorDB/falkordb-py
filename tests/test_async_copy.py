@@ -2,6 +2,7 @@ import pytest
 import asyncio
 from falkordb.asyncio import FalkorDB
 
+@pytest.mark.asyncio
 async def test_graph_copy():
     # create a simple graph and clone it
     # make sure graphs are the same

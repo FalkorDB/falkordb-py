@@ -8,6 +8,7 @@ async def client(request):
     return db.select_graph("async_explain")
 
 
+@pytest.mark.asyncio
 async def test_explain(client):
     g = client
 
@@ -28,6 +29,7 @@ async def test_explain(client):
     assert(unwind_op.name == 'Unwind')
     assert(len(unwind_op.children) == 0)
 
+@pytest.mark.asyncio
 async def test_cartesian_product_explain(client):
     g = client
     plan = await g.explain("MATCH (a), (b) RETURN *")
@@ -53,6 +55,7 @@ async def test_cartesian_product_explain(client):
     assert(scan_b_op.name == 'All Node Scan')
     assert(len(scan_b_op.children) == 0)
 
+@pytest.mark.asyncio
 async def test_merge(client):
     g = client
 
