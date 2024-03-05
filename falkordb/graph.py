@@ -6,9 +6,11 @@ from .exceptions import SchemaVersionMismatchException
 from .helpers import quote_string, stringify_param_value
 
 # procedures
-GRAPH_INDEXES = "DB.INDEXES"
+GRAPH_INDEXES          = "DB.INDEXES"
+GRAPH_LIST_CONSTRAINTS = "DB.CONSTRAINTS"
 
 # commands
+COPY_CMD      = "GRAPH.COPY"
 QUERY_CMD     = "GRAPH.QUERY"
 DELETE_CMD    = "GRAPH.DELETE"
 EXPLAIN_CMD   = "GRAPH.EXPLAIN"
@@ -129,6 +131,20 @@ class Graph():
         """
 
         return self._query(q, params=params, timeout=timeout, read_only=True)
+
+    def copy(self, clone: str):
+        """
+        Creates a copy of graph
+
+        Args:
+            clone (str): Name of cloned graph
+
+        Returns:
+            Graph: the cloned graph
+        """
+
+        self.execute_command(COPY_CMD, self.name, clone)
+        return Graph(self.client, clone)
 
     def delete(self) -> None:
         """
@@ -523,3 +539,180 @@ class Graph():
         """
         options = {'dimension': dim, 'similarityFunction': similarity_function}
         return self._create_typed_index("VECTOR", "EDGE", relation, *properties, options=options)
+
+    def _create_constraint(self, constraint_type: str, entity_type: str, label: str, *properties):
+        """
+        Create a constraint
+        """
+
+        # GRAPH.CONSTRAINT CREATE key constraintType {NODE label | RELATIONSHIP reltype} PROPERTIES propCount prop [prop...]
+        return self.execute_command("GRAPH.CONSTRAINT", "CREATE", self.name,
+                                    constraint_type, entity_type, label,
+                                    "PROPERTIES", len(properties), *properties)
+
+    def create_node_unique_constraint(self, label: str, *properties):
+        """
+        Create node unique constraint
+        See: https://docs.falkordb.com/commands/graph.constraint-create.html
+
+        The constraint is created asynchronously, use list constraints to pull on
+        constraint creation status
+
+        Note: unique constraints require a the existance of a range index
+        over the constraint properties, this function will create any missing range indices
+
+        Args:
+            label (str): Node label to apply constraint to
+            properties: Variable number of property names to constrain
+        """
+
+        # create required range indices
+        try:
+            self.create_node_range_index(label, *properties)
+        except Exception:
+            pass
+
+        # create constraint
+        return self._create_constraint("UNIQUE", "NODE", label, *properties)
+
+    def create_edge_unique_constraint(self, relation: str, *properties):
+        """
+        Create edge unique constraint
+        See: https://docs.falkordb.com/commands/graph.constraint-create.html
+
+        The constraint is created asynchronously, use list constraints to pull on
+        constraint creation status
+
+        Note: unique constraints require a the existance of a range index
+        over the constraint properties, this function will create any missing range indices
+
+        Args:
+            relation (str): Edge relationship-type to apply constraint to
+            properties: Variable number of property names to constrain
+        """
+
+        # create required range indices
+        try:
+            self.create_edge_range_index(relation, *properties)
+        except Exception:
+            pass
+
+        return self._create_constraint("UNIQUE", "RELATIONSHIP", relation, *properties)
+
+    def create_node_mandatory_constraint(self, label: str, *properties):
+        """
+        Create node mandatory constraint
+        See: https://docs.falkordb.com/commands/graph.constraint-create.html
+
+        The constraint is created asynchronously, use list constraints to pull on
+        constraint creation status
+
+        Args:
+            label (str): Node label to apply constraint to
+            properties: Variable number of property names to constrain
+        """
+
+        return self._create_constraint("MANDATORY", "NODE", label, *properties)
+
+    def create_edge_mandatory_constraint(self, relation: str, *properties):
+        """
+        Create edge mandatory constraint
+        See: https://docs.falkordb.com/commands/graph.constraint-create.html
+
+        The constraint is created asynchronously, use list constraints to pull on
+        constraint creation status
+
+        Args:
+            relation (str): Edge relationship-type to apply constraint to
+            properties: Variable number of property names to constrain
+        """
+        return self._create_constraint("MANDATORY", "RELATIONSHIP", relation, *properties)
+
+    def _drop_constraint(self, constraint_type: str, entity_type: str, label: str, *properties):
+        """
+        Drops a constraint
+
+        Args:
+        constraint_type (str): Type of constraint to drop
+        entity_type (str): Type of entity to drop constraint from
+        label (str): entity's label / relationship-type
+        properties: entity's properties to remove constraint from
+        """
+
+        return self.execute_command("GRAPH.CONSTRAINT", "DROP", self.name,
+                                    constraint_type, entity_type, label,
+                                    "PROPERTIES", len(properties), *properties)
+
+    def drop_node_unique_constraint(self, label: str, *properties):
+        """
+        Drop node unique constraint
+        See: https://docs.falkordb.com/commands/graph.constraint-create.html
+
+        Note: the constraint supporting range index is not removed
+
+        Args:
+            label (str): Node label to remove the constraint from
+            properties: properties to remove constraint from
+        """
+
+        # drop constraint
+        return self._drop_constraint("UNIQUE", "NODE", label, *properties)
+
+    def drop_edge_unique_constraint(self, relation: str, *properties):
+        """
+        Drop edge unique constraint
+        See: https://docs.falkordb.com/commands/graph.constraint-create.html
+
+        Note: the constraint supporting range index is not removed
+
+        Args:
+            label (str): Edge relationship-type to remove the constraint from
+            properties: properties to remove constraint from
+        """
+
+        return self._drop_constraint("UNIQUE", "RELATIONSHIP", relation, *properties)
+
+    def drop_node_mandatory_constraint(self, label: str, *properties):
+        """
+        Drop node mandatory constraint
+        See: https://docs.falkordb.com/commands/graph.constraint-create.html
+
+        Args:
+            label (str): Node label to remove the constraint from
+            properties: properties to remove constraint from
+        """
+
+        return self._drop_constraint("MANDATORY", "NODE", label, *properties)
+
+    def drop_edge_mandatory_constraint(self, relation: str, *properties):
+        """
+        Drop edge mandatory constraint
+        See: https://docs.falkordb.com/commands/graph.constraint-create.html
+
+        Args:
+            label (str): Edge relationship-type to remove the constraint from
+            properties: properties to remove constraint from
+        """
+        return self._drop_constraint("MANDATORY", "RELATIONSHIP", relation, *properties)
+
+    def list_constraints(self) -> [Dict[str, object]]:
+        """
+        Lists graph's constraints
+
+        See: https://docs.falkordb.com/commands/graph.constraint-create.html#listing-constraints
+
+        Returns:
+            [Dict[str, object]]: list of constraints
+        """
+
+        result = self.call_procedure(GRAPH_LIST_CONSTRAINTS).result_set
+
+        constraints = []
+        for row in result:
+            constraints.append({"type":       row[0],
+                                "label":      row[1],
+                                "properties": row[2],
+                                "entitytype": row[3],
+                                "status":     row[4]})
+        return constraints
+

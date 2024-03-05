@@ -4,12 +4,12 @@ from falkordb import FalkorDB
 
 @pytest.fixture
 def client(request):
-    return FalkorDB(host='localhost', port=6379)
+    db = FalkorDB(host='localhost', port=6379)
+    return db.select_graph("profile")
 
 
 def test_profile(client):
-    db = client
-    g = db.select_graph("profile")
+    g = client
     plan = g.profile("UNWIND range(0, 3) AS x RETURN x")
 
     results_op = plan.structured_plan
@@ -28,8 +28,7 @@ def test_profile(client):
     assert(unwind_op.profile_stats.records_produced == 4)
 
 def test_cartesian_product_profile(client):
-    db = client
-    g = db.select_graph("profile")
+    g = client
     plan = g.profile("MATCH (a), (b) RETURN *")
 
     results_op = plan.structured_plan
