@@ -14,7 +14,7 @@ class Index():
 def client(request):
     db = FalkorDB(host='localhost', port=6379)
     db.flushdb()
-    return db.select_graph("g")
+    return db.select_graph("indices")
 
 def test_node_index_creation(client):
     graph = client

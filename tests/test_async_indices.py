@@ -15,7 +15,7 @@ class Index():
 async def client(request):
     db = FalkorDB(host='localhost', port=6379)
     await db.flushdb()
-    return db.select_graph("g")
+    return db.select_graph("async_indices")
 
 async def test_node_index_creation(client):
     graph = client

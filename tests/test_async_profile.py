@@ -5,7 +5,7 @@ from falkordb.asyncio import FalkorDB
 @pytest.fixture
 def client(request):
     db = FalkorDB(host='localhost', port=6379)
-    return db.select_graph("profile")
+    return db.select_graph("async_profile")
 
 async def test_profile(client):
     g = client

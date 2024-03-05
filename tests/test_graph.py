@@ -7,7 +7,7 @@ from falkordb import FalkorDB, Edge, Node, Path, Operation
 def client(request):
     db = FalkorDB(host='localhost', port=6379)
     db.flushdb()
-    return db.select_graph("g")
+    return db.select_graph("graph")
 
 def test_graph_creation(client):
     graph = client

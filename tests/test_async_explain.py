@@ -5,7 +5,7 @@ from falkordb.asyncio import FalkorDB
 @pytest.fixture
 async def client(request):
     db = FalkorDB(host='localhost', port=6379)
-    return db.select_graph("explain")
+    return db.select_graph("async_explain")
 
 
 async def test_explain(client):

@@ -10,6 +10,7 @@ GRAPH_INDEXES          = "DB.INDEXES"
 GRAPH_LIST_CONSTRAINTS = "DB.CONSTRAINTS"
 
 # commands
+COPY_CMD      = "GRAPH.COPY"
 QUERY_CMD     = "GRAPH.QUERY"
 DELETE_CMD    = "GRAPH.DELETE"
 EXPLAIN_CMD   = "GRAPH.EXPLAIN"
@@ -142,7 +143,7 @@ class Graph():
             Graph: the cloned graph
         """
 
-        self.execute_command("GRAPH.COPY", self.name, clone)
+        self.execute_command(COPY_CMD, self.name, clone)
         return Graph(self.client, clone)
 
     def delete(self) -> None:

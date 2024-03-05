@@ -1,5 +1,4 @@
 import pytest
-from redis import ResponseError
 from falkordb import FalkorDB
 
 def test_graph_copy():
@@ -7,7 +6,7 @@ def test_graph_copy():
     # make sure graphs are the same
 
     db = FalkorDB(host='localhost', port=6379)
-    src = db.select_graph("src")
+    src = db.select_graph("copy_src")
 
     # create entities
     src.query("CREATE (:A {v:1})-[:R {v:2}]->(:B {v:3})")
@@ -22,7 +21,7 @@ def test_graph_copy():
     src.create_edge_unique_constraint("R", "v")
 
     # clone graph
-    dest = src.copy("dest")
+    dest = src.copy("copy_dest")
 
     # validate src and dest are the same
     # validate entities
