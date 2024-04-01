@@ -1,6 +1,6 @@
-from typing import List
 import redis
 from .graph import Graph
+from typing import List, Union
 
 # config command
 LIST_CMD   = "GRAPH.LIST"
@@ -161,7 +161,7 @@ class FalkorDB():
 
         return self.connection.execute_command(LIST_CMD)
 
-    def config_get(self, name: str) -> int | str:
+    def config_get(self, name: str) -> Union[int, str]:
         """
         Retrieve a DB level configuration.
         For a list of available configurations see: https://docs.falkordb.com/configuration.html#falkordb-configuration-parameters
