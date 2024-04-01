@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "FalkorDB"
-version = "1.0.2"
+version = "1.0.4"
 description = "Python client for interacting with FalkorDB database"
 authors = ["FalkorDB inc <info@falkordb.com>"]
 
@@ -12,7 +12,7 @@ keywords = ['FalkorDB', 'GraphDB', 'Cypher']
 packages = [{include = "falkordb"}]
 
 [tool.poetry.dependencies]
-python = "^3.10"
+python = "^3.8"
 redis = "^5.0.1"
 
 [tool.poetry.group.test.dependencies]

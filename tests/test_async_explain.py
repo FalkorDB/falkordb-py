@@ -1,15 +1,13 @@
 import pytest
 from falkordb.asyncio import FalkorDB
+from redis.asyncio import BlockingConnectionPool
 
 
-@pytest.fixture
-async def client(request):
-    db = FalkorDB(host='localhost', port=6379)
-    return db.select_graph("explain")
-
-
-async def test_explain(client):
-    g = client
+@pytest.mark.asyncio
+async def test_explain():
+    pool = BlockingConnectionPool(max_connections=16, timeout=None, decode_responses=True)
+    db = FalkorDB(connection_pool=pool)
+    g = db.select_graph("async_explain")
 
     # run a single query to create the graph
     await g.query("RETURN 1")
@@ -28,8 +26,14 @@ async def test_explain(client):
     assert(unwind_op.name == 'Unwind')
     assert(len(unwind_op.children) == 0)
 
-async def test_cartesian_product_explain(client):
-    g = client
+    # close the connection pool
+    await pool.aclose()
+
+@pytest.mark.asyncio
+async def test_cartesian_product_explain():
+    pool = BlockingConnectionPool(max_connections=16, timeout=None, decode_responses=True)
+    db = FalkorDB(connection_pool=pool)
+    g = db.select_graph("async_explain")
     plan = await g.explain("MATCH (a), (b) RETURN *")
 
     results_op = plan.structured_plan
@@ -53,8 +57,14 @@ async def test_cartesian_product_explain(client):
     assert(scan_b_op.name == 'All Node Scan')
     assert(len(scan_b_op.children) == 0)
 
-async def test_merge(client):
-    g = client
+    # close the connection pool
+    await pool.aclose()
+
+@pytest.mark.asyncio
+async def test_merge():
+    pool = BlockingConnectionPool(max_connections=16, timeout=None, decode_responses=True)
+    db = FalkorDB(connection_pool=pool)
+    g = db.select_graph("async_explain")
 
     try:
         await g.create_node_range_index("person", "age")
@@ -93,3 +103,6 @@ async def test_merge(client):
     arg_op = merge_create_op.children[0]
     assert(arg_op.name == 'Argument')
     assert(len(arg_op.children) == 0)
+
+    # close the connection pool
+    await pool.aclose()
