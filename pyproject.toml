@@ -16,7 +16,7 @@ python = "^3.8"
 redis = "^5.0.1"
 
 [tool.poetry.group.test.dependencies]
-pytest-cov = "^4.1.0"
+pytest-cov = ">=4.1,<6.0"
 pytest = "7.0.0"
 pytest-asyncio = "^0.23.4"
 
