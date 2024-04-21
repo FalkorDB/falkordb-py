@@ -9,7 +9,7 @@
 
 [![Try Free](https://img.shields.io/badge/Try%20Free-FalkorDB%20Cloud-FF8101?labelColor=FDE900&style=for-the-badge&link=https://app.falkordb.cloud)](https://app.falkordb.cloud)
 
-FalkorDB python client
+FalkorDB Python client
 
 see [docs](http://falkordb-py.readthedocs.io/)
 
