@@ -17,7 +17,7 @@ redis = "^5.0.1"
 
 [tool.poetry.group.test.dependencies]
 pytest-cov = ">=4.1,<6.0"
-pytest = "8.2.1"
+pytest = "8.2.2"
 pytest-asyncio = "^0.23.4"
 
 [build-system]
