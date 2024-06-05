@@ -1,6 +1,6 @@
-from typing import List
-from .graph import AsyncGraph
 import redis.asyncio as redis
+from .graph import AsyncGraph
+from typing import List, Union
 
 # config command
 LIST_CMD   = "GRAPH.LIST"
@@ -148,7 +148,7 @@ class FalkorDB():
 
         return await self.connection.execute_command(LIST_CMD)
 
-    async def config_get(self, name: str) -> int | str:
+    async def config_get(self, name: str) -> Union[int, str]:
         """
         Retrieve a DB level configuration.
         For a list of available configurations see: https://docs.falkordb.com/configuration.html#falkordb-configuration-parameters

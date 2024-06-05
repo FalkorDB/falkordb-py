@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "FalkorDB"
-version = "1.0.3"
+version = "1.0.4"
 description = "Python client for interacting with FalkorDB database"
 authors = ["FalkorDB inc <info@falkordb.com>"]
 
@@ -12,12 +12,12 @@ keywords = ['FalkorDB', 'GraphDB', 'Cypher']
 packages = [{include = "falkordb"}]
 
 [tool.poetry.dependencies]
-python = "^3.10"
+python = "^3.8"
 redis = "^5.0.1"
 
 [tool.poetry.group.test.dependencies]
-pytest-cov = "^4.1.0"
-pytest = "7.0.0"
+pytest-cov = ">=4.1,<6.0"
+pytest = "8.2.1"
 pytest-asyncio = "^0.23.4"
 
 [build-system]
