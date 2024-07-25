@@ -6,7 +6,7 @@ def Is_Sentinel(conn):
     return "redis_mode" in info and info["redis_mode"] == "sentinel"
 
 # create a sentinel connection from a Redis connection
-def Sentinel_Conn(conn):
+def Sentinel_Conn(conn, ssl):
     # collect masters
     masters = conn.sentinel_masters()
 
@@ -41,6 +41,8 @@ def Sentinel_Conn(conn):
         sentinel_kwargs['username'] = connection_kwargs['username']
     if 'password' in connection_kwargs:
         sentinel_kwargs['password'] = connection_kwargs['password']
+    if ssl:
+        sentinel_kwargs['ssl'] = True
 
     return (Sentinel(sentinels_conns, sentinel_kwargs=sentinel_kwargs, **connection_kwargs), service_name)
 
