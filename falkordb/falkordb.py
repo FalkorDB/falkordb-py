@@ -98,8 +98,8 @@ class FalkorDB():
                            protocol=protocol)
 
         if Is_Sentinel(conn):
-            self.sentinel, self.service_name = Sentinel_Conn(conn)
-            conn = self.sentinel.master_for(self.service_name)
+            self.sentinel, self.service_name = Sentinel_Conn(conn, ssl)
+            conn = self.sentinel.master_for(self.service_name, ssl=ssl)
 
         self.connection      = conn
         self.flushdb         = conn.flushdb
