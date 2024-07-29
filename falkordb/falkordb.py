@@ -1,4 +1,5 @@
 import redis
+from .cluster import *
 from .sentinel import *
 from .graph import Graph
 from typing import List, Union
@@ -100,6 +101,9 @@ class FalkorDB():
         if Is_Sentinel(conn):
             self.sentinel, self.service_name = Sentinel_Conn(conn, ssl)
             conn = self.sentinel.master_for(self.service_name, ssl=ssl)
+
+        if Is_Cluster(conn):
+            conn = Cluster_Conn(conn, ssl)
 
         self.connection      = conn
         self.flushdb         = conn.flushdb
