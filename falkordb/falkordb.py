@@ -1,4 +1,6 @@
 import redis
+from .cluster import *
+from .sentinel import *
 from .graph import Graph
 from typing import List, Union
 
@@ -96,6 +98,13 @@ class FalkorDB():
                            credential_provider=credential_provider,
                            protocol=protocol)
 
+        if Is_Sentinel(conn):
+            self.sentinel, self.service_name = Sentinel_Conn(conn, ssl)
+            conn = self.sentinel.master_for(self.service_name, ssl=ssl)
+
+        if Is_Cluster(conn):
+            conn = Cluster_Conn(conn, ssl)
+
         self.connection      = conn
         self.flushdb         = conn.flushdb
         self.execute_command = conn.execute_command
@@ -128,6 +137,11 @@ class FalkorDB():
             url = 'rediss://' + url[len('falkors://'):]
 
         conn = redis.from_url(url, **kwargs)
+
+        if Is_Sentinel(conn):
+            db.sentinel, db.service_name = Sentinel_Conn(conn)
+            conn = db.sentinel.master_for(db.service_name)
+
         db.connection      = conn
         db.flushdb         = conn.flushdb
         db.execute_command = conn.execute_command
