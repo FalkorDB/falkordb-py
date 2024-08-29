@@ -137,8 +137,8 @@ class FalkorDB():
         conn = redis.from_url(url, **kwargs)
 
         connection_kwargs = conn.connection_pool.connection_kwargs
-        kwargs['host'] = connection_kwargs.get('host')
-        kwargs['port'] = connection_kwargs.get('port')
+        kwargs['host'] = connection_kwargs.get('host', 'localhost')
+        kwargs['port'] = connection_kwargs.get('port', 6379)
         kwargs['username'] = connection_kwargs.get('username')
         kwargs['password'] = connection_kwargs.get('password')
 
