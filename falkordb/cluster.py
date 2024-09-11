@@ -14,5 +14,5 @@ def Cluster_Conn(conn, ssl):
     connection_kwargs = conn.connection_pool.connection_kwargs
     username = connection_kwargs['username']
     password = connection_kwargs['password']
-    return RedisCluster(Retry(default_backoff(),20),cluster_error_retry_attempts=20,startup_nodes=nodes,username=username,password=password,ssl=ssl)
+    return RedisCluster(Retry(default_backoff(),6),cluster_error_retry_attempts=6,startup_nodes=nodes,username=username,password=password,ssl=ssl)
 
