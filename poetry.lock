@@ -238,7 +238,7 @@ ocsp = ["cryptography (>=36.0.1)", "pyopenssl (==23.2.1)", "requests (>=2.31.0)"
 type = "git"
 url = "https://github.com/MuhammadQadora/redis-py"
 reference = "master"
-resolved_reference = "2b98f76ac5e952e05dcddc5b806b4a2dbcdb8ba2"
+resolved_reference = "99e39b6dc1d0a32c20a1d4b8fe559286b6d87b0a"
 
 [[package]]
 name = "tomli"
