@@ -23,7 +23,7 @@ def Cluster_Conn(conn, ssl):
                         ConnectionRefusedError,
     ])
     require_full_coverage = connection_kwargs.pop("require_full_coverage", None)
-    reinitialize_steps = connection_kwargs.pop("reinitialize_steps", None)
+    reinitialize_steps = connection_kwargs.pop("reinitialize_steps", 5)
     read_from_replicas = connection_kwargs.pop("read_from_replicas", None) 
     dynamic_startup_nodes = connection_kwargs.pop("dynamic_startup_nodes", None) 
     url = connection_kwargs.pop("url", None) 
