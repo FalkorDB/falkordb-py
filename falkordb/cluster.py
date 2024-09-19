@@ -1,5 +1,6 @@
 from redis.cluster import RedisCluster
-
+import redis.exceptions as redis_exceptions
+import socket
 
 # detect if a connection is a sentinel
 def Is_Cluster(conn):
@@ -31,9 +32,11 @@ def Cluster_Conn(
     retry_on_error = connection_kwargs.pop(
         "retry_on_error",
         [
+            ConnectionRefusedError,
             ConnectionError,
             TimeoutError,
-            ConnectionRefusedError,
+            socket.timeout,
+            redis_exceptions.ConnectionError,
         ],
     )
     return RedisCluster(
