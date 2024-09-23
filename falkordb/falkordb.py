@@ -175,6 +175,7 @@ class FalkorDB:
         kwargs["port"] = connection_kwargs.get("port", 6379)
         kwargs["username"] = connection_kwargs.get("username")
         kwargs["password"] = connection_kwargs.get("password")
+        kwargs["unix_socket_path"] = connection_kwargs.get("path")
 
         # Initialize a FalkorDB instance using the updated kwargs
         db = cls(**kwargs)
