@@ -236,9 +236,9 @@ ocsp = ["cryptography (>=36.0.1)", "pyopenssl (==23.2.1)", "requests (>=2.31.0)"
 
 [package.source]
 type = "git"
-url = "https://github.com/dudizimber/redis-py"
+url = "https://github.com/MuhammadQadora/redis-py"
 reference = "master"
-resolved_reference = "7d73d742d6df4b3d6f6a1f0ec73e72d4a02add74"
+resolved_reference = "084c216a78dfd40eea3faf142450c43efe50af3c"
 
 [[package]]
 name = "tomli"
@@ -254,4 +254,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.8"
-content-hash = "90114369fecfefd171623167bcb8ffc1e74afa306a89a00fcf2da2839ba63dc1"
+content-hash = "e769fed0b9f0c57092d56dc3ff94cdb52e5f02bfddb2c8ff647807f671fcaff6"

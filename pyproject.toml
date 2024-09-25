@@ -13,7 +13,7 @@ packages = [{include = "falkordb"}]
 
 [tool.poetry.dependencies]
 python = "^3.8"
-redis = {git = "https://github.com/dudizimber/redis-py", rev = "master"}
+redis = {git = "https://github.com/MuhammadQadora/redis-py", rev = "master"}
 
 [tool.poetry.group.test.dependencies]
 pytest-cov = ">=4.1,<6.0"
