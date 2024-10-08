@@ -82,6 +82,16 @@ def test_path(client):
     assert expected_results == result.result_set
 
 
+def test_vector(client):
+    graph  = client
+    res = graph.query(f"RETURN vecf32([1.2, 2.3, -3.2, -2.1, 0.9])").result_set
+
+    actual = res[0][0]
+    expected = [1.2, 2.3, -3.2, -2.1, 0.9]
+
+    assert actual == expected
+
+
 def test_param(client):
     graph = client
     params = [1, 2.3, "str", True, False, None, [0, 1, 2], r"\" RETURN 1337 //"]
