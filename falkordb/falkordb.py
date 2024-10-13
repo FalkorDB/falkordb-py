@@ -123,7 +123,7 @@ class FalkorDB:
 
         if Is_Sentinel(conn):
             self.sentinel, self.service_name = Sentinel_Conn(conn, ssl)
-            conn = self.sentinel.master_for(self.service_name, ssl=ssl, retry=retry)
+            conn = self.sentinel.master_for(self.service_name, ssl=ssl, retry=retry, retry_on_error=retry_on_error)
 
         if Is_Cluster(conn):
             conn = Cluster_Conn(
