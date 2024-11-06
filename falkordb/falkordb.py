@@ -3,7 +3,7 @@ from .cluster import *
 from .sentinel import *
 from .graph import Graph
 from typing import List, Union
-
+import socket
 # config command
 LIST_CMD = "GRAPH.LIST"
 CONFIG_CMD = "GRAPH.CONFIG"
@@ -122,59 +122,10 @@ class FalkorDB:
             protocol=protocol,
         )
 
-
-        self.password=password
-        self.socket_timeout=socket_timeout
-        self.socket_connect_timeout=socket_connect_timeout
-        self.socket_keepalive=socket_keepalive
-        self.socket_keepalive_options=socket_keepalive_options
-        self.connection_pool=connection_pool
-        self.unix_socket_path=unix_socket_path
-        self.encoding=encoding
-        self.encoding_errors=encoding_errors
-        self.charset=charset
-        self.errors=errors
-        self.retry_on_timeout=retry_on_timeout
-        self.retry_on_error=retry_on_error
-        self.ssl=ssl
-        self.ssl_keyfile=ssl_keyfile
-        self.ssl_certfile=ssl_certfile
-        self.ssl_cert_reqs=ssl_cert_reqs
-        self.ssl_ca_certs=ssl_ca_certs
-        self.ssl_ca_path=ssl_ca_path
-        self.ssl_ca_data=ssl_ca_data
-        self.ssl_check_hostname=ssl_check_hostname
-        self.ssl_password=ssl_password
-        self.ssl_validate_ocsp=ssl_validate_ocsp
-        self.ssl_validate_ocsp_stapled=ssl_validate_ocsp_stapled
-        self.ssl_ocsp_context=ssl_ocsp_context
-        self.ssl_ocsp_expected_cert=ssl_ocsp_expected_cert
-        self.max_connections=max_connections
-        self.single_connection_client=single_connection_client
-        self.health_check_interval=health_check_interval
-        self.client_name=client_name
-        self.lib_name=lib_name
-        self.lib_version=lib_version
-        self.username=username
-        self.retry=retry
-        self.connect_func=connect_func
-        self.credential_provider=credential_provider
-        self.protocol=protocol
-        # FalkorDB Cluster Params
-        self.cluster_error_retry_attempts=cluster_error_retry_attempts
-        self.startup_nodes=startup_nodes
-        self.require_full_coverage=require_full_coverage
-        self.reinitialize_steps=reinitialize_steps
-        self.read_from_replicas=read_from_replicas
-        self.dynamic_startup_nodes=dynamic_startup_nodes
-        self.url=url
-        self.address_remap=address_remap
-        self.sentinel_flag = False
-        self.cluster_flag = False
         if Is_Sentinel(conn):
             self.sentinel, self.service_name = Sentinel_Conn(conn, ssl)
             conn = self.sentinel.master_for(self.service_name, ssl=ssl)
-            self.sentinel_flag = True
+
 
         if Is_Cluster(conn):
             conn = Cluster_Conn(
@@ -280,113 +231,16 @@ class FalkorDB:
 
     def get_replica_connections(self):
         #decide if its Sentinel or cluster
-        if self.sentinel_flag:
+        redis_mode= self.connection.execute_command("info")['redis_mode']
+        if redis_mode == "standalone":
             replica_hostnames = self.sentinel.discover_slaves(service_name=self.service_name)
-            result = [FalkorDB( host=host,
-                                password=self.password,
-                                socket_timeout=self.socket_timeout,
-                                socket_connect_timeout=self.socket_connect_timeout,
-                                socket_keepalive=self.socket_keepalive,
-                                socket_keepalive_options=self.socket_keepalive_options,
-                                connection_pool=self.connection_pool,
-                                unix_socket_path=self.unix_socket_path,
-                                encoding=self.encoding,
-                                encoding_errors=self.encoding_errors,
-                                charset=self.charset,
-                                errors=self.errors,
-                                retry_on_timeout=self.retry_on_timeout,
-                                retry_on_error=self.retry_on_error,
-                                ssl=self.ssl,
-                                ssl_keyfile=self.ssl_keyfile,
-                                ssl_certfile=self.ssl_certfile,
-                                ssl_cert_reqs=self.ssl_cert_reqs,
-                                ssl_ca_certs=self.ssl_ca_certs,
-                                ssl_ca_path=self.ssl_ca_path,
-                                ssl_ca_data=self.ssl_ca_data,
-                                ssl_check_hostname=self.ssl_check_hostname,
-                                ssl_password=self.ssl_password,
-                                ssl_validate_ocsp=self.ssl_validate_ocsp,
-                                ssl_validate_ocsp_stapled=self.ssl_validate_ocsp_stapled,
-                                ssl_ocsp_context=self.ssl_ocsp_context,
-                                ssl_ocsp_expected_cert=self.ssl_ocsp_expected_cert,
-                                max_connections=self.max_connections,
-                                single_connection_client=self.single_connection_client,
-                                health_check_interval=self.health_check_interval,
-                                client_name=self.client_name,
-                                lib_name=self.lib_name,
-                                lib_version=self.lib_version,
-                                username=self.username,
-                                retry=self.retry,
-                                connect_func=self.connect_func,
-                                credential_provider=self.credential_provider,
-                                protocol=self.protocol,
-                                # FalkorDB Cluster Params
-                                cluster_error_retry_attempts=self.cluster_error_retry_attempts,
-                                startup_nodes=self.startup_nodes,
-                                require_full_coverage=self.require_full_coverage,
-                                reinitialize_steps=self.reinitialize_steps,
-                                read_from_replicas=self.read_from_replicas,
-                                dynamic_startup_nodes=self.dynamic_startup_nodes,
-                                url=self.url,
-                                address_remap=self.address_remap,
-                                port=port) 
-                    for host, port in replica_hostnames]
+            result = [(host,port) for host, port in replica_hostnames]
             return result
-        elif self.cluster_flag:
+        elif redis_mode == "cluster":
             data = self.connection.cluster_nodes()
             # List comprehension to get a list of (ip, port, hostname) tuples
             host_port_list = [(ip_port.split(':')[0], ip_port.split(':')[1], flag['hostname']) for ip_port, flag in data.items() if 'slave' in flag["flags"]]
-            result = [FalkorDB(
-                host=tup[2],
-                password=self.password,
-                socket_timeout=self.socket_timeout,
-                socket_connect_timeout=self.socket_connect_timeout,
-                socket_keepalive=self.socket_keepalive,
-                socket_keepalive_options=self.socket_keepalive_options,
-                connection_pool=self.connection_pool,
-                unix_socket_path=self.unix_socket_path,
-                encoding=self.encoding,
-                encoding_errors=self.encoding_errors,
-                charset=self.charset,
-                errors=self.errors,
-                retry_on_timeout=self.retry_on_timeout,
-                retry_on_error=self.retry_on_error,
-                ssl=self.ssl,
-                ssl_keyfile=self.ssl_keyfile,
-                ssl_certfile=self.ssl_certfile,
-                ssl_cert_reqs=self.ssl_cert_reqs,
-                ssl_ca_certs=self.ssl_ca_certs,
-                ssl_ca_path=self.ssl_ca_path,
-                ssl_ca_data=self.ssl_ca_data,
-                ssl_check_hostname=self.ssl_check_hostname,
-                ssl_password=self.ssl_password,
-                ssl_validate_ocsp=self.ssl_validate_ocsp,
-                ssl_validate_ocsp_stapled=self.ssl_validate_ocsp_stapled,
-                ssl_ocsp_context=self.ssl_ocsp_context,
-                ssl_ocsp_expected_cert=self.ssl_ocsp_expected_cert,
-                max_connections=self.max_connections,
-                single_connection_client=self.single_connection_client,
-                health_check_interval=self.health_check_interval,
-                client_name=self.client_name,
-                lib_name=self.lib_name,
-                lib_version=self.lib_version,
-                username=self.username,
-                retry=self.retry,
-                connect_func=self.connect_func,
-                credential_provider=self.credential_provider,
-                protocol=self.protocol,
-                # FalkorDB Cluster Params
-                cluster_error_retry_attempts=self.cluster_error_retry_attempts,
-                startup_nodes=self.startup_nodes,
-                require_full_coverage=self.require_full_coverage,
-                reinitialize_steps=self.reinitialize_steps,
-                read_from_replicas=self.read_from_replicas,
-                dynamic_startup_nodes=self.dynamic_startup_nodes,
-                url=self.url,
-                address_remap=self.address_remap,
-                port=tup[1]
-            )
-                     for tup in host_port_list]
+            result = [tup for tup in host_port_list]
             return result
             
 
