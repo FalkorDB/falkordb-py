@@ -230,20 +230,35 @@ class FalkorDB:
 
     def get_replica_connections(self):
         """
-        A function that returns a list of connections (hostname,port) for the replicas.
+        Retrieve a list of connections for Redis replica nodes.
+
+        This function determines the Redis setup (Sentinel or Cluster) and returns 
+        the hostnames and ports of the replicas.
+
+        Returns:
+            list of tuple: A list of (hostname, port) tuples representing the 
+            replica connections.
+
+        Raises:
+            ConnectionError: If unable to connect or retrieve information from 
+            the Redis setup.
+            ValueError: If the `redis_mode` is neither Sentinel nor Cluster.
         """
-        # decide if its Sentinel or cluster
+        # decide if it's Sentinel or cluster
         redis_mode = self.connection.execute_command("info")['redis_mode']
-        if self.sentinel is not None:
+        if hasattr(self, 'sentinel') and self.sentinel is not None:
             replica_hostnames = self.sentinel.discover_slaves(service_name=self.service_name)
-            result = [(host,port) for host, port in replica_hostnames]
+            result = [(host, port) for host, port in replica_hostnames]
             return result
         elif redis_mode == "cluster":
             data = self.connection.cluster_nodes()
-            # List comprehension to get a list of (ip, port, hostname) tuples
-            host_port_list = [(ip_port.split(':')[0], ip_port.split(':')[1], flag['hostname']) for ip_port, flag in data.items() if 'slave' in flag["flags"]]
+            # List comprehension to get a list of (hostname, port) tuples
+            host_port_list = [(flag['hostname'], ip_port.split(':')[1]) for ip_port, flag in data.items() if 'slave' in flag["flags"]]
             result = [tup for tup in host_port_list]
             return result
+        else:
+            raise ValueError(f"Unsupported Redis mode: {redis_mode}")
+
             
 
     def config_set(self, name: str, value=None) -> None:
