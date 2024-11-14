@@ -245,11 +245,8 @@ class FalkorDB:
             ValueError: If the `mode` is neither Sentinel nor Cluster.
         """
         # decide if it's Sentinel or cluster
-        try:
-            mode = self.connection.execute_command("info")['redis_mode']
-        except Exception as e:
-            raise Exception(f"Failed to get Redis mode: {e}")
         
+        mode = self.connection.execute_command("info")['redis_mode']
         if hasattr(self, 'sentinel') and self.sentinel is not None:
             replica_hostnames = self.sentinel.discover_slaves(service_name=self.service_name)
             return [(host, int(port)) for host, port in replica_hostnames]
