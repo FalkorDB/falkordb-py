@@ -230,9 +230,9 @@ class FalkorDB:
 
     def get_replica_connections(self):
         """
-        Retrieve a list of connections for Redis replica nodes.
+        Retrieve a list of connections for FalkorDB replicas.
 
-        This function determines the Redis setup (Sentinel or Cluster) and returns 
+        This function determines the FalkorDB setup (Sentinel or Cluster) and returns 
         the hostnames and ports of the replicas.
 
         Returns:
@@ -241,17 +241,16 @@ class FalkorDB:
 
         Raises:
             ConnectionError: If unable to connect or retrieve information from 
-            the Redis setup.
-            ValueError: If the `redis_mode` is neither Sentinel nor Cluster.
+            the FalkorDB setup.
+            ValueError: If the `mode` is neither Sentinel nor Cluster.
         """
         # decide if it's Sentinel or cluster
-        redis_mode = self.connection.execute_command("info")['redis_mode']
+        mode = self.connection.execute_command("info")['redis_mode']
         if hasattr(self, 'sentinel') and self.sentinel is not None:
             replica_hostnames = self.sentinel.discover_slaves(service_name=self.service_name)
             return [(host, port) for host, port in replica_hostnames]
-        elif redis_mode == "cluster":
+        elif mode == "cluster":
             data = self.connection.cluster_nodes()
-            # List comprehension to get a list of (hostname, port) tuples
             return [(flag['hostname'], ip_port.split(':')[1]) for ip_port, flag in data.items() if 'slave' in flag["flags"]]
         else:
             raise ValueError(f"Unsupported Redis mode: {redis_mode}")
