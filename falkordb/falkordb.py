@@ -248,14 +248,11 @@ class FalkorDB:
         redis_mode = self.connection.execute_command("info")['redis_mode']
         if hasattr(self, 'sentinel') and self.sentinel is not None:
             replica_hostnames = self.sentinel.discover_slaves(service_name=self.service_name)
-            result = [(host, port) for host, port in replica_hostnames]
-            return result
+            return [(host, port) for host, port in replica_hostnames]
         elif redis_mode == "cluster":
             data = self.connection.cluster_nodes()
             # List comprehension to get a list of (hostname, port) tuples
-            host_port_list = [(flag['hostname'], ip_port.split(':')[1]) for ip_port, flag in data.items() if 'slave' in flag["flags"]]
-            result = [tup for tup in host_port_list]
-            return result
+            return [(flag['hostname'], ip_port.split(':')[1]) for ip_port, flag in data.items() if 'slave' in flag["flags"]]
         else:
             raise ValueError(f"Unsupported Redis mode: {redis_mode}")
 
