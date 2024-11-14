@@ -3,7 +3,7 @@ from .cluster import *
 from .sentinel import *
 from .graph import Graph
 from typing import List, Union
-import socket
+
 # config command
 LIST_CMD = "GRAPH.LIST"
 CONFIG_CMD = "GRAPH.CONFIG"
@@ -140,7 +140,6 @@ class FalkorDB:
                 url,
                 address_remap,
             )
-            self.cluster_flag = True
 
         self.connection = conn
         self.flushdb = conn.flushdb
