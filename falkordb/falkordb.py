@@ -229,9 +229,12 @@ class FalkorDB:
 
 
     def get_replica_connections(self):
-        #decide if its Sentinel or cluster
-        redis_mode= self.connection.execute_command("info")['redis_mode']
-        if redis_mode == "standalone":
+        """
+        A function that returns a list of connections (hostname,port) for the replicas.
+        """
+        # decide if its Sentinel or cluster
+        redis_mode = self.connection.execute_command("info")['redis_mode']
+        if self.sentinel is not None:
             replica_hostnames = self.sentinel.discover_slaves(service_name=self.service_name)
             result = [(host,port) for host, port in replica_hostnames]
             return result
