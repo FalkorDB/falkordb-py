@@ -232,9 +232,6 @@ class FalkorDB:
         """
         Retrieve a list of connections for FalkorDB replicas.
 
-        This function determines the FalkorDB setup (Sentinel or Cluster) and returns 
-        the hostnames and ports of the replicas.
-
         Returns:
             list of tuple: A list of (hostname, port) tuples representing the 
             replica connections.
@@ -244,15 +241,29 @@ class FalkorDB:
             the FalkorDB setup.
             ValueError: If the `mode` is neither Sentinel nor Cluster.
         """
-        # decide if it's Sentinel or cluster
-        
-        mode = self.connection.execute_command("info")['redis_mode']
         if hasattr(self, 'sentinel') and self.sentinel is not None:
-            replica_hostnames = self.sentinel.discover_slaves(service_name=self.service_name)
-            return [(host, int(port)) for host, port in replica_hostnames]
-        elif mode == "cluster":
-            data = self.connection.cluster_nodes()
-            return [(flag['hostname'], int(ip_port.split(':')[1])) for ip_port, flag in data.items() if 'slave' in flag["flags"] and flag["hostname"]]
+            try:
+                replica_hostnames = self.sentinel.discover_slaves(service_name=self.service_name)
+                if not replica_hostnames:
+                    raise ConnectionError("Unable to get replica hostname.")
+                return [(host, int(port)) for host, port in replica_hostnames]
+            except redis.RedisError as e:
+                raise ConnectionError("Failed to get replica hostnames, no hostnames found.") from e
+
+        try:
+            mode = self.connection.execute_command("info").get('redis_mode', None)
+        except redis.RedisError as e:
+            raise ConnectionError("Failed to get replica hostnames") from e
+
+        if mode == "cluster":
+            try:
+                data = self.connection.cluster_nodes()
+                if not data:
+                    raise ConnectionError("Unable to get cluster nodes")
+                return [(flag['hostname'], int(ip_port.split(':')[1])) for ip_port, flag in data.items() if 'slave' in flag['flags'] and flag['hostname'] and len(ip_port.split(':')) > 1]
+            except redis.RedisError as e:
+                raise ConnectionError("Failed to get replica hostnames") from e
+
         else:
             raise ValueError(f"Unsupported Redis mode: {mode}")
 
