@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import MagicMock
-from ..falkordb.falkordb import Is_Cluster
-from ..falkordb.falkordb import Is_Sentinel
+from .falkordb.falkordb import Is_Cluster
+from .falkordb.falkordb import Is_Sentinel
 import redis
 
 @pytest.fixture
