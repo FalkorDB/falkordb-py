@@ -1,12 +1,8 @@
 import pytest
 from unittest.mock import MagicMock, patch
 from redis.sentinel import Sentinel
-from falkordb.falkordb import Sentinel_Conn
-from falkordb.falkordb import Cluster_Conn
 from redis.cluster import RedisCluster
-
-
-
+from falkordb.falkordb import Sentinel_Conn, Cluster_Conn
 
 def test_sentinel_conn_with_single_master():
     # Mock the Redis connection
@@ -25,11 +21,13 @@ def test_sentinel_conn_with_single_master():
     # Verify the service name
     assert service_name == "mymaster"
 
-    # Verify that the returned Sentinel object has correct arguments
+    # Verify that the returned Sentinel object is correctly initialized
     assert isinstance(sentinel, Sentinel)
-    assert sentinel.sentinels == [("127.0.0.1", 26379)]
+    sentinel_nodes = [(node.connection_pool.connection_kwargs["host"], 
+                       node.connection_pool.connection_kwargs["port"]) for node in sentinel.sentinels]
+    assert sentinel_nodes == [("127.0.0.1", 26379)]
 
-    # Verify SSL and authentication
+    # Verify SSL and authentication settings
     sentinel_kwargs = sentinel.sentinel_kwargs
     assert sentinel_kwargs["username"] == "user"
     assert sentinel_kwargs["password"] == "password"
@@ -38,6 +36,7 @@ def test_sentinel_conn_with_single_master():
     mock_redis_connection.sentinel_masters.assert_called_once()
 
 def test_sentinel_conn_with_multiple_masters():
+    # Mock Redis connection for multiple masters
     mock_redis_connection = MagicMock()
     mock_redis_connection.sentinel_masters.return_value = {
         "master1": {},
@@ -45,7 +44,6 @@ def test_sentinel_conn_with_multiple_masters():
     }
     with pytest.raises(Exception, match="Multiple masters, require service name"):
         Sentinel_Conn(mock_redis_connection, ssl=False)
-
 
 def test_cluster_conn():
     # Mock the Redis connection
@@ -67,6 +65,7 @@ def test_cluster_conn():
     url = None
     address_remap = None
 
+    # Create the Cluster connection
     cluster_conn = Cluster_Conn(
         mock_redis_connection,
         ssl,
@@ -84,12 +83,12 @@ def test_cluster_conn():
     assert isinstance(cluster_conn, RedisCluster)
 
     # Verify the connection parameters
-    assert cluster_conn.connection_kwargs["host"] == "127.0.0.1"
-    assert cluster_conn.connection_kwargs["port"] == 6379
-    assert cluster_conn.connection_kwargs["username"] == "user"
-    assert cluster_conn.connection_kwargs["password"] == "password"
-    assert cluster_conn.connection_kwargs["require_full_coverage"] is True
-    assert cluster_conn.connection_kwargs["read_from_replicas"] is True
+    assert cluster_conn.connection_pool.connection_kwargs["host"] == "127.0.0.1"
+    assert cluster_conn.connection_pool.connection_kwargs["port"] == 6379
+    assert cluster_conn.connection_pool.connection_kwargs["username"] == "user"
+    assert cluster_conn.connection_pool.connection_kwargs["password"] == "password"
+    assert cluster_conn.connection_pool.connection_kwargs["require_full_coverage"] is True
+    assert cluster_conn.connection_pool.connection_kwargs["read_from_replicas"] is True
 
 def test_sentinel_and_cluster_combination():
     # Mock Redis connection for Sentinel
@@ -103,14 +102,17 @@ def test_sentinel_and_cluster_combination():
 
     # Verify Sentinel connection
     assert service_name == "mymaster"
-    assert isinstance(master_conn, MagicMock)  # Replace with your expected object type
+    assert master_conn.connection_pool.connection_kwargs["host"] == "127.0.0.1"
+    assert master_conn.connection_pool.connection_kwargs["port"] == 26379
 
     # Mock Redis connection for Cluster
     mock_cluster_conn = MagicMock()
     mock_cluster_conn.connection_pool.connection_kwargs = {"host": "127.0.0.1", "port": 6379}
 
     # Create Cluster connection
-    cluster_conn = Cluster_Conn(mock_cluster_conn, ssl=False, startup_nodes=[{"host": "127.0.0.1", "port": 6379}])
+    cluster_conn = Cluster_Conn(
+        mock_cluster_conn, ssl=False, startup_nodes=[{"host": "127.0.0.1", "port": 6379}]
+    )
 
     # Verify Cluster connection
     assert isinstance(cluster_conn, RedisCluster)
