@@ -46,8 +46,6 @@ def test_sentinel_conn_with_multiple_masters():
     with pytest.raises(Exception, match="Multiple masters, require service name"):
         Sentinel_Conn(mock_redis_connection, ssl=False)
 
-from your_module import Cluster_Conn
-from redis.cluster import RedisCluster
 
 def test_cluster_conn():
     # Mock the Redis connection
