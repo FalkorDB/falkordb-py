@@ -249,13 +249,8 @@ class FalkorDB:
                 return [(host, int(port)) for host, port in replica_hostnames]
             except redis.RedisError as e:
                 raise ConnectionError("Failed to get replica hostnames, no hostnames found.") from e
-
-        try:
-            mode = self.connection.execute_command("info").get('redis_mode', None)
-        except redis.RedisError as e:
-            raise ConnectionError("Failed to get replica hostnames") from e
-
-        if mode == "cluster":
+            
+        elif Is_Cluster(self.connection):
             try:
                 data = self.connection.cluster_nodes()
                 if not data:
@@ -265,7 +260,7 @@ class FalkorDB:
                 raise ConnectionError("Failed to get replica hostnames") from e
 
         else:
-            raise ValueError(f"Unsupported Redis mode: {mode}")
+            raise ValueError(f"Unsupported Redis mode")
 
             
 

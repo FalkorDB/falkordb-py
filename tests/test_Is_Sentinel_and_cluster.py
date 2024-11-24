@@ -89,6 +89,7 @@ def test_get_replica_connections_sentinel(falkor_db):
 
 def test_get_replica_connections_cluster(falkor_db):
     falkor_db.connection.execute_command = MagicMock(return_value={'redis_mode': 'cluster'})
+    falkor_db.connection.info = MagicMock(return_value={'redis_mode': 'cluster'})
     falkor_db.connection.cluster_nodes = MagicMock(return_value={
         '127.0.0.1:7001': {'flags': ['slave'], 'hostname': 'host1'},
         '127.0.0.1:7002': {'flags': ['master'], 'hostname': 'host2'}
