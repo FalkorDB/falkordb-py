@@ -1,13 +1,15 @@
 import redis
+from .cluster import *
 from .sentinel import *
 from .graph import Graph
 from typing import List, Union
 
 # config command
-LIST_CMD   = "GRAPH.LIST"
+LIST_CMD = "GRAPH.LIST"
 CONFIG_CMD = "GRAPH.CONFIG"
 
-class FalkorDB():
+
+class FalkorDB:
     """
     FalkorDB Class for interacting with a FalkorDB server.
 
@@ -24,85 +26,121 @@ class FalkorDB():
     """
 
     def __init__(
-            self,
-            host='localhost',
-            port=6379,
-            password=None,
-            socket_timeout=None,
-            socket_connect_timeout=None,
-            socket_keepalive=None,
-            socket_keepalive_options=None,
-            connection_pool=None,
-            unix_socket_path=None,
-            encoding='utf-8',
-            encoding_errors='strict',
-            charset=None,
-            errors=None,
-            retry_on_timeout=False,
-            retry_on_error=None,
-            ssl=False,
-            ssl_keyfile=None,
-            ssl_certfile=None,
-            ssl_cert_reqs='required',
-            ssl_ca_certs=None,
-            ssl_ca_path=None,
-            ssl_ca_data=None,
-            ssl_check_hostname=False,
-            ssl_password=None,
-            ssl_validate_ocsp=False,
-            ssl_validate_ocsp_stapled=False,
-            ssl_ocsp_context=None,
-            ssl_ocsp_expected_cert=None,
-            max_connections=None,
-            single_connection_client=False,
-            health_check_interval=0,
-            client_name=None,
-            lib_name='FalkorDB',
-            lib_version='1.0.0',
-            username=None,
-            retry=None,
-            connect_func=None,
-            credential_provider=None,
-            protocol=2
-        ):
+        self,
+        host="localhost",
+        port=6379,
+        password=None,
+        socket_timeout=None,
+        socket_connect_timeout=None,
+        socket_keepalive=None,
+        socket_keepalive_options=None,
+        connection_pool=None,
+        unix_socket_path=None,
+        encoding="utf-8",
+        encoding_errors="strict",
+        charset=None,
+        errors=None,
+        retry_on_timeout=False,
+        retry_on_error=None,
+        ssl=False,
+        ssl_keyfile=None,
+        ssl_certfile=None,
+        ssl_cert_reqs="required",
+        ssl_ca_certs=None,
+        ssl_ca_path=None,
+        ssl_ca_data=None,
+        ssl_check_hostname=False,
+        ssl_password=None,
+        ssl_validate_ocsp=False,
+        ssl_validate_ocsp_stapled=False,
+        ssl_ocsp_context=None,
+        ssl_ocsp_expected_cert=None,
+        max_connections=None,
+        single_connection_client=False,
+        health_check_interval=0,
+        client_name=None,
+        lib_name="FalkorDB",
+        lib_version="1.0.0",
+        username=None,
+        retry=None,
+        connect_func=None,
+        credential_provider=None,
+        protocol=2,
+        # FalkorDB Cluster Params
+        cluster_error_retry_attempts=3,
+        startup_nodes=None,
+        require_full_coverage=False,
+        reinitialize_steps=5,
+        read_from_replicas=False,
+        dynamic_startup_nodes=True,
+        url=None,
+        address_remap=None,
+    ):
 
-        conn = redis.Redis(host=host, port=port, db=0, password=password,
-                           socket_timeout=socket_timeout,
-                           socket_connect_timeout=socket_connect_timeout,
-                           socket_keepalive=socket_keepalive,
-                           socket_keepalive_options=socket_keepalive_options,
-                           connection_pool=connection_pool,
-                           unix_socket_path=unix_socket_path,
-                           encoding=encoding, encoding_errors=encoding_errors,
-                           charset=charset, errors=errors,
-                           decode_responses=True,
-                           retry_on_timeout=retry_on_timeout,
-                           retry_on_error=retry_on_error, ssl=ssl,
-                           ssl_keyfile=ssl_keyfile, ssl_certfile=ssl_certfile,
-                           ssl_cert_reqs=ssl_cert_reqs,
-                           ssl_ca_certs=ssl_ca_certs, ssl_ca_path=ssl_ca_path,
-                           ssl_ca_data=ssl_ca_data,
-                           ssl_check_hostname=ssl_check_hostname,
-                           ssl_password=ssl_password,
-                           ssl_validate_ocsp=ssl_validate_ocsp,
-                           ssl_validate_ocsp_stapled=ssl_validate_ocsp_stapled,
-                           ssl_ocsp_context=ssl_ocsp_context,
-                           ssl_ocsp_expected_cert=ssl_ocsp_expected_cert,
-                           max_connections=max_connections,
-                           single_connection_client=single_connection_client,
-                           health_check_interval=health_check_interval,
-                           client_name=client_name, lib_name=lib_name,
-                           lib_version=lib_version, username=username,
-                           retry=retry, redis_connect_func=connect_func,
-                           credential_provider=credential_provider,
-                           protocol=protocol)
+        conn = redis.Redis(
+            host=host,
+            port=port,
+            db=0,
+            password=password,
+            socket_timeout=socket_timeout,
+            socket_connect_timeout=socket_connect_timeout,
+            socket_keepalive=socket_keepalive,
+            socket_keepalive_options=socket_keepalive_options,
+            connection_pool=connection_pool,
+            unix_socket_path=unix_socket_path,
+            encoding=encoding,
+            encoding_errors=encoding_errors,
+            charset=charset,
+            errors=errors,
+            decode_responses=True,
+            retry_on_timeout=retry_on_timeout,
+            retry_on_error=retry_on_error,
+            ssl=ssl,
+            ssl_keyfile=ssl_keyfile,
+            ssl_certfile=ssl_certfile,
+            ssl_cert_reqs=ssl_cert_reqs,
+            ssl_ca_certs=ssl_ca_certs,
+            ssl_ca_path=ssl_ca_path,
+            ssl_ca_data=ssl_ca_data,
+            ssl_check_hostname=ssl_check_hostname,
+            ssl_password=ssl_password,
+            ssl_validate_ocsp=ssl_validate_ocsp,
+            ssl_validate_ocsp_stapled=ssl_validate_ocsp_stapled,
+            ssl_ocsp_context=ssl_ocsp_context,
+            ssl_ocsp_expected_cert=ssl_ocsp_expected_cert,
+            max_connections=max_connections,
+            single_connection_client=single_connection_client,
+            health_check_interval=health_check_interval,
+            client_name=client_name,
+            lib_name=lib_name,
+            lib_version=lib_version,
+            username=username,
+            retry=retry,
+            redis_connect_func=connect_func,
+            credential_provider=credential_provider,
+            protocol=protocol,
+        )
 
         if Is_Sentinel(conn):
-            self.sentinel, self.service_name = Sentinel_Conn(conn)
-            conn = self.sentinel.master_for(self.service_name)
+            self.sentinel, self.service_name = Sentinel_Conn(conn, ssl)
+            conn = self.sentinel.master_for(self.service_name, ssl=ssl)
 
-        self.connection      = conn
-        self.flushdb         = conn.flushdb
+        if Is_Cluster(conn):
+            conn = Cluster_Conn(
+                conn,
+                ssl,
+                cluster_error_retry_attempts,
+                startup_nodes,
+                require_full_coverage,
+                reinitialize_steps,
+                read_from_replicas,
+                dynamic_startup_nodes,
+                url,
+                address_remap,
+            )
+
+        self.connection = conn
+        self.flushdb = conn.flushdb
         self.execute_command = conn.execute_command
 
     @classmethod
@@ -124,23 +162,25 @@ class FalkorDB():
         db = FalkorDB.from_url("unix://[username@]/path/to/socket.sock?db=0[&password=password]")
         """
 
-        db = cls()
-
         # switch from redis:// to falkordb://
-        if url.startswith('falkor://'):
-            url = 'redis://' + url[len('falkor://'):]
-        elif url.startswith('falkors://'):
-            url = 'rediss://' + url[len('falkors://'):]
+        if url.startswith("falkor://"):
+            url = "redis://" + url[len("falkor://") :]
+        elif url.startswith("falkors://"):
+            url = "rediss://" + url[len("falkors://") :]
 
         conn = redis.from_url(url, **kwargs)
 
-        if Is_Sentinel(conn):
-            db.sentinel, db.service_name = Sentinel_Conn(conn)
-            conn = db.sentinel.master_for(db.service_name)
+        connection_kwargs = conn.connection_pool.connection_kwargs
+        connection_class = conn.connection_pool.connection_class
+        kwargs["host"] = connection_kwargs.get("host", "localhost")
+        kwargs["port"] = connection_kwargs.get("port", 6379)
+        kwargs["username"] = connection_kwargs.get("username")
+        kwargs["password"] = connection_kwargs.get("password")
+        if connection_class is redis.SSLConnection:
+            kwargs["ssl"] = True
 
-        db.connection      = conn
-        db.flushdb         = conn.flushdb
-        db.execute_command = conn.execute_command
+        # Initialize a FalkorDB instance using the updated kwargs
+        db = cls(**kwargs)
 
         return db
 
@@ -155,7 +195,9 @@ class FalkorDB():
             Graph: A new Graph instance associated with the selected graph.
         """
         if not isinstance(graph_id, str) or graph_id == "":
-            raise TypeError(f"Expected a string parameter, but received {type(graph_id)}.")
+            raise TypeError(
+                f"Expected a string parameter, but received {type(graph_id)}."
+            )
 
         return Graph(self, graph_id)
 
@@ -164,7 +206,7 @@ class FalkorDB():
         Lists all graph names.
         See: https://docs.falkordb.com/commands/graph.list.html
 
-        Returns:            
+        Returns:
             List: List of graph names.
 
         """
