@@ -38,6 +38,14 @@ def test_config(client):
 
 def test_connect_via_url():
     # make sure we're able to connect via url
+
+    # just host
+    db = FalkorDB.from_url("falkor://localhost")
+    g = db.select_graph("db")
+    one = g.query("RETURN 1").result_set[0][0]
+    assert one == 1
+
+    # host & Port
     db = FalkorDB.from_url("falkor://localhost:6379")
     g = db.select_graph("db")
     one = g.query("RETURN 1").result_set[0][0]
