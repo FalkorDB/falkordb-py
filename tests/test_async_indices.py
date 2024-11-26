@@ -10,7 +10,7 @@ class Index():
         self.label       = raw_response[0]
         self.properties  = raw_response[1]
         self.types       = raw_response[2]
-        self.entity_type = raw_response[5]
+        self.entity_type = raw_response[6]
 
 @pytest.mark.asyncio
 async def test_node_index_creation():
