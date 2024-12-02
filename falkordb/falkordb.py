@@ -75,6 +75,7 @@ class FalkorDB:
         dynamic_startup_nodes=True,
         url=None,
         address_remap=None,
+        decode_responses=True
     ):
 
         conn = redis.Redis(
@@ -92,7 +93,7 @@ class FalkorDB:
             encoding_errors=encoding_errors,
             charset=charset,
             errors=errors,
-            decode_responses=True,
+            decode_responses=decode_responses,
             retry_on_timeout=retry_on_timeout,
             retry_on_error=retry_on_error,
             ssl=ssl,
@@ -124,6 +125,7 @@ class FalkorDB:
         if Is_Sentinel(conn):
             self.sentinel, self.service_name = Sentinel_Conn(conn, ssl)
             conn = self.sentinel.master_for(self.service_name, ssl=ssl)
+
 
         if Is_Cluster(conn):
             conn = Cluster_Conn(
@@ -227,6 +229,43 @@ class FalkorDB:
         """
 
         return self.connection.execute_command(CONFIG_CMD, "GET", name)[1]
+
+
+    def get_replica_connections(self):
+        """
+        Retrieve a list of connections for FalkorDB replicas.
+
+        Returns:
+            list of tuple: A list of (hostname, port) tuples representing the 
+            replica connections.
+
+        Raises:
+            ConnectionError: If unable to connect or retrieve information from 
+            the FalkorDB setup.
+            ValueError: If the `mode` is neither Sentinel nor Cluster.
+        """
+        if hasattr(self, 'sentinel') and self.sentinel is not None:
+            try:
+                replica_hostnames = self.sentinel.discover_slaves(service_name=self.service_name)
+                if not replica_hostnames:
+                    raise ConnectionError("Unable to get replica hostname.")
+                return [(host, int(port)) for host, port in replica_hostnames]
+            except redis.RedisError as e:
+                raise ConnectionError("Failed to get replica hostnames, no hostnames found.") from e
+            
+        elif Is_Cluster(self.connection):
+            try:
+                data = self.connection.cluster_nodes()
+                if not data:
+                    raise ConnectionError("Unable to get cluster nodes")
+                return [(flag['hostname'], int(ip_port.split(':')[1])) for ip_port, flag in data.items() if 'slave' in flag['flags'] and flag['hostname'] and len(ip_port.split(':')) > 1]
+            except redis.RedisError as e:
+                raise ConnectionError("Failed to get replica hostnames") from e
+
+        else:
+            raise ValueError(f"Unsupported Redis mode")
+
+            
 
     def config_set(self, name: str, value=None) -> None:
         """

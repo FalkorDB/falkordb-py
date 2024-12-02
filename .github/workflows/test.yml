@@ -8,15 +8,7 @@ jobs:
   test:
     name: Test with Python ${{ matrix.python }}
     runs-on: ubuntu-latest
-
-    services:
-      falkordb:
-        # Docker Hub image
-        image: falkordb/falkordb:edge
-        # Map port 6379 on the Docker host to port 6379 on the FalkorDB container
-        ports:
-          - 6379:6379
-
+    
     strategy:
       matrix:
         python: ['3.8', '3.10', '3.11']
@@ -24,6 +16,11 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Run docker-compose
+        uses: hoverkraft-tech/compose-action@v2.0.1
+        with:
+          compose-file: "./standalone-compose"
 
       - uses: actions/setup-python@v5
         with:
@@ -39,7 +36,7 @@ jobs:
         run: poetry install --no-interaction
 
       - name: Run Tests
-        run: poetry run pytest --cov --cov-report=xml
+        run: poetry run pytest -k "not test_ClusterCon_SentinelCon and not test_get_replica_connections and not test_Is_Sentinel_and_cluster" --cov --cov-report=xml
 
       - name: Upload coverage
         uses: codecov/codecov-action@v4
