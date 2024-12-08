@@ -25,7 +25,7 @@ Docker:
 ```sh
 docker run --rm -p 6379:6379 falkordb/falkordb
 ```
-Or use our [sandbox](https://cloud.falkordb.com/sandbox)
+Or use [FalkorDB Cloud](https://app.falkordb.cloud)
 
 ### Example 
 ```python
