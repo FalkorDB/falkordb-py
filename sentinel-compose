@@ -1,55 +1,107 @@
 services:
-  sentinel:
-    container_name: sentinel
-    hostname: sentinel
-    build: muhammadqadora/redis-sentinel
-    command: ["/data/sentinel.conf","--sentinel"]
+  sentinel1:
+    image: muhammadqadora/falkor-redis
+    container_name: sentinel1
+    hostname: sentinel1
+    restart: always
+    networks:
+      - redis-sentinel
     ports:
       - 26379:26379
-    networks:
-      - redis
+    command:
+    - bash
+    - -c
+    - |
+      touch /data/sentinel.conf
+      echo "sentinel monitor master redis-sentinel 6380 2" >> /data/sentinel.conf
+      echo "sentinel announce-hostnames yes" >> /data/sentinel.conf
+      echo "sentinel announce-ip sentinel1" >> /data/sentinel.conf
+      echo "sentinel resolve-hostnames yes" >> /data/sentinel.conf
+      echo "sentinel announce-port 26379" >> /data/sentinel.conf
+      echo "port 26379" >> /data/sentinel.conf
+      redis-server /data/sentinel.conf --sentinel
   sentinel2:
+    image: muhammadqadora/falkor-redis
     container_name: sentinel2
     hostname: sentinel2
-    build: muhammadqadora/redis-sentinel
-    command: ["/data/sentinel.conf","--sentinel"]
-    ports:
-      - 26380:26379
+    restart: always
     networks:
-      - redis
+      - redis-sentinel
+    ports:
+      - 26380:26380
+    command:
+    - bash
+    - -c
+    - |
+      touch /data/sentinel.conf
+      echo "sentinel monitor master redis-sentinel 6380 2" >> /data/sentinel.conf
+      echo "sentinel announce-hostnames yes" >> /data/sentinel.conf
+      echo "sentinel announce-ip sentinel2" >> /data/sentinel.conf
+      echo "sentinel resolve-hostnames yes" >> /data/sentinel.conf
+      echo "sentinel announce-port 26380" >> /data/sentinel.conf
+      echo "port 26380" >> /data/sentinel.conf
+      redis-server /data/sentinel.conf --sentinel
   sentinel3:
+    image: muhammadqadora/falkor-redis
     container_name: sentinel3
     hostname: sentinel3
-    build: muhammadqadora/redis-sentinel
-    command: ["/data/sentinel.conf","--sentinel"]
-    ports:
-      - 26381:26379
+    restart: always
     networks:
-      - redis
-  redis:
-    container_name: redis
-    hostname: redis
-    build: muhammadqadora/redis-sentinel
-    command: ["/data/node.conf"]
+      - redis-sentinel
     ports:
-      - 6379:6379
-    networks:
-      - redis
-    depends_on:
-      - sentinel
-      - sentinel2
-      - sentinel3
-  redis2:
-    container_name: redis2
-    hostname: redis2
-    build: muhammadqadora/redis-sentinel
-    command: ["/data/node.conf","--replicaof redis 6379"]
+      - 26381:26381
+    command:
+    - bash
+    - -c
+    - |
+      touch /data/sentinel.conf
+      echo "sentinel monitor master redis-sentinel 6380 2" >> /data/sentinel.conf
+      echo "sentinel announce-hostnames yes" >> /data/sentinel.conf
+      echo "sentinel announce-ip sentinel3" >> /data/sentinel.conf
+      echo "sentinel resolve-hostnames yes" >> /data/sentinel.conf
+      echo "sentinel announce-port 26381" >> /data/sentinel.conf
+      echo "port 26381" >> /data/sentinel.conf
+      redis-server /data/sentinel.conf --sentinel
+
+  redis-sentinel:
+    image: muhammadqadora/falkor-redis
+    hostname: redis-sentinel
+    container_name: redis-sentinel
     ports:
-      - 6380:6379
+      - 6380:6380
     networks:
-      - redis
-    depends_on:
-      - redis
+      - redis-sentinel
+    command:
+    - bash
+    - -c
+    - |
+      touch /data/node.conf
+      echo "port 6380" >> /data/node.conf 
+      echo "replica-announce-ip redis-sentinel" >> /data/node.conf
+      echo "replica-announce-port 6380" >> /data/node.conf
+      echo "loadmodule /FalkorDB/bin/src/falkordb.so" >> /data/node.conf
+      redis-server /data/node.conf
+  redis-sentinel2:
+    image: muhammadqadora/falkor-redis
+    hostname: redis-sentinel2
+    container_name: redis-sentinel2
+    ports:
+      - 6381:6381
+    networks:
+      - redis-sentinel
+    command:
+    - bash
+    - -c
+    - |
+      touch /data/node.conf
+      echo "port 6381" >> /data/node.conf 
+      echo "replica-announce-ip redis-sentinel2" >> /data/node.conf
+      echo "replica-announce-port 6381" >> /data/node.conf
+      echo "loadmodule /FalkorDB/bin/src/falkordb.so" >> /data/node.conf
+      echo "replicaof redis-sentinel 6380" >> /data/node.conf
+      redis-server /data/node.conf
+
+
 
 networks:
-  redis:
+  redis-sentinel:

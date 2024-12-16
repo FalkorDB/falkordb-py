@@ -17,14 +17,34 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Run docker-compose
+      - name: Run docker-compose for redis standalone instance
         uses: hoverkraft-tech/compose-action@v2.0.1
         with:
-          compose-file: "./standalone-compose"
+          compose-file: ./standalone-compose
+
+      - name: Run docker-compose for redis replication instance
+        uses: hoverkraft-tech/compose-action@v2.0.1
+        with:
+          compose-file: ./sentinel-compose
+
+      - name: Run docker-compose for redis cluster instance
+        uses: hoverkraft-tech/compose-action@v2.0.1
+        with:
+          compose-file: ./cluster-compose
+      
+      - name: Add entries to the host file to correctly resolve service names
+        run: |
+          sudo echo "127.0.0.1 redisstandalone" | sudo tee -a /etc/hosts
+          sudo echo "127.0.0.1 sentinel1" | sudo tee -a /etc/hosts
+          sudo echo "127.0.0.1 redis-sentinel" | sudo tee -a /etc/hosts
+          sudo echo "127.0.0.1 redis-sentinel2" | sudo tee -a /etc/hosts
+          for i in node{0..5};do
+            echo "127.0.0.1 $i" | sudo tee -a /etc/hosts
+          done
 
       - uses: actions/setup-python@v5
         with:
-          python-version: ${{matrix.python}}
+          python-version: ${{ matrix.python }}
 
       - uses: snok/install-poetry@v1
         with:
@@ -36,11 +56,11 @@ jobs:
         run: poetry install --no-interaction
 
       - name: Run Tests
-        run: poetry run pytest -k "not test_ClusterCon_SentinelCon and not test_get_replica_connections and not test_Is_Sentinel_and_cluster" --cov --cov-report=xml
+        run: poetry run pytest --cov --cov-report=xml
 
       - name: Upload coverage
         uses: codecov/codecov-action@v4
         if: matrix.python == '3.10' && matrix.platform != 'macos-11'
         with:
           fail_ci_if_error: false
-          token: ${{ secrets.CODECOV_TOKEN }}    
+          token: ${{ secrets.CODECOV_TOKEN }}
