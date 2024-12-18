@@ -75,7 +75,6 @@ class FalkorDB:
         dynamic_startup_nodes=True,
         url=None,
         address_remap=None,
-        decode_responses=True
     ):
 
         conn = redis.Redis(
@@ -93,7 +92,7 @@ class FalkorDB:
             encoding_errors=encoding_errors,
             charset=charset,
             errors=errors,
-            decode_responses=decode_responses,
+            decode_responses=True,
             retry_on_timeout=retry_on_timeout,
             retry_on_error=retry_on_error,
             ssl=ssl,
@@ -125,7 +124,6 @@ class FalkorDB:
         if Is_Sentinel(conn):
             self.sentinel, self.service_name = Sentinel_Conn(conn, ssl)
             conn = self.sentinel.master_for(self.service_name, ssl=ssl)
-
 
         if Is_Cluster(conn):
             conn = Cluster_Conn(
@@ -173,10 +171,13 @@ class FalkorDB:
         conn = redis.from_url(url, **kwargs)
 
         connection_kwargs = conn.connection_pool.connection_kwargs
+        connection_class = conn.connection_pool.connection_class
         kwargs["host"] = connection_kwargs.get("host", "localhost")
         kwargs["port"] = connection_kwargs.get("port", 6379)
         kwargs["username"] = connection_kwargs.get("username")
         kwargs["password"] = connection_kwargs.get("password")
+        if connection_class is redis.SSLConnection:
+            kwargs["ssl"] = True
 
         # Initialize a FalkorDB instance using the updated kwargs
         db = cls(**kwargs)
@@ -226,8 +227,7 @@ class FalkorDB:
         """
 
         return self.connection.execute_command(CONFIG_CMD, "GET", name)[1]
-
-
+    
     def get_replica_connections(self):
         """
         Retrieve a list of connections for FalkorDB replicas.
@@ -252,18 +252,16 @@ class FalkorDB:
             
         elif Is_Cluster(self.connection):
             try:
-                data = self.connection.cluster_nodes()
+                data = self.connection.get_replicas()
                 if not data:
                     raise ConnectionError("Unable to get cluster nodes")
-                return [(flag['hostname'], int(ip_port.split(':')[1])) for ip_port, flag in data.items() if 'slave' in flag['flags'] and flag['hostname'] and len(ip_port.split(':')) > 1]
+                return [ (i.host, i.port) for i in data]
             except redis.RedisError as e:
                 raise ConnectionError("Failed to get replica hostnames") from e
 
         else:
             raise ValueError(f"Unsupported Redis mode")
-
-            
-
+        
     def config_set(self, name: str, value=None) -> None:
         """
         Update a DB level configuration.
