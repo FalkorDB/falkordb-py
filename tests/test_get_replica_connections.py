@@ -32,25 +32,14 @@ def sentinel_client():
     return client
 
 def delete_replicas(client,mode):
-    try:
-        result = client.get_replica_connections()
-    except Exception as e:
-        return
+    result = client.get_replica_connections()
     if mode == 'cluster':
         for i in result:
             name = i[0]
-            try:
-                delete_container(name)
-            except Exception as e:
-                print(e)
-                return
+            delete_container(name)
     elif mode == 'sentinel':
         name = result[0][0]
-        try:
-            delete_container(name)
-        except Exception as e:
-            print(e)
-            return
+        delete_container(name)
         
 
 def test_get_replica_connections_cluster():
