@@ -1,0 +1,7 @@
+services:
+  redisstandalone:
+    container_name: redisstandalone
+    hostname: redisstandalone
+    image: falkordb/falkordb:edge
+    ports:
+    - 6379:6379

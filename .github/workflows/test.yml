@@ -8,15 +8,7 @@ jobs:
   test:
     name: Test with Python ${{ matrix.python }}
     runs-on: ubuntu-latest
-
-    services:
-      falkordb:
-        # Docker Hub image
-        image: falkordb/falkordb:edge
-        # Map port 6379 on the Docker host to port 6379 on the FalkorDB container
-        ports:
-          - 6379:6379
-
+    
     strategy:
       matrix:
         python: ['3.8', '3.10', '3.11']
@@ -25,9 +17,34 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Run docker-compose for redis standalone instance
+        uses: hoverkraft-tech/compose-action@v2.0.1
+        with:
+          compose-file: ./standalone-compose
+
+      - name: Run docker-compose for redis replication instance
+        uses: hoverkraft-tech/compose-action@v2.0.1
+        with:
+          compose-file: ./sentinel-compose
+
+      - name: Run docker-compose for redis cluster instance
+        uses: hoverkraft-tech/compose-action@v2.0.1
+        with:
+          compose-file: ./cluster-compose
+      
+      - name: Add entries to the host file to correctly resolve service names
+        run: |
+          sudo echo "127.0.0.1 redisstandalone" | sudo tee -a /etc/hosts
+          sudo echo "127.0.0.1 sentinel1" | sudo tee -a /etc/hosts
+          sudo echo "127.0.0.1 redis-sentinel" | sudo tee -a /etc/hosts
+          sudo echo "127.0.0.1 redis-sentinel2" | sudo tee -a /etc/hosts
+          for i in node{0..5};do
+            echo "127.0.0.1 $i" | sudo tee -a /etc/hosts
+          done
+
       - uses: actions/setup-python@v5
         with:
-          python-version: ${{matrix.python}}
+          python-version: ${{ matrix.python }}
 
       - uses: snok/install-poetry@v1
         with:
@@ -37,6 +54,9 @@ jobs:
 
       - name: Install dependencies
         run: poetry install --no-interaction
+        
+      - name: install docker-compose client
+        run: sudo apt update && sudo apt install docker-compose -y
 
       - name: Run Tests
         run: poetry run pytest --cov --cov-report=xml
@@ -46,4 +66,4 @@ jobs:
         if: matrix.python == '3.10' && matrix.platform != 'macos-11'
         with:
           fail_ci_if_error: false
-          token: ${{ secrets.CODECOV_TOKEN }}    
+          token: ${{ secrets.CODECOV_TOKEN }}
