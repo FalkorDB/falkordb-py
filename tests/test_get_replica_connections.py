@@ -85,7 +85,7 @@ def test_get_replica_connections_cluster_no_replicas():
     c = cluster_client()
     with pytest.raises(ConnectionError, match="Unable to get cluster nodes"):
         c.get_replica_connections()
-    reapply_compose('./falkordb-py/falkordb/cluster-compose')
+    reapply_compose('/home/runner/work/falkordb-py/falkordb-py/cluster-compose')
 
 
 def test_get_replica_connections_sentinel_no_replicas():
@@ -96,4 +96,4 @@ def test_get_replica_connections_sentinel_no_replicas():
     with pytest.raises(ConnectionError, match="Unable to get replica hostname."):
         c.get_replica_connections()
         
-    reapply_compose('./falkordb-py/falkordb-py/sentinel-compose')
+    reapply_compose('/home/runner/work/falkordb-py/falkordb-py/sentinel-compose')
