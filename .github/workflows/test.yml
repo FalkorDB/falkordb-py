@@ -20,24 +20,26 @@ jobs:
       - name: Run docker-compose for redis standalone instance
         uses: hoverkraft-tech/compose-action@v2.0.1
         with:
-          compose-file: ./standalone-compose
+          compose-file: ./docker/standalone-compose.yml
 
       - name: Run docker-compose for redis replication instance
         uses: hoverkraft-tech/compose-action@v2.0.1
         with:
-          compose-file: ./sentinel-compose
+          compose-file: ./docker/sentinel-compose.yml
 
       - name: Run docker-compose for redis cluster instance
         uses: hoverkraft-tech/compose-action@v2.0.1
         with:
-          compose-file: ./cluster-compose
+          compose-file: ./docker/cluster-compose.yml
       
       - name: Add entries to the host file to correctly resolve service names
         run: |
-          sudo echo "127.0.0.1 redisstandalone" | sudo tee -a /etc/hosts
-          sudo echo "127.0.0.1 sentinel1" | sudo tee -a /etc/hosts
-          sudo echo "127.0.0.1 redis-sentinel" | sudo tee -a /etc/hosts
-          sudo echo "127.0.0.1 redis-sentinel2" | sudo tee -a /etc/hosts
+          sudo echo "127.0.0.1 redis-standalone" | sudo tee -a /etc/hosts
+          sudo echo "127.0.0.1 sentinel-1"       | sudo tee -a /etc/hosts
+          sudo echo "127.0.0.1 sentinel-2"       | sudo tee -a /etc/hosts
+          sudo echo "127.0.0.1 sentinel-3"       | sudo tee -a /etc/hosts
+          sudo echo "127.0.0.1 redis-server-1"   | sudo tee -a /etc/hosts
+          sudo echo "127.0.0.1 redis-server-2"   | sudo tee -a /etc/hosts
           for i in node{0..5};do
             echo "127.0.0.1 $i" | sudo tee -a /etc/hosts
           done
