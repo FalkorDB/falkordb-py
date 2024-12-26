@@ -1,6 +1,6 @@
 services:
   sentinel-1:
-    image: muhammadqadora/falkor-redis
+    image: falkordb/falkordb:edge
     container_name: sentinel-1
     hostname: sentinel-1
     restart: always
@@ -8,10 +8,8 @@ services:
       - redis-sentinel
     ports:
       - 26379:26379
-    command:
-    - bash
-    - -c
-    - |
+    entrypoint: ["/bin/bash", "-c"]
+    command: |
       touch /data/sentinel.conf
       echo "sentinel monitor master redis-server-1 6380 2" >> /data/sentinel.conf
       echo "sentinel announce-hostnames yes"               >> /data/sentinel.conf
@@ -20,8 +18,9 @@ services:
       echo "sentinel announce-port 26379"                  >> /data/sentinel.conf
       echo "port 26379"                                    >> /data/sentinel.conf
       redis-server /data/sentinel.conf --sentinel
+
   sentinel-2:
-    image: muhammadqadora/falkor-redis
+    image: falkordb/falkordb:edge
     container_name: sentinel-2
     hostname: sentinel-2
     restart: always
@@ -29,10 +28,8 @@ services:
       - redis-sentinel
     ports:
       - 26380:26380
-    command:
-    - bash
-    - -c
-    - |
+    entrypoint: ["/bin/bash", "-c"]
+    command: |
       touch /data/sentinel.conf
       echo "sentinel monitor master redis-server-1 6380 2" >> /data/sentinel.conf
       echo "sentinel announce-hostnames yes"               >> /data/sentinel.conf
@@ -41,8 +38,9 @@ services:
       echo "sentinel announce-port 26380"                  >> /data/sentinel.conf
       echo "port 26380"                                    >> /data/sentinel.conf
       redis-server /data/sentinel.conf --sentinel
+  
   sentinel-3:
-    image: muhammadqadora/falkor-redis
+    image: falkordb/falkordb:edge
     container_name: sentinel-3
     hostname: sentinel-3
     restart: always
@@ -50,10 +48,8 @@ services:
       - redis-sentinel
     ports:
       - 26381:26381
-    command:
-    - bash
-    - -c
-    - |
+    entrypoint: ["/bin/bash", "-c"]
+    command: |
       touch /data/sentinel.conf
       echo "sentinel monitor master redis-server-1 6380 2" >> /data/sentinel.conf
       echo "sentinel announce-hostnames yes"               >> /data/sentinel.conf
@@ -64,35 +60,32 @@ services:
       redis-server /data/sentinel.conf --sentinel
 
   redis-server-1:
-    image: muhammadqadora/falkor-redis
+    image: falkordb/falkordb:edge
     hostname: redis-server-1
     container_name: redis-server-1
     ports:
       - 6380:6380
     networks:
       - redis-sentinel
-    command:
-    - bash
-    - -c
-    - |
+    entrypoint: ["/bin/bash", "-c"]
+    command: |
       touch /data/node.conf
       echo "port 6380" >> /data/node.conf 
       echo "replica-announce-ip redis-server-1"       >> /data/node.conf
       echo "replica-announce-port 6380"               >> /data/node.conf
       echo "loadmodule /FalkorDB/bin/src/falkordb.so" >> /data/node.conf
       redis-server /data/node.conf
+  
   redis-server-2:
-    image: muhammadqadora/falkor-redis
+    image: falkordb/falkordb:edge
     hostname: redis-server-2
     container_name: redis-server-2
     ports:
       - 6381:6381
     networks:
       - redis-sentinel
-    command:
-    - bash
-    - -c
-    - |
+    entrypoint: ["/bin/bash", "-c"]
+    command: |
       touch /data/node.conf
       echo "port 6381" >> /data/node.conf 
       echo "replica-announce-ip redis-server-2"       >> /data/node.conf

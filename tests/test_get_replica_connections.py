@@ -3,9 +3,12 @@ import subprocess
 from falkordb import FalkorDB
 import time
 
+
+# check=True is used to raise an exception if the command fails
 def delete_container(container_name):
     subprocess.run(["docker","rm",container_name,'-f'],check=True,encoding='utf-8')
-
+# shell=True is used to run the command in a shell
+# encoding='utf-8' is used to get the output as a string
 def reapply_compose(path):
     subprocess.run(f"docker-compose -f {path} down && docker-compose -f {path} up -d",check=True,shell=True,encoding='utf-8')
 
@@ -62,7 +65,7 @@ def test_get_replica_connections_standalone():
 def test_get_replica_connections_sentinel():
     c = sentinel_client()
     result = c.get_replica_connections()
-    assert result == [('redis-sentinel2', 6381)]
+    assert result == [('redis-server-2', 6381)]
     
 
 
@@ -74,7 +77,7 @@ def test_get_replica_connections_cluster_no_replicas():
     c = cluster_client()
     with pytest.raises(ConnectionError, match="Unable to get cluster nodes"):
         c.get_replica_connections()
-    reapply_compose('/home/runner/work/falkordb-py/falkordb-py/cluster-compose')
+    reapply_compose('/home/runner/work/falkordb-py/falkordb-py/docker/cluster-compose')
 
 
 def test_get_replica_connections_sentinel_no_replicas():
@@ -85,4 +88,4 @@ def test_get_replica_connections_sentinel_no_replicas():
     with pytest.raises(ConnectionError, match="Unable to get replica hostname."):
         c.get_replica_connections()
         
-    reapply_compose('/home/runner/work/falkordb-py/falkordb-py/sentinel-compose')
+    reapply_compose('/home/runner/work/falkordb-py/falkordb-py/docker/sentinel-compose')
