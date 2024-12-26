@@ -15,18 +15,20 @@ services:
           timeout: 10s
           retries: 10
           start_period: 2s
-    entrypoint: ["/bin/bash", "-c"]
-    command: |
-      touch /data/node.conf
-      echo "port 5000" >> /data/node.conf
-      echo "loadmodule /FalkorDB/bin/src/falkordb.so"             >> /data/node.conf
-      echo "cluster-preferred-endpoint-type hostname"             >> /data/node.conf
-      echo "cluster-port 16379"                                   >> /data/node.conf
-      echo "cluster-enabled yes"                                  >> /data/node.conf
-      echo "cluster-config-file /data/nodes.conf"                 >> /data/node.conf
-      echo "cluster-node-timeout 5000"                            >> /data/node.conf
-      echo "cluster-announce-hostname node0"                      >> /data/node.conf
-      redis-server /data/node.conf
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        touch /data/node.conf
+        echo "port 5000" >> /data/node.conf
+        echo "loadmodule /FalkorDB/bin/src/falkordb.so"             >> /data/node.conf
+        echo "cluster-preferred-endpoint-type hostname"             >> /data/node.conf
+        echo "cluster-port 16379"                                   >> /data/node.conf
+        echo "cluster-enabled yes"                                  >> /data/node.conf
+        echo "cluster-config-file /data/nodes.conf"                 >> /data/node.conf
+        echo "cluster-node-timeout 5000"                            >> /data/node.conf
+        echo "cluster-announce-hostname node0"                      >> /data/node.conf
+        redis-server /data/node.conf
   node1:
     image: falkordb/falkordb:edge
     container_name: node1
@@ -35,18 +37,20 @@ services:
       - 6000:6000
     networks:
       - redis-cluster
-    entrypoint: ["/bin/bash", "-c"]
-    command: |
-      touch /data/node.conf
-      echo "port 6000" >> /data/node.conf
-      echo "loadmodule /FalkorDB/bin/src/falkordb.so"             >> /data/node.conf
-      echo "cluster-preferred-endpoint-type hostname"             >> /data/node.conf
-      echo "cluster-port 16379"                                   >> /data/node.conf
-      echo "cluster-enabled yes"                                  >> /data/node.conf
-      echo "cluster-config-file /data/nodes.conf"                 >> /data/node.conf
-      echo "cluster-node-timeout 5000"                            >> /data/node.conf
-      echo "cluster-announce-hostname node1"                      >> /data/node.conf
-      redis-server /data/node.conf
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        touch /data/node.conf
+        echo "port 6000" >> /data/node.conf
+        echo "loadmodule /FalkorDB/bin/src/falkordb.so"             >> /data/node.conf
+        echo "cluster-preferred-endpoint-type hostname"             >> /data/node.conf
+        echo "cluster-port 16379"                                   >> /data/node.conf
+        echo "cluster-enabled yes"                                  >> /data/node.conf
+        echo "cluster-config-file /data/nodes.conf"                 >> /data/node.conf
+        echo "cluster-node-timeout 5000"                            >> /data/node.conf
+        echo "cluster-announce-hostname node1"                      >> /data/node.conf
+        redis-server /data/node.conf
   node2:
     image: falkordb/falkordb:edge
     container_name: node2
@@ -55,18 +59,20 @@ services:
       - 7000:7000
     networks:
       - redis-cluster
-    entrypoint: ["/bin/bash", "-c"]
-    command: |
-      touch /data/node.conf
-      echo "port 7000" >> /data/node.conf
-      echo "loadmodule /FalkorDB/bin/src/falkordb.so"            >> /data/node.conf
-      echo "cluster-preferred-endpoint-type hostname"            >> /data/node.conf
-      echo "cluster-port 16379"                                  >> /data/node.conf
-      echo "cluster-enabled yes"                                 >> /data/node.conf
-      echo "cluster-config-file /data/nodes.conf"                >> /data/node.conf
-      echo "cluster-node-timeout 5000"                           >> /data/node.conf
-      echo "cluster-announce-hostname node2"                     >> /data/node.conf
-      redis-server /data/node.conf
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        touch /data/node.conf
+        echo "port 7000" >> /data/node.conf
+        echo "loadmodule /FalkorDB/bin/src/falkordb.so"            >> /data/node.conf
+        echo "cluster-preferred-endpoint-type hostname"            >> /data/node.conf
+        echo "cluster-port 16379"                                  >> /data/node.conf
+        echo "cluster-enabled yes"                                 >> /data/node.conf
+        echo "cluster-config-file /data/nodes.conf"                >> /data/node.conf
+        echo "cluster-node-timeout 5000"                           >> /data/node.conf
+        echo "cluster-announce-hostname node2"                     >> /data/node.conf
+        redis-server /data/node.conf
   node3:
     image: falkordb/falkordb:edge
     container_name: node3
@@ -75,18 +81,20 @@ services:
       - 8000:8000
     networks:
       - redis-cluster
-    entrypoint: ["/bin/bash", "-c"]
-    command: |
-      touch /data/node.conf
-      echo "port 8000" >> /data/node.conf
-      echo "loadmodule /FalkorDB/bin/src/falkordb.so"           >> /data/node.conf
-      echo "cluster-preferred-endpoint-type hostname"           >> /data/node.conf
-      echo "cluster-port 16379"                                 >> /data/node.conf
-      echo "cluster-enabled yes"                                >> /data/node.conf
-      echo "cluster-config-file /data/nodes.conf"               >> /data/node.conf
-      echo "cluster-node-timeout 5000"                          >> /data/node.conf
-      echo "cluster-announce-hostname node3"                    >> /data/node.conf
-      redis-server /data/node.conf
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        touch /data/node.conf
+        echo "port 8000" >> /data/node.conf
+        echo "loadmodule /FalkorDB/bin/src/falkordb.so"           >> /data/node.conf
+        echo "cluster-preferred-endpoint-type hostname"           >> /data/node.conf
+        echo "cluster-port 16379"                                 >> /data/node.conf
+        echo "cluster-enabled yes"                                >> /data/node.conf
+        echo "cluster-config-file /data/nodes.conf"               >> /data/node.conf
+        echo "cluster-node-timeout 5000"                          >> /data/node.conf
+        echo "cluster-announce-hostname node3"                    >> /data/node.conf
+        redis-server /data/node.conf
   node4:
     image: falkordb/falkordb:edge
     container_name: node4
@@ -95,18 +103,20 @@ services:
       - 9000:9000
     networks:
       - redis-cluster
-    entrypoint: ["/bin/bash", "-c"]
-    command: |
-      touch /data/node.conf
-      echo "port 9000" >> /data/node.conf
-      echo "loadmodule /FalkorDB/bin/src/falkordb.so"         >> /data/node.conf
-      echo "cluster-preferred-endpoint-type hostname"         >> /data/node.conf
-      echo "cluster-port 16379"                               >> /data/node.conf
-      echo "cluster-enabled yes"                              >> /data/node.conf
-      echo "cluster-config-file /data/nodes.conf"             >> /data/node.conf
-      echo "cluster-node-timeout 5000"                        >> /data/node.conf
-      echo "cluster-announce-hostname node4"                  >> /data/node.conf
-      redis-server /data/node.conf
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        touch /data/node.conf
+        echo "port 9000" >> /data/node.conf
+        echo "loadmodule /FalkorDB/bin/src/falkordb.so"         >> /data/node.conf
+        echo "cluster-preferred-endpoint-type hostname"         >> /data/node.conf
+        echo "cluster-port 16379"                               >> /data/node.conf
+        echo "cluster-enabled yes"                              >> /data/node.conf
+        echo "cluster-config-file /data/nodes.conf"             >> /data/node.conf
+        echo "cluster-node-timeout 5000"                        >> /data/node.conf
+        echo "cluster-announce-hostname node4"                  >> /data/node.conf
+        redis-server /data/node.conf
 
   node5:
     image: falkordb/falkordb:edge
@@ -116,18 +126,20 @@ services:
       - 10000:10000
     networks:
       - redis-cluster
-    entrypoint: ["/bin/bash", "-c"]
-    command: |
-      touch /data/node.conf
-      echo "port 10000" >> /data/node.conf
-      echo "loadmodule /FalkorDB/bin/src/falkordb.so"       >> /data/node.conf
-      echo "cluster-preferred-endpoint-type hostname"       >> /data/node.conf
-      echo "cluster-port 16379"                             >> /data/node.conf
-      echo "cluster-enabled yes"                            >> /data/node.conf
-      echo "cluster-config-file /data/nodes.conf"           >> /data/node.conf
-      echo "cluster-node-timeout 5000"                      >> /data/node.conf
-      echo "cluster-announce-hostname node5"                >> /data/node.conf
-      redis-server /data/node.conf
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        touch /data/node.conf
+        echo "port 10000" >> /data/node.conf
+        echo "loadmodule /FalkorDB/bin/src/falkordb.so"       >> /data/node.conf
+        echo "cluster-preferred-endpoint-type hostname"       >> /data/node.conf
+        echo "cluster-port 16379"                             >> /data/node.conf
+        echo "cluster-enabled yes"                            >> /data/node.conf
+        echo "cluster-config-file /data/nodes.conf"           >> /data/node.conf
+        echo "cluster-node-timeout 5000"                      >> /data/node.conf
+        echo "cluster-announce-hostname node5"                >> /data/node.conf
+        redis-server /data/node.conf
 
 
 networks:

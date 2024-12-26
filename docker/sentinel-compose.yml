@@ -8,16 +8,18 @@ services:
       - redis-sentinel
     ports:
       - 26379:26379
-    entrypoint: ["/bin/bash", "-c"]
-    command: |
-      touch /data/sentinel.conf
-      echo "sentinel monitor master redis-server-1 6380 2" >> /data/sentinel.conf
-      echo "sentinel announce-hostnames yes"               >> /data/sentinel.conf
-      echo "sentinel announce-ip sentinel-1"               >> /data/sentinel.conf
-      echo "sentinel resolve-hostnames yes"                >> /data/sentinel.conf
-      echo "sentinel announce-port 26379"                  >> /data/sentinel.conf
-      echo "port 26379"                                    >> /data/sentinel.conf
-      redis-server /data/sentinel.conf --sentinel
+    entrypoint: /bin/bash
+    command:
+      - -c 
+      - |
+        touch /data/sentinel.conf
+        echo "sentinel monitor master redis-server-1 6380 2" >> /data/sentinel.conf
+        echo "sentinel announce-hostnames yes"               >> /data/sentinel.conf
+        echo "sentinel announce-ip sentinel-1"               >> /data/sentinel.conf
+        echo "sentinel resolve-hostnames yes"                >> /data/sentinel.conf
+        echo "sentinel announce-port 26379"                  >> /data/sentinel.conf
+        echo "port 26379"                                    >> /data/sentinel.conf
+        redis-server /data/sentinel.conf --sentinel
 
   sentinel-2:
     image: falkordb/falkordb:edge
@@ -28,16 +30,18 @@ services:
       - redis-sentinel
     ports:
       - 26380:26380
-    entrypoint: ["/bin/bash", "-c"]
-    command: |
-      touch /data/sentinel.conf
-      echo "sentinel monitor master redis-server-1 6380 2" >> /data/sentinel.conf
-      echo "sentinel announce-hostnames yes"               >> /data/sentinel.conf
-      echo "sentinel announce-ip sentinel-2"               >> /data/sentinel.conf
-      echo "sentinel resolve-hostnames yes"                >> /data/sentinel.conf
-      echo "sentinel announce-port 26380"                  >> /data/sentinel.conf
-      echo "port 26380"                                    >> /data/sentinel.conf
-      redis-server /data/sentinel.conf --sentinel
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        touch /data/sentinel.conf
+        echo "sentinel monitor master redis-server-1 6380 2" >> /data/sentinel.conf
+        echo "sentinel announce-hostnames yes"               >> /data/sentinel.conf
+        echo "sentinel announce-ip sentinel-2"               >> /data/sentinel.conf
+        echo "sentinel resolve-hostnames yes"                >> /data/sentinel.conf
+        echo "sentinel announce-port 26380"                  >> /data/sentinel.conf
+        echo "port 26380"                                    >> /data/sentinel.conf
+        redis-server /data/sentinel.conf --sentinel
   
   sentinel-3:
     image: falkordb/falkordb:edge
@@ -48,16 +52,18 @@ services:
       - redis-sentinel
     ports:
       - 26381:26381
-    entrypoint: ["/bin/bash", "-c"]
-    command: |
-      touch /data/sentinel.conf
-      echo "sentinel monitor master redis-server-1 6380 2" >> /data/sentinel.conf
-      echo "sentinel announce-hostnames yes"               >> /data/sentinel.conf
-      echo "sentinel announce-ip sentinel-3"               >> /data/sentinel.conf
-      echo "sentinel resolve-hostnames yes"                >> /data/sentinel.conf
-      echo "sentinel announce-port 26381"                  >> /data/sentinel.conf
-      echo "port 26381"                                    >> /data/sentinel.conf
-      redis-server /data/sentinel.conf --sentinel
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        touch /data/sentinel.conf
+        echo "sentinel monitor master redis-server-1 6380 2" >> /data/sentinel.conf
+        echo "sentinel announce-hostnames yes"               >> /data/sentinel.conf
+        echo "sentinel announce-ip sentinel-3"               >> /data/sentinel.conf
+        echo "sentinel resolve-hostnames yes"                >> /data/sentinel.conf
+        echo "sentinel announce-port 26381"                  >> /data/sentinel.conf
+        echo "port 26381"                                    >> /data/sentinel.conf
+        redis-server /data/sentinel.conf --sentinel
 
   redis-server-1:
     image: falkordb/falkordb:edge
@@ -67,14 +73,16 @@ services:
       - 6380:6380
     networks:
       - redis-sentinel
-    entrypoint: ["/bin/bash", "-c"]
-    command: |
-      touch /data/node.conf
-      echo "port 6380" >> /data/node.conf 
-      echo "replica-announce-ip redis-server-1"       >> /data/node.conf
-      echo "replica-announce-port 6380"               >> /data/node.conf
-      echo "loadmodule /FalkorDB/bin/src/falkordb.so" >> /data/node.conf
-      redis-server /data/node.conf
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        touch /data/node.conf
+        echo "port 6380" >> /data/node.conf 
+        echo "replica-announce-ip redis-server-1"       >> /data/node.conf
+        echo "replica-announce-port 6380"               >> /data/node.conf
+        echo "loadmodule /FalkorDB/bin/src/falkordb.so" >> /data/node.conf
+        redis-server /data/node.conf
   
   redis-server-2:
     image: falkordb/falkordb:edge
@@ -84,15 +92,17 @@ services:
       - 6381:6381
     networks:
       - redis-sentinel
-    entrypoint: ["/bin/bash", "-c"]
-    command: |
-      touch /data/node.conf
-      echo "port 6381" >> /data/node.conf 
-      echo "replica-announce-ip redis-server-2"       >> /data/node.conf
-      echo "replica-announce-port 6381"               >> /data/node.conf
-      echo "loadmodule /FalkorDB/bin/src/falkordb.so" >> /data/node.conf
-      echo "replicaof redis-server-1 6380"            >> /data/node.conf
-      redis-server /data/node.conf
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        touch /data/node.conf
+        echo "port 6381" >> /data/node.conf 
+        echo "replica-announce-ip redis-server-2"       >> /data/node.conf
+        echo "replica-announce-port 6381"               >> /data/node.conf
+        echo "loadmodule /FalkorDB/bin/src/falkordb.so" >> /data/node.conf
+        echo "replicaof redis-server-1 6380"            >> /data/node.conf
+        redis-server /data/node.conf
 
 networks:
   redis-sentinel:
