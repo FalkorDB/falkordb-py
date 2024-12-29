@@ -1,6 +1,6 @@
 services:
   node0:
-    image: falkordb/falkordb:edge
+    image: falkordb/falkordb:latest
     container_name: node0
     hostname: node0
     ports:
@@ -30,7 +30,7 @@ services:
         echo "cluster-announce-hostname node0"                      >> /data/node.conf
         redis-server /data/node.conf
   node1:
-    image: falkordb/falkordb:edge
+    image: falkordb/falkordb:latest
     container_name: node1
     hostname: node1
     ports:
@@ -52,7 +52,7 @@ services:
         echo "cluster-announce-hostname node1"                      >> /data/node.conf
         redis-server /data/node.conf
   node2:
-    image: falkordb/falkordb:edge
+    image: falkordb/falkordb:latest
     container_name: node2
     hostname: node2
     ports:
@@ -74,7 +74,7 @@ services:
         echo "cluster-announce-hostname node2"                     >> /data/node.conf
         redis-server /data/node.conf
   node3:
-    image: falkordb/falkordb:edge
+    image: falkordb/falkordb:latest
     container_name: node3
     hostname: node3
     ports:
@@ -96,7 +96,7 @@ services:
         echo "cluster-announce-hostname node3"                    >> /data/node.conf
         redis-server /data/node.conf
   node4:
-    image: falkordb/falkordb:edge
+    image: falkordb/falkordb:latest
     container_name: node4
     hostname: node4
     ports:
@@ -119,7 +119,7 @@ services:
         redis-server /data/node.conf
 
   node5:
-    image: falkordb/falkordb:edge
+    image: falkordb/falkordb:latest
     container_name: node5
     hostname: node5
     ports:
