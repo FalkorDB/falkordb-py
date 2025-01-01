@@ -56,9 +56,9 @@ jobs:
 
       - name: Install dependencies
         run: poetry install --no-interaction
-        
-      - name: install docker-compose client
-        run: sudo apt update && sudo apt install docker-compose -y
+      
+      - name: install docker module for python
+        run: pip install docker
 
       - name: Run Tests
         run: poetry run pytest --cov --cov-report=xml

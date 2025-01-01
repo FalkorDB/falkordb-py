@@ -245,7 +245,7 @@ class FalkorDB:
             try:
                 replica_hostnames = self.sentinel.discover_slaves(service_name=self.service_name)
                 if not replica_hostnames:
-                    raise ConnectionError("Unable to get replica hostname.")
+                    return replica_hostnames
                 return [(host, int(port)) for host, port in replica_hostnames]
             except redis.RedisError as e:
                 raise ConnectionError("Failed to get replica hostnames, no hostnames found.") from e
@@ -254,7 +254,7 @@ class FalkorDB:
             try:
                 data = self.connection.get_replicas()
                 if not data:
-                    raise ConnectionError("Unable to get cluster nodes")
+                    return data
                 return [ (i.host, i.port) for i in data]
             except redis.RedisError as e:
                 raise ConnectionError("Failed to get replica hostnames") from e

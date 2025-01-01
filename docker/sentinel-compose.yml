@@ -1,6 +1,6 @@
 services:
   sentinel-1:
-    image: falkordb/falkordb:latest
+    image: bitnami/redis-sentinel
     container_name: sentinel-1
     hostname: sentinel-1
     restart: always
@@ -8,23 +8,20 @@ services:
       - redis-sentinel
     ports:
       - 26379:26379
-    entrypoint: /bin/bash
-    command:
-      - -c 
-      - |
-        touch /data/sentinel.conf
-        echo "sentinel monitor master redis-server-1 6380 2" >> /data/sentinel.conf
-        echo "sentinel announce-hostnames yes"               >> /data/sentinel.conf
-        echo "sentinel announce-ip sentinel-1"               >> /data/sentinel.conf
-        echo "sentinel resolve-hostnames yes"                >> /data/sentinel.conf
-        echo "sentinel announce-port 26379"                  >> /data/sentinel.conf
-        echo "sentinel down-after-milliseconds master 1000"  >> /data/sentinel.conf
-        echo "sentinel failover-timeout master 1000"         >> /data/sentinel.conf
-        echo "port 26379"                                    >> /data/sentinel.conf
-        redis-server /data/sentinel.conf --sentinel
+    environment:
+      REDIS_MASTER_SET: master
+      REDIS_MASTER_HOST: redis-server-1
+      REDIS_MASTER_PORT_NUMBER: 6380
+      REDIS_SENTINEL_ANNOUNCE_PORT: "yes"
+      REDIS_SENTINEL_ANNOUNCE_HOSTNAMES: "yes"
+      REDIS_SENTINEL_ANNOUNCE_IP: sentinel-1
+      REDIS_SENTINEL_PORT_NUMBER: 26379
+      REDIS_SENTINEL_DOWN_AFTER_MILLISECONDS: 500
+      REDIS_SENTINEL_FAILOVER_TIMEOUT: 500
+      ALLOW_EMPTY_PASSWORD: "yes"
 
   sentinel-2:
-    image: falkordb/falkordb:latest
+    image: bitnami/redis-sentinel
     container_name: sentinel-2
     hostname: sentinel-2
     restart: always
@@ -32,23 +29,20 @@ services:
       - redis-sentinel
     ports:
       - 26380:26380
-    entrypoint: /bin/bash
-    command:
-      - -c
-      - |
-        touch /data/sentinel.conf
-        echo "sentinel monitor master redis-server-1 6380 2" >> /data/sentinel.conf
-        echo "sentinel announce-hostnames yes"               >> /data/sentinel.conf
-        echo "sentinel announce-ip sentinel-2"               >> /data/sentinel.conf
-        echo "sentinel resolve-hostnames yes"                >> /data/sentinel.conf
-        echo "sentinel announce-port 26380"                  >> /data/sentinel.conf
-        echo "sentinel down-after-milliseconds master 1000"  >> /data/sentinel.conf
-        echo "sentinel failover-timeout master 1000"         >> /data/sentinel.conf
-        echo "port 26380"                                    >> /data/sentinel.conf
-        redis-server /data/sentinel.conf --sentinel
+    environment:
+      REDIS_MASTER_SET: master
+      REDIS_MASTER_HOST: redis-server-1
+      REDIS_MASTER_PORT_NUMBER: 6380
+      REDIS_SENTINEL_ANNOUNCE_PORT: "yes"
+      REDIS_SENTINEL_ANNOUNCE_HOSTNAMES: "yes"
+      REDIS_SENTINEL_ANNOUNCE_IP: sentinel-2
+      REDIS_SENTINEL_PORT_NUMBER: 26380
+      REDIS_SENTINEL_DOWN_AFTER_MILLISECONDS: 500
+      REDIS_SENTINEL_FAILOVER_TIMEOUT: 500
+      ALLOW_EMPTY_PASSWORD: "yes"
   
   sentinel-3:
-    image: falkordb/falkordb:latest
+    image: bitnami/redis-sentinel
     container_name: sentinel-3
     hostname: sentinel-3
     restart: always
@@ -56,20 +50,17 @@ services:
       - redis-sentinel
     ports:
       - 26381:26381
-    entrypoint: /bin/bash
-    command:
-      - -c
-      - |
-        touch /data/sentinel.conf
-        echo "sentinel monitor master redis-server-1 6380 2" >> /data/sentinel.conf
-        echo "sentinel announce-hostnames yes"               >> /data/sentinel.conf
-        echo "sentinel announce-ip sentinel-3"               >> /data/sentinel.conf
-        echo "sentinel resolve-hostnames yes"                >> /data/sentinel.conf
-        echo "sentinel announce-port 26381"                  >> /data/sentinel.conf
-        echo "sentinel down-after-milliseconds master 1000"  >> /data/sentinel.conf
-        echo "sentinel failover-timeout master 1000"         >> /data/sentinel.conf
-        echo "port 26381"                                    >> /data/sentinel.conf
-        redis-server /data/sentinel.conf --sentinel
+    environment:
+      REDIS_MASTER_SET: master
+      REDIS_MASTER_HOST: redis-server-1
+      REDIS_MASTER_PORT_NUMBER: 6380
+      REDIS_SENTINEL_ANNOUNCE_PORT: "yes"
+      REDIS_SENTINEL_ANNOUNCE_HOSTNAMES: "yes"
+      REDIS_SENTINEL_ANNOUNCE_IP: sentinel-3
+      REDIS_SENTINEL_PORT_NUMBER: 26381
+      REDIS_SENTINEL_DOWN_AFTER_MILLISECONDS: 500
+      REDIS_SENTINEL_FAILOVER_TIMEOUT: 500
+      ALLOW_EMPTY_PASSWORD: "yes"
 
   redis-server-1:
     image: falkordb/falkordb:latest
@@ -79,16 +70,10 @@ services:
       - 6380:6380
     networks:
       - redis-sentinel
-    entrypoint: /bin/bash
-    command:
-      - -c
-      - |
-        touch /data/node.conf
-        echo "port 6380" >> /data/node.conf 
-        echo "replica-announce-ip redis-server-1"       >> /data/node.conf
-        echo "replica-announce-port 6380"               >> /data/node.conf
-        echo "loadmodule /FalkorDB/bin/src/falkordb.so" >> /data/node.conf
-        redis-server /data/node.conf
+    environment:
+      REDIS_ARGS:  "--port 6380 --replica-announce-ip redis-server-1 --replica-announce-port 6380"
+      BROWSER: 0
+    
   
   redis-server-2:
     image: falkordb/falkordb:latest
@@ -98,17 +83,9 @@ services:
       - 6381:6381
     networks:
       - redis-sentinel
-    entrypoint: /bin/bash
-    command:
-      - -c
-      - |
-        touch /data/node.conf
-        echo "port 6381" >> /data/node.conf 
-        echo "replica-announce-ip redis-server-2"       >> /data/node.conf
-        echo "replica-announce-port 6381"               >> /data/node.conf
-        echo "loadmodule /FalkorDB/bin/src/falkordb.so" >> /data/node.conf
-        echo "replicaof redis-server-1 6380"            >> /data/node.conf
-        redis-server /data/node.conf
+    environment:
+      REDIS_ARGS:  "--port 6381 --replica-announce-ip redis-server-1 --replica-announce-port 6381 --replicaof redis-server-1 6380"
+      BROWSER: 0
 
 networks:
   redis-sentinel:

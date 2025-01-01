@@ -2,19 +2,30 @@ import time
 import pytest
 import subprocess
 from falkordb import FalkorDB
+import docker
 
 CLUSTER_PORT    = 5000
 STANDALONE_PORT = 6379
 SENTINEL_PORT   = 26379
 
+
+def docker_client():
+    client = docker.from_env()
+    return client
 # check=True is used to raise an exception if the command fails
-def delete_container(container_name):
-    subprocess.run(f"docker rm {container_name} -f", shell=True, check=True)
+
+def stop_container(container_name):
+    client = docker_client()
+    client.containers.get(container_name).stop()
+
+def start_container(container_name):
+    client = docker_client()
+    client.containers.get(container_name).start()
 
 # shell=True is used to run the command in a shell
 # encoding='utf-8' is used to get the output as a string
-def reapply_compose(path):
-    subprocess.run(f"docker-compose -f {path} down && docker-compose -f {path} up -d", check=True, shell=True)
+# def reapply_compose(path):
+#     subprocess.run(f"docker-compose -f {path} down && docker-compose -f {path} up -d", check=True, shell=True)
 
 def cluster_client():
     return FalkorDB(host='localhost', port=CLUSTER_PORT)
@@ -25,11 +36,16 @@ def standalone_client():
 def sentinel_client():
     return FalkorDB(host='localhost', port=SENTINEL_PORT)
 
-def delete_replicas(client):
+def stop_replicas(client):
     result = client.get_replica_connections()
     for i in result:
         name = i[0]
-        delete_container(name)
+        stop_container(name)
+
+def start_replicas(replicas: list):
+    for i in replicas:
+        name = i[0]
+        start_container(name)
 
 def test_get_replica_connections_cluster():
     c = cluster_client()
@@ -50,21 +66,19 @@ def test_get_replica_connections_sentinel():
 
 def test_get_replica_connections_cluster_no_replicas():
     # assume this cluster has no replicas configured
-    delete_replicas(cluster_client())
-    time.sleep(15)
+    stop_replicas(cluster_client())
+    time.sleep(2)
     c = cluster_client()
-    with pytest.raises(ConnectionError, match="Unable to get cluster nodes"):
-        c.get_replica_connections()
-    reapply_compose('/home/runner/work/falkordb-py/falkordb-py/docker/cluster-compose.yml')
+    assert c.get_replica_connections() == []
+    start_replicas(["node3", "node4", "node5"])
+    
 
 
 def test_get_replica_connections_sentinel_no_replicas():
     # Assume this Sentinel setup has no replicas
-    delete_replicas(sentinel_client())
+    stop_replicas(sentinel_client())
     time.sleep(40)
     c = sentinel_client()
-    with pytest.raises(ConnectionError, match="Unable to get replica hostname."):
-        c.get_replica_connections()
-        
-    reapply_compose('/home/runner/work/falkordb-py/falkordb-py/docker/sentinel-compose.yml')
+    assert c.get_replica_connections() == []
+    start_replicas(["redis-server-2"])
 
