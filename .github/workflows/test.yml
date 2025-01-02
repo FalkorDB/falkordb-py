@@ -61,7 +61,7 @@ jobs:
         run: poetry add docker
 
       - name: wait for nodes to connect to each other
-        run: while true;do (docker logs node0 | grep succeeded ) && ( docker logs node1 | grep succeeded ) && break ;done
+        run: while true;do (docker logs node0 | grep succeeded ) && ( docker logs node1 | grep succeeded ) && ( docker logs node2 | grep succeeded ) && break ;done
 
       - name: Run Tests
         run: poetry run pytest --cov --cov-report=xml
