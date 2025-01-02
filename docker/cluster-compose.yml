@@ -16,7 +16,7 @@ services:
           interval: 3s
           timeout: 10s
           retries: 10
-          start_period: 2s
+          start_period: 1s
     environment:
       REDIS_ARGS: "--port 5000 --cluster-enabled yes --cluster-port 16379 --cluster-preferred-endpoint-type hostname --cluster-config-file /data/nodes.conf --cluster-node-timeout 500 --cluster-announce-hostname node0"
   

@@ -84,7 +84,7 @@ services:
     networks:
       - redis-sentinel
     environment:
-      REDIS_ARGS:  "--port 6381 --replica-announce-ip redis-server-1 --replica-announce-port 6381 --replicaof redis-server-1 6380"
+      REDIS_ARGS:  "--port 6381 --replica-announce-ip redis-server-2 --replica-announce-port 6381 --replicaof redis-server-1 6380"
       BROWSER: 0
 
 networks:
