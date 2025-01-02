@@ -63,17 +63,6 @@ jobs:
       - name: wait for nodes to connect to each other
         run: while true;do (docker logs node0 | grep succeeded ) && ( docker logs node1 | grep succeeded ) && break ;done
 
-      - name: Get logs from node1
-        run: docker logs node0
-        
-      - name: Get logs from node1
-        run: docker logs node1
-
-      - name: Get logs from node5
-        run: docker logs node5
-
-      - name: Get logs from redis-server-2
-        run: docker logs redis-server-2
       - name: Run Tests
         run: poetry run pytest --cov --cov-report=xml
           
