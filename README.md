@@ -51,7 +51,3 @@ copy_graph = g.copy('social_copy')
 # Delete the Graph
 g.delete()
 ```
-
-
-
-
