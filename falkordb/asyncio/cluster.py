@@ -4,7 +4,8 @@ import redis.asyncio as redis
 import redis as sync_redis
 import socket
 
-# detect if a connection is a sentinel
+
+# detect if a connection is a cluster
 def Is_Cluster(conn: redis.Redis):
 
     pool = conn.connection_pool
