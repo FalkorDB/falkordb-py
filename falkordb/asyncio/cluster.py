@@ -5,7 +5,7 @@ import redis as sync_redis
 import socket
 
 # detect if a connection is a sentinel
-async def Is_Cluster(conn: redis.Redis):
+def Is_Cluster(conn: redis.Redis):
 
     pool = conn.connection_pool
     kwargs = pool.connection_kwargs.copy()
