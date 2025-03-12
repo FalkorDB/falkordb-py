@@ -1,10 +1,19 @@
 from redis.asyncio.cluster import RedisCluster
 import redis.exceptions as redis_exceptions
+import redis.asyncio as redis
+import redis as sync_redis
 import socket
 
 # detect if a connection is a sentinel
-async def Is_Cluster(conn):
-    info = await conn.info(section="server")
+async def Is_Cluster(conn: redis.Redis):
+
+    pool = conn.connection_pool
+    kwargs = pool.connection_kwargs.copy()
+
+    # Create a synchronous Redis client with the same parameters
+    # as the connection pool just to keep Is_Cluster synchronous
+    info = sync_redis.Redis(**kwargs).info(section="server")
+
     return "redis_mode" in info and info["redis_mode"] == "cluster"
 
 
