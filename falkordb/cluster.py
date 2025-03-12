@@ -44,6 +44,7 @@ def Cluster_Conn(
         port=port,
         username=username,
         password=password,
+        decode_responses=True,
         ssl=ssl,
         retry=retry,
         retry_on_timeout=retry_on_timeout,
