@@ -2,7 +2,7 @@ from redis.cluster import RedisCluster
 import redis.exceptions as redis_exceptions
 import socket
 
-# detect if a connection is a sentinel
+# detect if a connection is a Cluster
 def Is_Cluster(conn):
     info = conn.info(section="server")
     return "redis_mode" in info and info["redis_mode"] == "cluster"
