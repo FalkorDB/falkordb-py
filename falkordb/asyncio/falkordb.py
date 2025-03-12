@@ -1,4 +1,5 @@
 import redis.asyncio as redis
+from .cluster import *
 from .graph import AsyncGraph
 from typing import List, Union
 
@@ -55,7 +56,14 @@ class FalkorDB():
             retry=None,
             connect_func=None,
             credential_provider=None,
-            protocol=2
+            protocol=2,
+            # FalkorDB Cluster Params
+            cluster_error_retry_attempts=3,
+            startup_nodes=None,
+            require_full_coverage=False,
+            reinitialize_steps=5,
+            read_from_replicas=False,
+            address_remap=None,
         ):
 
         conn = redis.Redis(host=host, port=port, db=0, password=password,
@@ -82,6 +90,18 @@ class FalkorDB():
                            retry=retry, redis_connect_func=connect_func,
                            credential_provider=credential_provider,
                            protocol=protocol)
+        
+        if Is_Cluster(conn):
+            conn = Cluster_Conn(
+                conn,
+                ssl,
+                cluster_error_retry_attempts,
+                startup_nodes,
+                require_full_coverage,
+                reinitialize_steps,
+                read_from_replicas,
+                address_remap,
+            )
 
         self.connection      = conn
         self.flushdb         = conn.flushdb
