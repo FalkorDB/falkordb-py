@@ -26,8 +26,6 @@ def Cluster_Conn(
     require_full_coverage=False,
     reinitialize_steps=5,
     read_from_replicas=False,
-    # dynamic_startup_nodes=True,
-    # url=None,
     address_remap=None,
 ):
     connection_kwargs = conn.connection_pool.connection_kwargs
@@ -37,7 +35,6 @@ def Cluster_Conn(
     password = connection_kwargs.pop("password")
 
     retry = connection_kwargs.pop("retry", None)
-    # retry_on_timeout = connection_kwargs.pop("retry_on_timeout", None)
     retry_on_error = connection_kwargs.pop(
         "retry_on_error",
         [
