@@ -1,10 +1,20 @@
-from redis.cluster import RedisCluster
+from redis.asyncio.cluster import RedisCluster
 import redis.exceptions as redis_exceptions
+import redis.asyncio as redis
+import redis as sync_redis
 import socket
 
-# detect if a connection is a Cluster
-def Is_Cluster(conn):
-    info = conn.info(section="server")
+
+# detect if a connection is a cluster
+def Is_Cluster(conn: redis.Redis):
+
+    pool = conn.connection_pool
+    kwargs = pool.connection_kwargs.copy()
+
+    # Create a synchronous Redis client with the same parameters
+    # as the connection pool just to keep Is_Cluster synchronous
+    info = sync_redis.Redis(**kwargs).info(section="server")
+
     return "redis_mode" in info and info["redis_mode"] == "cluster"
 
 
@@ -17,8 +27,6 @@ def Cluster_Conn(
     require_full_coverage=False,
     reinitialize_steps=5,
     read_from_replicas=False,
-    dynamic_startup_nodes=True,
-    url=None,
     address_remap=None,
 ):
     connection_kwargs = conn.connection_pool.connection_kwargs
@@ -28,7 +36,6 @@ def Cluster_Conn(
     password = connection_kwargs.pop("password")
 
     retry = connection_kwargs.pop("retry", None)
-    retry_on_timeout = connection_kwargs.pop("retry_on_timeout", None)
     retry_on_error = connection_kwargs.pop(
         "retry_on_error",
         [
@@ -47,13 +54,10 @@ def Cluster_Conn(
         decode_responses=True,
         ssl=ssl,
         retry=retry,
-        retry_on_timeout=retry_on_timeout,
         retry_on_error=retry_on_error,
         require_full_coverage=require_full_coverage,
         reinitialize_steps=reinitialize_steps,
         read_from_replicas=read_from_replicas,
-        dynamic_startup_nodes=dynamic_startup_nodes,
-        url=url,
         address_remap=address_remap,
         startup_nodes=startup_nodes,
         cluster_error_retry_attempts=cluster_error_retry_attempts,
