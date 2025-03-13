@@ -11,6 +11,10 @@ def Is_Cluster(conn: redis.Redis):
     pool = conn.connection_pool
     kwargs = pool.connection_kwargs.copy()
 
+    # Check if the connection is using SSL and add it
+    # this propery is not kept in the connection_kwargs
+    kwargs["ssl"] = pool.connection_class is redis.SSLConnection
+
     # Create a synchronous Redis client with the same parameters
     # as the connection pool just to keep Is_Cluster synchronous
     info = sync_redis.Redis(**kwargs).info(section="server")
