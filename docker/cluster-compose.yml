@@ -1,0 +1,124 @@
+services:
+  node0:
+    image: falkordb/falkordb:latest
+    container_name: node0
+    hostname: node0
+    ports:
+      - 5000:5000
+    networks:
+      - redis-cluster
+    volumes:
+      - node0-data:/data
+    healthcheck:
+          test: |
+            redis-cli --cluster create node0:5000 node1:6000 \
+              node2:7000 node3:8000 node4:9000 node5:10000 --cluster-replicas 1 --cluster-yes || echo failed && exit 1
+          interval: 3s
+          timeout: 10s
+          retries: 10
+          start_period: 1s
+    environment:
+      REDIS_ARGS: "--port 5000 --cluster-enabled yes --cluster-port 16379 --cluster-preferred-endpoint-type hostname --cluster-config-file /data/nodes.conf --cluster-node-timeout 500 --cluster-announce-hostname node0"
+  
+  node1:
+    image: falkordb/falkordb:latest
+    container_name: node1
+    hostname: node1
+    ports:
+      - 6000:6000
+    networks:
+      - redis-cluster
+    volumes:
+      - node1-data:/data
+    environment:
+      REDIS_ARGS: "--port 6000 --cluster-enabled yes --cluster-port 16379 --cluster-preferred-endpoint-type hostname --cluster-config-file /data/nodes.conf --cluster-node-timeout 500 --cluster-announce-hostname node1"
+  
+  node2:
+    image: falkordb/falkordb:latest
+    container_name: node2
+    hostname: node2
+    ports:
+      - 7000:7000
+    networks:
+      - redis-cluster
+    volumes:
+      - node2-data:/data
+    environment:
+      REDIS_ARGS: "--port 7000 --cluster-enabled yes --cluster-port 16379 --cluster-preferred-endpoint-type hostname --cluster-config-file /data/nodes.conf --cluster-node-timeout 500 --cluster-announce-hostname node2"
+  
+  node3:
+    image: falkordb/falkordb:latest
+    container_name: node3
+    hostname: node3
+    ports:
+      - 8000:8000
+    networks:
+      - redis-cluster
+    volumes:
+      - node3-data:/data
+    healthcheck:
+      test: |
+        #!/bin/bash
+        ip=$(getent hosts node2 |awk '{print $1}'| tr -d '\r\n')
+        redis-cli -p 8000 cluster meet $$ip 7000 || echo failed && exit 1
+      interval: 3s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    environment:
+      REDIS_ARGS: "--port 8000 --cluster-enabled yes --cluster-port 16379 --cluster-preferred-endpoint-type hostname --cluster-config-file /data/nodes.conf --cluster-node-timeout 500 --cluster-announce-hostname node3"
+  
+  node4:
+    image: falkordb/falkordb:latest
+    container_name: node4
+    hostname: node4
+    ports:
+      - 9000:9000
+    networks:
+      - redis-cluster
+    volumes:
+      - node4-data:/data
+    healthcheck:
+      test: |
+        #!/bin/bash
+        ip=$(getent hosts node0 |awk '{print $1}'| tr -d '\r\n')
+        redis-cli -p 9000 cluster meet $$ip 5000 || echo failed && exit 1
+      interval: 3s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    environment:
+      REDIS_ARGS: "--port 9000 --cluster-enabled yes --cluster-port 16379 --cluster-preferred-endpoint-type hostname --cluster-config-file /data/nodes.conf --cluster-node-timeout 500 --cluster-announce-hostname node4"
+
+  node5:
+    image: falkordb/falkordb:latest
+    container_name: node5
+    hostname: node5
+    ports:
+      - 10000:10000
+    networks:
+      - redis-cluster
+    volumes:
+      - node5-data:/data
+    healthcheck:
+      test: |
+        #!/bin/bash
+        ip=$(getent hosts node1 |awk '{print $1}'| tr -d '\r\n')
+        redis-cli -p 10000 cluster meet $$ip 6000|| echo failed && exit 1
+      interval: 3s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    environment:
+      REDIS_ARGS: "--port 10000 --cluster-enabled yes --cluster-port 16379 --cluster-preferred-endpoint-type hostname --cluster-config-file /data/nodes.conf --cluster-node-timeout 500 --cluster-announce-hostname node5"
+
+networks:
+  redis-cluster:
+
+volumes:
+  node0-data:
+  node1-data:
+  node2-data:
+  node3-data:
+  node4-data:
+  node5-data:
