@@ -20,17 +20,6 @@ def test_new_empty_path():
     assert path._edges == []
 
 
-def test_wrong_flows():
-    node_1 = Node(node_id=1)
-    node_2 = Node(node_id=2)
-    node_3 = Node(node_id=3)
-
-    edge_1 = Edge(node_1, None, node_2)
-    edge_2 = Edge(node_1, None, node_3)
-
-    nodes = [node_1, node_2, node_3]
-    edges = [edge_1, edge_2]
-
 def test_nodes_and_edges():
     node_1 = Node(node_id=1)
     node_2 = Node(node_id=2)
@@ -51,6 +40,13 @@ def test_nodes_and_edges():
     assert 1 == p.edge_count()
     assert edge_1 == p.get_edge(0)
 
+    assert p.get_node(-1) is None
+    assert p.get_edge(49) is None
+
+    path_str = str(p)
+    assert path_str == "<(node1)-(edge1)->(node2)>"
+
+
 def test_compare():
     node_1 = Node(node_id=1)
     node_2 = Node(node_id=2)
@@ -65,3 +61,5 @@ def test_compare():
     assert Path([node_1], edges=[]) != Path([node_2], [])
     assert Path([node_1], [edge_1]) != Path( [node_1], [])
     assert Path([node_1], [edge_1]) != Path([node_2], [edge_1])
+
+    assert not (Path(nodes, edges) == "this is not a path")
