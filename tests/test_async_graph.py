@@ -19,6 +19,7 @@ async def test_graph_creation():
             "age": 33,
             "gender": "male",
             "status": "single",
+            "ids": [1, 2, 3],
         },
     )
 
