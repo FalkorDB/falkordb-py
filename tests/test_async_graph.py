@@ -18,7 +18,8 @@ async def test_graph_creation():
             "name": "John Doe",
             "age": 33,
             "gender": "male",
-            "status": "single",        },
+            "status": "single",
+            },
     )
 
     japan = Node(alias="c", labels="country", properties={"name": "Japan"})
