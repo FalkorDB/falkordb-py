@@ -18,9 +18,7 @@ async def test_graph_creation():
             "name": "John Doe",
             "age": 33,
             "gender": "male",
-            "status": "single",
-            "ids": [1, 2, 3],
-        },
+            "status": "single",        },
     )
 
     japan = Node(alias="c", labels="country", properties={"name": "Japan"})
@@ -37,7 +35,9 @@ async def test_graph_creation():
     assert person == john
     assert visit.properties == edge.properties
     assert country == japan
-
+    query = """CREATE (p:person {name:"Mike", ids: vecf32([1, 2, 3])}) RETURN p"""
+    result = await graph.query(query)
+    assert result.result_set[0][0].properties["ids"] == [1.0, 2.0, 3.0]
     query = """RETURN [1, 2.3, "4", true, false, null]"""
     result = await graph.query(query)
     assert [1, 2.3, "4", True, False, None] == result.result_set[0][0]
