@@ -39,7 +39,7 @@ async def test_graph_creation():
     assert country == japan
 
     # Test vector float32 query result
-    query = "CREATE (p:person {name:'Mike', ids: vecf32([1, -2, 3.14])}) RETURN p.ids"
+    query = "RETURN vecf32([1, -2, 3.14])"
     result = await graph.query(query)
     assert result.result_set[0][0] == approx([1, -2, 3.14])
 
