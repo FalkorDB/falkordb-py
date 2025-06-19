@@ -1,15 +1,18 @@
 import sys
 from enum import Enum
-from typing import List
+from typing import List, TYPE_CHECKING
 from collections import OrderedDict
 
 from redis import ResponseError
 
 from .edge import Edge
 from .node import Node
-from .graph import Graph
 from .path import Path
 from .exceptions import SchemaVersionMismatchException
+
+# avoid circular import
+if TYPE_CHECKING:
+    from .graph import Graph
 
 # statistics
 LABELS_ADDED            = "Labels added"
@@ -437,7 +440,7 @@ class QueryResult:
         return records
 
     @property
-    def graph(self) -> Graph:
+    def graph(self) -> 'Graph':
         """
         Get the graph on which the query was executed.
 
