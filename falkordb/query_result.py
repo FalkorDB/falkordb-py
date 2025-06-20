@@ -1,6 +1,6 @@
 import sys
 from enum import Enum
-from typing import List, TYPE_CHECKING
+from typing import List
 from collections import OrderedDict
 
 from redis import ResponseError
@@ -9,6 +9,7 @@ from .edge import Edge
 from .node import Node
 from .path import Path
 from .exceptions import SchemaVersionMismatchException
+
 
 # statistics
 LABELS_ADDED            = "Labels added"
