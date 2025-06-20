@@ -7,9 +7,9 @@ from redis import ResponseError
 
 from .edge import Edge
 from .node import Node
-from .graph import Graph
 from .path import Path
 from .exceptions import SchemaVersionMismatchException
+
 
 # statistics
 LABELS_ADDED            = "Labels added"
@@ -435,16 +435,6 @@ class QueryResult:
         ]
 
         return records
-
-    @property
-    def graph(self) -> Graph:
-        """
-        Get the graph on which the query was executed.
-
-        Returns:
-            Graph: The original graph.
-        """
-        return self._graph
 
     @property
     def header(self) -> list:
