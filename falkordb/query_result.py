@@ -10,6 +10,7 @@ from .node import Node
 from .path import Path
 from .exceptions import SchemaVersionMismatchException
 
+
 # statistics
 LABELS_ADDED            = "Labels added"
 LABELS_REMOVED          = "Labels removed"
@@ -336,9 +337,9 @@ class QueryResult:
             graph: The graph on which the query was executed.
             response: The response from the server.
         """
-        self.graph      = graph
-        self.header     = []
-        self.result_set = []
+        self._graph      = graph
+        self._header     = []
+        self._result_set = []
         self._raw_stats = []
 
         # in case of an error, an exception will be raised
@@ -365,7 +366,7 @@ class QueryResult:
             error = response[0]
             if str(error) == "version mismatch":
                 version = response[1]
-                error = VersionMismatchException(version)
+                error = SchemaVersionMismatchException(version)
             raise error
 
         # if we encountered a run-time error, the last response
@@ -380,13 +381,13 @@ class QueryResult:
         Args:
             raw_result_set: The raw result set from the server.
         """
-        self.header = self.__parse_header(raw_result_set)
+        self._header = self.__parse_header(raw_result_set)
 
         # empty header
-        if len(self.header) == 0:
+        if len(self._header) == 0:
             return
 
-        self.result_set = self.__parse_records(raw_result_set)
+        self._result_set = self.__parse_records(raw_result_set)
 
     def __get_statistics(self, s):
         """
@@ -429,11 +430,31 @@ class QueryResult:
             list: A list of records.
         """
         records = [
-            [parse_scalar(cell, self.graph) for cell in row]
+            [parse_scalar(cell, self._graph) for cell in row]
             for row in raw_result_set[1]
         ]
 
         return records
+
+    @property
+    def header(self) -> list:
+        """
+        Get the header of the result.
+
+        Returns:
+            list: An array of column name/column type pairs.
+        """
+        return self._header
+
+    @property
+    def result_set(self) -> list:
+        """
+        Get a list of the results from a query.
+
+        Returns:
+            list: A list of each row returned from a query.
+        """
+        return self._result_set
 
     @property
     def labels_added(self) -> int:

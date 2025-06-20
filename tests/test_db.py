@@ -42,11 +42,16 @@ def test_connect_via_url():
     # just host
     db = FalkorDB.from_url("falkor://localhost")
     g = db.select_graph("db")
-    one = g.query("RETURN 1").result_set[0][0]
+    qr = g.query("RETURN 1")
+    one = qr.result_set[0][0]
     assert one == 1
 
     # host & Port
     db = FalkorDB.from_url("falkor://localhost:6379")
     g = db.select_graph("db")
-    one = g.query("RETURN 1").result_set[0][0]
+    qr = g.query("RETURN 1")
+    one = qr.result_set[0][0]
+    header = qr.header
     assert one == 1
+    assert header[0][0] == 1
+    assert header[0][1] == '1'
