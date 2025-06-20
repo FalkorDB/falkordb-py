@@ -1,4 +1,5 @@
 import pytest
+from pytest import approx
 from redis import ResponseError
 from falkordb.asyncio import FalkorDB
 from falkordb import Edge, Node, Path, Operation
@@ -19,7 +20,7 @@ async def test_graph_creation():
             "age": 33,
             "gender": "male",
             "status": "single",
-        },
+            },
     )
 
     japan = Node(alias="c", labels="country", properties={"name": "Japan"})
@@ -37,7 +38,12 @@ async def test_graph_creation():
     assert visit.properties == edge.properties
     assert country == japan
 
-    query = """RETURN [1, 2.3, "4", true, false, null]"""
+    # Test vector float32 query result
+    query = "RETURN vecf32([1, -2, 3.14])"
+    result = await graph.query(query)
+    assert result.result_set[0][0] == approx([1, -2, 3.14])
+
+    query = "RETURN [1, 2.3, '4', true, false, null]"
     result = await graph.query(query)
     assert [1, 2.3, "4", True, False, None] == result.result_set[0][0]
 
