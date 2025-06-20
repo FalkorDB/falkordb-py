@@ -10,10 +10,6 @@ from .node import Node
 from .path import Path
 from .exceptions import SchemaVersionMismatchException
 
-# avoid circular import
-if TYPE_CHECKING: # pragma: no cover
-    from .graph import Graph
-
 # statistics
 LABELS_ADDED            = "Labels added"
 LABELS_REMOVED          = "Labels removed"
@@ -438,16 +434,6 @@ class QueryResult:
         ]
 
         return records
-
-    @property
-    def graph(self) -> 'Graph':
-        """
-        Get the graph on which the query was executed.
-
-        Returns:
-            Graph: The original graph.
-        """
-        return self._graph
 
     @property
     def header(self) -> list:
