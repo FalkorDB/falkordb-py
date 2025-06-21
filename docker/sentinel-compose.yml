@@ -1,0 +1,91 @@
+services:
+  sentinel-1:
+    image: bitnami/redis-sentinel
+    container_name: sentinel-1
+    hostname: sentinel-1
+    restart: always
+    networks:
+      - redis-sentinel
+    ports:
+      - 26379:26379
+    environment:
+      REDIS_MASTER_SET: master
+      REDIS_MASTER_HOST: redis-server-1
+      REDIS_MASTER_PORT_NUMBER: 6380
+      REDIS_SENTINEL_ANNOUNCE_PORT: "yes"
+      REDIS_SENTINEL_ANNOUNCE_HOSTNAMES: "yes"
+      REDIS_SENTINEL_ANNOUNCE_IP: sentinel-1
+      REDIS_SENTINEL_PORT_NUMBER: 26379
+      REDIS_SENTINEL_DOWN_AFTER_MILLISECONDS: 500
+      REDIS_SENTINEL_FAILOVER_TIMEOUT: 500
+      ALLOW_EMPTY_PASSWORD: "yes"
+
+  sentinel-2:
+    image: bitnami/redis-sentinel
+    container_name: sentinel-2
+    hostname: sentinel-2
+    restart: always
+    networks:
+      - redis-sentinel
+    ports:
+      - 26380:26380
+    environment:
+      REDIS_MASTER_SET: master
+      REDIS_MASTER_HOST: redis-server-1
+      REDIS_MASTER_PORT_NUMBER: 6380
+      REDIS_SENTINEL_ANNOUNCE_PORT: "yes"
+      REDIS_SENTINEL_ANNOUNCE_HOSTNAMES: "yes"
+      REDIS_SENTINEL_ANNOUNCE_IP: sentinel-2
+      REDIS_SENTINEL_PORT_NUMBER: 26380
+      REDIS_SENTINEL_DOWN_AFTER_MILLISECONDS: 500
+      REDIS_SENTINEL_FAILOVER_TIMEOUT: 500
+      ALLOW_EMPTY_PASSWORD: "yes"
+  
+  sentinel-3:
+    image: bitnami/redis-sentinel
+    container_name: sentinel-3
+    hostname: sentinel-3
+    restart: always
+    networks:
+      - redis-sentinel
+    ports:
+      - 26381:26381
+    environment:
+      REDIS_MASTER_SET: master
+      REDIS_MASTER_HOST: redis-server-1
+      REDIS_MASTER_PORT_NUMBER: 6380
+      REDIS_SENTINEL_ANNOUNCE_PORT: "yes"
+      REDIS_SENTINEL_ANNOUNCE_HOSTNAMES: "yes"
+      REDIS_SENTINEL_ANNOUNCE_IP: sentinel-3
+      REDIS_SENTINEL_PORT_NUMBER: 26381
+      REDIS_SENTINEL_DOWN_AFTER_MILLISECONDS: 500
+      REDIS_SENTINEL_FAILOVER_TIMEOUT: 500
+      ALLOW_EMPTY_PASSWORD: "yes"
+
+  redis-server-1:
+    image: falkordb/falkordb:latest
+    hostname: redis-server-1
+    container_name: redis-server-1
+    ports:
+      - 6380:6380
+    networks:
+      - redis-sentinel
+    environment:
+      REDIS_ARGS:  "--port 6380 --replica-announce-ip redis-server-1 --replica-announce-port 6380"
+      BROWSER: 0
+    
+  
+  redis-server-2:
+    image: falkordb/falkordb:latest
+    hostname: redis-server-2
+    container_name: redis-server-2
+    ports:
+      - 6381:6381
+    networks:
+      - redis-sentinel
+    environment:
+      REDIS_ARGS:  "--port 6381 --replica-announce-ip redis-server-2 --replica-announce-port 6381 --replicaof redis-server-1 6380"
+      BROWSER: 0
+
+networks:
+  redis-sentinel:
