@@ -1,3 +1,9 @@
 falkordb
 FalkorDB
 py
+socio
+sexualized
+html
+https
+www
+faq
