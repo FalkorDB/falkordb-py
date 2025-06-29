@@ -14,6 +14,7 @@ packages = [{include = "falkordb"}]
 [tool.poetry.dependencies]
 python = "^3.8"
 redis = "^5.0.1"
+python-dateutil = "^2.9.0"
 
 [tool.poetry.group.test.dependencies]
 pytest-cov = ">=4.1,<6.0"
