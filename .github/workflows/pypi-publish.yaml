@@ -1,5 +1,7 @@
 # Run this job on tagging
 name: Release to PYPI
+permissions:
+  contents: read
 on:
   push:
     tags:
