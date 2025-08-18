@@ -10,15 +10,7 @@ jobs:
   test:
     name: Test with Python ${{ matrix.python }}
     runs-on: ubuntu-latest
-
-    services:
-      falkordb:
-        # Docker Hub image
-        image: falkordb/falkordb:edge
-        # Map port 6379 on the Docker host to port 6379 on the FalkorDB container
-        ports:
-          - 6379:6379
-
+    
     strategy:
       matrix:
         python: ['3.8', '3.10', '3.11']
@@ -27,9 +19,36 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Run docker-compose for redis standalone instance
+        uses: hoverkraft-tech/compose-action@v2.0.1
+        with:
+          compose-file: ./docker/standalone-compose.yml
+
+      - name: Run docker-compose for redis replication instance
+        uses: hoverkraft-tech/compose-action@v2.0.1
+        with:
+          compose-file: ./docker/sentinel-compose.yml
+
+      - name: Run docker-compose for redis cluster instance
+        uses: hoverkraft-tech/compose-action@v2.0.1
+        with:
+          compose-file: ./docker/cluster-compose.yml
+      
+      - name: Add entries to the host file to correctly resolve service names
+        run: |
+          sudo echo "127.0.0.1 redis-standalone" | sudo tee -a /etc/hosts
+          sudo echo "127.0.0.1 sentinel-1"       | sudo tee -a /etc/hosts
+          sudo echo "127.0.0.1 sentinel-2"       | sudo tee -a /etc/hosts
+          sudo echo "127.0.0.1 sentinel-3"       | sudo tee -a /etc/hosts
+          sudo echo "127.0.0.1 redis-server-1"   | sudo tee -a /etc/hosts
+          sudo echo "127.0.0.1 redis-server-2"   | sudo tee -a /etc/hosts
+          for i in node{0..5};do
+            echo "127.0.0.1 $i" | sudo tee -a /etc/hosts
+          done
+
       - uses: actions/setup-python@v5
         with:
-          python-version: ${{matrix.python}}
+          python-version: ${{ matrix.python }}
 
       - uses: snok/install-poetry@v1
         with:
@@ -39,13 +58,19 @@ jobs:
 
       - name: Install dependencies
         run: poetry install --no-interaction
+      
+      - name: install docker module for python
+        run: poetry add docker
+
+      - name: wait for nodes to connect to each other
+        run: while true;do (docker logs node0 | grep succeeded ) && ( docker logs node1 | grep succeeded ) && ( docker logs node2 | grep succeeded ) && break ;done
 
       - name: Run Tests
         run: poetry run pytest --cov --cov-report=xml
-
+          
       - name: Upload coverage
         uses: codecov/codecov-action@v5
         if: matrix.python == '3.10' && matrix.platform != 'macos-11'
         with:
           fail_ci_if_error: false
-          token: ${{ secrets.CODECOV_TOKEN }}    
+          token: ${{ secrets.CODECOV_TOKEN }}

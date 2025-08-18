@@ -227,7 +227,41 @@ class FalkorDB:
         """
 
         return self.connection.execute_command(CONFIG_CMD, "GET", name)[1]
+    
+    def get_replica_connections(self):
+        """
+        Retrieve a list of connections for FalkorDB replicas.
 
+        Returns:
+            list of tuple: A list of (hostname, port) tuples representing the 
+            replica connections.
+
+        Raises:
+            ConnectionError: If unable to connect or retrieve information from 
+            the FalkorDB setup.
+            ValueError: If the `mode` is neither Sentinel nor Cluster.
+        """
+        if hasattr(self, 'sentinel') and self.sentinel is not None:
+            try:
+                replica_hostnames = self.sentinel.discover_slaves(service_name=self.service_name)
+                if not replica_hostnames:
+                    return replica_hostnames
+                return [(host, int(port)) for host, port in replica_hostnames]
+            except redis.RedisError as e:
+                raise ConnectionError("Failed to get replica hostnames, no hostnames found.") from e
+            
+        elif Is_Cluster(self.connection):
+            try:
+                data = self.connection.get_replicas()
+                if not data:
+                    return data
+                return [ (i.host, i.port) for i in data]
+            except redis.RedisError as e:
+                raise ConnectionError("Failed to get replica hostnames") from e
+
+        else:
+            raise ValueError(f"Unsupported Redis mode")
+        
     def config_set(self, name: str, value=None) -> None:
         """
         Update a DB level configuration.
