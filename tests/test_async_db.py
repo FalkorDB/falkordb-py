@@ -49,3 +49,19 @@ async def test_connect_via_url():
 
     # close the connection pool
     await pool.aclose()
+
+
+@pytest.mark.asyncio
+async def test_from_url():
+    """Test that from_url uses the correct host/port from URL"""
+    # Test that from_url fails with correct host when connecting to non-existent host
+    # This verifies that the URL parsing works and connects to the right host (not localhost)
+    try:
+        db_bad = FalkorDB.from_url("falkor://nonexistent.example.com:1234")
+        # The constructor should fail during Is_Cluster check with the correct host
+        assert False, "Expected connection to fail during construction"
+    except Exception as e:
+        # The error should mention the correct host, not localhost
+        error_str = str(e)
+        assert "nonexistent.example.com" in error_str or "1234" in error_str, f"Error should mention correct host: {error_str}"
+        assert "localhost" not in error_str, f"Error should not mention localhost: {error_str}"
