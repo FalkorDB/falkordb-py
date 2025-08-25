@@ -126,8 +126,6 @@ class FalkorDB():
         db = FalkorDB.from_url("unix://[username@]/path/to/socket.sock?db=0[&password=password]")
         """
 
-        db = cls()
-
         # switch from redis:// to falkordb://
         if url.startswith('falkor://'):
             url = 'redis://' + url[len('falkor://'):]
@@ -135,9 +133,18 @@ class FalkorDB():
             url = 'rediss://' + url[len('falkors://'):]
 
         conn = redis.from_url(url, **kwargs)
-        db.connection      = conn
-        db.flushdb         = conn.flushdb
-        db.execute_command = conn.execute_command
+
+        connection_kwargs = conn.connection_pool.connection_kwargs
+        connection_class = conn.connection_pool.connection_class
+        kwargs["host"] = connection_kwargs.get("host", "localhost")
+        kwargs["port"] = connection_kwargs.get("port", 6379)
+        kwargs["username"] = connection_kwargs.get("username")
+        kwargs["password"] = connection_kwargs.get("password")
+        if connection_class is redis.SSLConnection:
+            kwargs["ssl"] = True
+
+        # Initialize a FalkorDB instance using the updated kwargs
+        db = cls(**kwargs)
 
         return db
 
