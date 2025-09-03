@@ -76,6 +76,20 @@ class FalkorDB:
         url=None,
         address_remap=None,
     ):
+        # Handle Redis version compatibility for optional parameters
+        optional_params = {}
+
+        # charset and errors parameters were removed in redis-py 6.0.0
+        # These were used in redis-py 5.x but are no longer supported
+        if charset is not None:
+            optional_params["charset"] = charset
+        if errors is not None:
+            optional_params["errors"] = errors
+
+        # retry_on_timeout parameter was deprecated in redis-py 6.0.0
+        # It's still available but deprecated in favor of the retry parameter
+        if retry_on_timeout is not None:
+            optional_params["retry_on_timeout"] = retry_on_timeout
 
         conn = redis.Redis(
             host=host,
@@ -90,10 +104,7 @@ class FalkorDB:
             unix_socket_path=unix_socket_path,
             encoding=encoding,
             encoding_errors=encoding_errors,
-            charset=charset,
-            errors=errors,
             decode_responses=True,
-            retry_on_timeout=retry_on_timeout,
             retry_on_error=retry_on_error,
             ssl=ssl,
             ssl_keyfile=ssl_keyfile,
@@ -119,6 +130,7 @@ class FalkorDB:
             redis_connect_func=connect_func,
             credential_provider=credential_provider,
             protocol=protocol,
+            **optional_params
         )
 
         if Is_Sentinel(conn):
