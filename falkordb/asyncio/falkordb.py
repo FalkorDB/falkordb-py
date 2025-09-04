@@ -65,6 +65,13 @@ class FalkorDB():
             read_from_replicas=False,
             address_remap=None,
         ):
+        # Handle Redis version compatibility for optional parameters
+        optional_params = {}
+
+        # retry_on_timeout parameter was deprecated in redis-py 6.0.0
+        # It's still available but deprecated in favor of the retry parameter
+        if retry_on_timeout is not False:
+            optional_params["retry_on_timeout"] = retry_on_timeout
 
         conn = redis.Redis(host=host, port=port, db=0, password=password,
                            socket_timeout=socket_timeout,
@@ -75,7 +82,6 @@ class FalkorDB():
                            unix_socket_path=unix_socket_path,
                            encoding=encoding, encoding_errors=encoding_errors,
                            decode_responses=True,
-                           retry_on_timeout=retry_on_timeout,
                            retry_on_error=retry_on_error, ssl=ssl,
                            ssl_keyfile=ssl_keyfile, ssl_certfile=ssl_certfile,
                            ssl_cert_reqs=ssl_cert_reqs,
@@ -89,8 +95,9 @@ class FalkorDB():
                            lib_version=lib_version, username=username,
                            retry=retry, redis_connect_func=connect_func,
                            credential_provider=credential_provider,
-                           protocol=protocol)
-        
+                           protocol=protocol,
+                           **optional_params)
+
         if Is_Cluster(conn):
             conn = Cluster_Conn(
                 conn,
@@ -161,7 +168,7 @@ class FalkorDB():
         Lists all graph names.
         See: https://docs.falkordb.com/commands/graph.list.html
 
-        Returns:            
+        Returns:
             List: List of graph names.
 
         """
