@@ -79,12 +79,12 @@ class FalkorDB:
         # Handle Redis version compatibility for optional parameters
         optional_params = {}
 
-        # charset and errors parameters were removed in redis-py 6.0.0
-        # These were used in redis-py 5.x but are no longer supported
+        # Map legacy aliases to supported args (redis-py 5.x accepted them with deprecation;
+        # redis-py 6.x removed them). Avoid forwarding unsupported kwargs.
         if charset is not None:
-            optional_params["charset"] = charset
+            encoding = charset
         if errors is not None:
-            optional_params["errors"] = errors
+            encoding_errors = errors
 
         # retry_on_timeout parameter was deprecated in redis-py 6.0.0
         # It's still available but deprecated in favor of the retry parameter
