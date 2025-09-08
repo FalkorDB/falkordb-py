@@ -68,10 +68,10 @@ class FalkorDB():
         # Handle Redis version compatibility for optional parameters
         optional_params = {}
 
-        # retry_on_timeout parameter was deprecated in redis-py 6.0.0
-        # It's still available but deprecated in favor of the retry parameter
-        if retry_on_timeout is not False:
-            optional_params["retry_on_timeout"] = retry_on_timeout
+        # retry_on_timeout is deprecated in redis-py 6.x. Only forward if explicitly True
+        # and no modern `retry` policy is provided.
+        if retry is None and retry_on_timeout is True:
+            optional_params["retry_on_timeout"] = True
 
         conn = redis.Redis(host=host, port=port, db=0, password=password,
                            socket_timeout=socket_timeout,

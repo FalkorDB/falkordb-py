@@ -86,10 +86,10 @@ class FalkorDB:
         if errors is not None:
             encoding_errors = errors
 
-        # retry_on_timeout parameter was deprecated in redis-py 6.0.0
-        # It's still available but deprecated in favor of the retry parameter
-        if retry_on_timeout is not None:
-            optional_params["retry_on_timeout"] = retry_on_timeout
+        # retry_on_timeout is deprecated in redis-py 6.x. Only forward if explicitly True
+        # and no modern `retry` policy is provided.
+        if retry is None and retry_on_timeout is True:
+            optional_params["retry_on_timeout"] = True
 
         conn = redis.Redis(
             host=host,
