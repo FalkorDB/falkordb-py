@@ -4,9 +4,15 @@ from .sentinel import *
 from .graph import Graph
 from typing import List, Union
 
-# config command
-LIST_CMD = "GRAPH.LIST"
+# config commands
+LIST_CMD   = "GRAPH.LIST"
 CONFIG_CMD = "GRAPH.CONFIG"
+
+# UDF commands
+UDF_LOAD   = "GRAPH.UDF LOAD"
+UDF_LIST   = "GRAPH.UDF LIST"
+UDF_FLUSH  = "GRAPH.UDF FLUSH"
+UDF_DELETE = "GRAPH.UDF DELETE"
 
 
 class FalkorDB:
@@ -243,3 +249,67 @@ class FalkorDB:
         """
 
         return self.connection.execute_command(CONFIG_CMD, "SET", name, value)
+
+    # GRAPH.UDF LOAD [REPLACE] <lib> <script>
+    def udf_load(self, name: str, script: str, replace: bool = False) -> bool:
+        """
+        Load a User Defined Function (UDF) library.
+
+        Args:
+            name (str): The name of the library to load.
+            script (str): The UDF script contents.
+            replace (bool, optional): If True, replace an existing library with the same name.
+                                      Defaults to False.
+
+        Returns:
+            bool: True if the library was loaded successfully.
+        """
+        args = [UDF_LOAD]
+        if replace:
+            args.append("REPLACE")
+        args.extend([name, script])
+        return self.connection.execute_command(*args)
+
+    # GRAPH.UDF LIST [LIBRARYNAME] [WITHCODE]
+    def udf_list(self, lib: str | None = None, with_code: bool = False):
+        """
+        List User Defined Function (UDF) libraries.
+
+        Args:
+            lib (str, optional): If provided, filter the list to this specific library.
+            with_code (bool, optional): If True, include the library source code in the result.
+                                        Defaults to False.
+
+        Returns:
+            list: A list of UDF libraries and their metadata.
+        """
+        args = [UDF_LIST]
+        if lib is not None:
+            args.append(lib)
+        if with_code:
+            args.append("WITHCODE")
+        return self.connection.execute_command(*args)
+
+    # GRAPH.UDF FLUSH
+    def udf_flush(self) -> bool:
+        """
+        Flush (remove) all User Defined Function (UDF) libraries.
+
+        Returns:
+            bool: True if all libraries were flushed successfully.
+        """
+        return self.connection.execute_command(UDF_FLUSH)
+
+    # GRAPH.UDF DELETE <lib>
+    def udf_delete(self, lib: str) -> bool:
+        """
+        Delete a User Defined Function (UDF) library.
+
+        Args:
+            lib (str): The name of the library to delete.
+
+        Returns:
+            bool: True if the library was deleted successfully.
+        """
+        return self.connection.execute_command(UDF_DELETE, lib)
+
