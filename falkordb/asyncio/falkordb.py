@@ -37,7 +37,6 @@ class FalkorDB():
             unix_socket_path=None,
             encoding='utf-8',
             encoding_errors='strict',
-            retry_on_timeout=False,
             retry_on_error=None,
             ssl=False,
             ssl_keyfile=None,
@@ -65,13 +64,6 @@ class FalkorDB():
             read_from_replicas=False,
             address_remap=None,
         ):
-        # Handle Redis version compatibility for optional parameters
-        optional_params = {}
-
-        # retry_on_timeout is deprecated in redis-py 6.x. Only forward if explicitly True
-        # and no modern `retry` policy is provided.
-        if retry is None and retry_on_timeout is True:
-            optional_params["retry_on_timeout"] = True
 
         conn = redis.Redis(host=host, port=port, db=0, password=password,
                            socket_timeout=socket_timeout,
@@ -95,8 +87,7 @@ class FalkorDB():
                            lib_version=lib_version, username=username,
                            retry=retry, redis_connect_func=connect_func,
                            credential_provider=credential_provider,
-                           protocol=protocol,
-                           **optional_params)
+                           protocol=protocol)
 
         if Is_Cluster(conn):
             conn = Cluster_Conn(
