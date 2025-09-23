@@ -37,7 +37,6 @@ class FalkorDB():
             unix_socket_path=None,
             encoding='utf-8',
             encoding_errors='strict',
-            retry_on_timeout=False,
             retry_on_error=None,
             ssl=False,
             ssl_keyfile=None,
@@ -75,7 +74,6 @@ class FalkorDB():
                            unix_socket_path=unix_socket_path,
                            encoding=encoding, encoding_errors=encoding_errors,
                            decode_responses=True,
-                           retry_on_timeout=retry_on_timeout,
                            retry_on_error=retry_on_error, ssl=ssl,
                            ssl_keyfile=ssl_keyfile, ssl_certfile=ssl_certfile,
                            ssl_cert_reqs=ssl_cert_reqs,
@@ -90,7 +88,7 @@ class FalkorDB():
                            retry=retry, redis_connect_func=connect_func,
                            credential_provider=credential_provider,
                            protocol=protocol)
-        
+
         if Is_Cluster(conn):
             conn = Cluster_Conn(
                 conn,
@@ -161,7 +159,7 @@ class FalkorDB():
         Lists all graph names.
         See: https://docs.falkordb.com/commands/graph.list.html
 
-        Returns:            
+        Returns:
             List: List of graph names.
 
         """
