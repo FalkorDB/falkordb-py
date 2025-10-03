@@ -24,14 +24,16 @@ def test_sync_context_manager_calls_close():
 def test_sync_close_fallback_disconnect():
     db = object.__new__(SyncFalkorDB)
 
-    # connection has no close(), only a connection_pool.disconnect()
-    mock_conn = SimpleNamespace()
+    # connection provides close(); close() should be preferred over disconnect
+    mock_conn = SimpleNamespace(close=Mock())
     mock_conn.connection_pool = SimpleNamespace(disconnect=Mock())
     db.connection = mock_conn
 
     db.close()
 
-    mock_conn.connection_pool.disconnect.assert_called_once()
+    mock_conn.close.assert_called_once()
+    # ensure fallback wasn't used
+    mock_conn.connection_pool.disconnect.assert_not_called()
 
 
 @pytest.mark.asyncio
