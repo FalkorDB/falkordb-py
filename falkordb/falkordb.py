@@ -258,7 +258,6 @@ class FalkorDB:
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
         """Close the connection when exiting a with-statement."""
         self.close()
-        
     def __del__(self):
         self.close()
 
