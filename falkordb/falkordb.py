@@ -1,3 +1,4 @@
+import os
 import redis
 from .cluster import *
 from .sentinel import *
@@ -87,20 +88,49 @@ class FalkorDB:
     ):
         # Handle embedded mode
         if embedded:
+            # First check if psutil is installed (needed for process management)
             try:
-                import redislite
+                import psutil  # noqa: F401
             except ImportError:
                 raise ImportError(
                     "To use embedded FalkorDB, you need to install the 'embedded' extra: "
                     "pip install falkordb[embedded]"
                 )
             
-            # Use falkordblite's Redis client with FalkorDB module
-            conn = redislite.Redis(
+            try:
+                from .embedded import EmbeddedFalkorDB
+            except ImportError as e:
+                # This should not happen if psutil is installed, but just in case
+                raise ImportError(
+                    "Failed to import embedded module. "
+                    "Please ensure all dependencies are installed: pip install falkordb[embedded]"
+                ) from e
+            
+            # Check for redis-server and falkordb module
+            redis_executable = self._find_redis_executable()
+            falkordb_module = self._find_falkordb_module()
+            
+            if not redis_executable:
+                raise ImportError(
+                    "redis-server not found. For embedded mode, you need Redis installed. "
+                    "Install it via your system package manager or download from redis.io"
+                )
+            
+            if not falkordb_module:
+                raise ImportError(
+                    "FalkorDB module not found. For embedded mode, you need the FalkorDB module. "
+                    "Download it from https://github.com/FalkorDB/FalkorDB/releases"
+                )
+            
+            # Create embedded instance
+            embedded_db = EmbeddedFalkorDB(
                 dbfilename=dbfilename,
                 serverconfig=serverconfig or {},
-                decode_responses=True,
+                redis_executable=redis_executable,
+                falkordb_module=falkordb_module,
             )
+            conn = embedded_db.connection
+            self._embedded_db = embedded_db
         else:
             conn = redis.Redis(
                 host=host,
@@ -166,6 +196,57 @@ class FalkorDB:
         self.connection = conn
         self.flushdb = conn.flushdb
         self.execute_command = conn.execute_command
+
+    @staticmethod
+    def _find_redis_executable():
+        """Find redis-server executable in system PATH."""
+        import shutil
+        redis_path = shutil.which('redis-server')
+        if redis_path:
+            return redis_path
+        
+        # Check common installation paths
+        common_paths = [
+            '/usr/local/bin/redis-server',
+            '/usr/bin/redis-server',
+            '/opt/redis/bin/redis-server',
+        ]
+        for path in common_paths:
+            if os.path.exists(path):
+                return path
+        
+        return None
+    
+    @staticmethod
+    def _find_falkordb_module():
+        """Find FalkorDB module (.so file)."""
+        import platform
+        
+        # Check if module is in the package directory
+        package_dir = os.path.dirname(os.path.abspath(__file__))
+        module_locations = [
+            os.path.join(package_dir, 'bin', 'falkordb.so'),
+            os.path.join(package_dir, 'falkordb.so'),
+            os.path.join(os.path.dirname(package_dir), 'bin', 'falkordb.so'),
+        ]
+        
+        for location in module_locations:
+            if os.path.exists(location):
+                return location
+        
+        # Check common installation paths
+        machine = platform.machine().lower()
+        common_paths = [
+            '/usr/local/lib/falkordb.so',
+            '/usr/lib/falkordb.so',
+            '/opt/falkordb/falkordb.so',
+        ]
+        
+        for path in common_paths:
+            if os.path.exists(path):
+                return path
+        
+        return None
 
     @classmethod
     def from_url(cls, url: str, **kwargs) -> "FalkorDB":

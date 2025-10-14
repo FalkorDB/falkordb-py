@@ -18,10 +18,14 @@ see [docs](http://falkordb-py.readthedocs.io/)
 pip install FalkorDB
 ```
 
-To install with embedded FalkorDB support (includes Redis + FalkorDB binaries):
+To install with embedded FalkorDB support:
 ```sh
 pip install FalkorDB[embedded]
 ```
+
+**Note**: For embedded mode, you also need:
+- Redis server installed (`redis-server` in PATH)
+- FalkorDB module (download from [FalkorDB releases](https://github.com/FalkorDB/FalkorDB/releases))
 
 ## Usage
 
@@ -123,6 +127,15 @@ FalkorDB supports an embedded mode that runs Redis + FalkorDB in a local process
 ```sh
 pip install FalkorDB[embedded]
 ```
+
+**Prerequisites:**
+- Redis server installed (`redis-server` must be in PATH)
+- FalkorDB module downloaded (`.so` file from [FalkorDB releases](https://github.com/FalkorDB/FalkorDB/releases))
+
+Place the FalkorDB module in one of these locations:
+- `/usr/local/lib/falkordb.so`
+- `/usr/lib/falkordb.so`
+- In the `falkordb/bin/` directory of your Python package
 
 **Usage:**
 ```python
