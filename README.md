@@ -18,6 +18,11 @@ see [docs](http://falkordb-py.readthedocs.io/)
 pip install FalkorDB
 ```
 
+To install with embedded FalkorDB support (includes Redis + FalkorDB binaries):
+```sh
+pip install FalkorDB[embedded]
+```
+
 ## Usage
 
 ### Run FalkorDB instance
@@ -27,7 +32,19 @@ docker run --rm -p 6379:6379 falkordb/falkordb
 ```
 Or use [FalkorDB Cloud](https://app.falkordb.cloud)
 
-### Synchronous Example 
+Or use embedded FalkorDB (no external server needed):
+```python
+from falkordb import FalkorDB
+
+# Create an embedded FalkorDB instance
+db = FalkorDB(embedded=True)
+
+# Use it just like a remote connection
+g = db.select_graph('social')
+result = g.query("CREATE (n:Person {name: 'Alice'}) RETURN n")
+```
+
+### Synchronous Example
 
 ```python
 from falkordb import FalkorDB
@@ -96,4 +113,43 @@ async def main():
 # Run the async example
 if __name__ == "__main__":
     asyncio.run(main())
+```
+
+### Embedded FalkorDB
+
+FalkorDB supports an embedded mode that runs Redis + FalkorDB in a local process, eliminating the need for a separate server. This is useful for development, testing, or applications that need a self-contained graph database.
+
+**Installation:**
+```sh
+pip install FalkorDB[embedded]
+```
+
+**Usage:**
+```python
+from falkordb import FalkorDB
+
+# Create an embedded instance (data stored in memory)
+db = FalkorDB(embedded=True)
+
+# Or specify a database file for persistence
+db = FalkorDB(embedded=True, dbfilename='/path/to/database.db')
+
+# Use it exactly like a remote FalkorDB instance
+graph = db.select_graph('my_graph')
+result = graph.query('CREATE (n:Person {name: "John", age: 30}) RETURN n')
+
+# Data persists across connections when using dbfilename
+del db
+
+# Reconnect to the same database
+db = FalkorDB(embedded=True, dbfilename='/path/to/database.db')
+graph = db.select_graph('my_graph')
+result = graph.query('MATCH (n:Person) RETURN n.name, n.age')
+```
+
+**Notes:**
+- Embedded mode uses Unix sockets for communication (no network overhead)
+- The embedded server automatically starts and stops with your application
+- Embedded mode is not available with asyncio (use the synchronous API)
+- For production deployments, use a standalone FalkorDB server or FalkorDB Cloud
 ```
