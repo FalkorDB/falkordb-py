@@ -1,7 +1,7 @@
 import redis.asyncio as redis
 from .cluster import *
 from .graph import AsyncGraph
-from typing import List, Union
+from typing import List, Union, Optional
 
 # config command
 LIST_CMD   = "GRAPH.LIST"
@@ -63,7 +63,18 @@ class FalkorDB():
             reinitialize_steps=5,
             read_from_replicas=False,
             address_remap=None,
+            # Embedded FalkorDB Params
+            embedded=False,
+            dbfilename: Optional[str] = None,
+            serverconfig: Optional[dict] = None,
         ):
+        # Embedded mode is not supported for asyncio
+        if embedded:
+            raise NotImplementedError(
+                "Embedded FalkorDB is not supported with asyncio. "
+                "Please use the synchronous FalkorDB class instead: "
+                "from falkordb import FalkorDB"
+            )
 
         conn = redis.Redis(host=host, port=port, db=0, password=password,
                            socket_timeout=socket_timeout,
