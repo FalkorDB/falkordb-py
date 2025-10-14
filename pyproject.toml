@@ -26,5 +26,5 @@ pytest = "8.3.5"
 pytest-asyncio = ">=0.23.4,<0.25.0"
 
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["setuptools>=45", "wheel", "setuptools-scm"]
+build-backend = "setuptools.build_meta"

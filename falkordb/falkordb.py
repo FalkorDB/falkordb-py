@@ -199,7 +199,14 @@ class FalkorDB:
 
     @staticmethod
     def _find_redis_executable():
-        """Find redis-server executable in system PATH."""
+        """Find redis-server executable in package or system PATH."""
+        # First check package directory (for embedded installation)
+        package_dir = os.path.dirname(os.path.abspath(__file__))
+        package_redis = os.path.join(package_dir, 'bin', 'redis-server')
+        if os.path.exists(package_redis):
+            return package_redis
+        
+        # Check system PATH
         import shutil
         redis_path = shutil.which('redis-server')
         if redis_path:
@@ -222,7 +229,7 @@ class FalkorDB:
         """Find FalkorDB module (.so file)."""
         import platform
         
-        # Check if module is in the package directory
+        # First check package directory (for embedded installation)
         package_dir = os.path.dirname(os.path.abspath(__file__))
         module_locations = [
             os.path.join(package_dir, 'bin', 'falkordb.so'),

@@ -1,3 +1,11 @@
 venv
 __pycache__
 poetry.lock
+
+# Embedded build artifacts
+redis.submodule/
+falkordb.so
+falkordb/bin/
+build/
+dist/
+*.egg-info/
