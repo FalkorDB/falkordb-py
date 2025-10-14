@@ -15,6 +15,10 @@ packages = [{include = "falkordb"}]
 python = "^3.8"
 redis = ">=6.0.0,<7.0.0"
 python-dateutil = "^2.9.0"
+falkordblite = {version = ">=1.0.0", optional = true}
+
+[tool.poetry.extras]
+embedded = ["falkordblite"]
 
 [tool.poetry.group.test.dependencies]
 pytest-cov = ">=4.1,<6.0"
