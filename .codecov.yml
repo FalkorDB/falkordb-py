@@ -1,0 +1,16 @@
+coverage:
+  status:
+    project:
+      default:
+        target: auto
+        threshold: 5%
+    patch:
+      default:
+        target: auto
+        threshold: 5%
+
+ignore:
+  - "falkordb/embedded/*"  # Embedded module requires external binaries (redis-server, falkordb.so)
+  - "examples/*"
+  - "tests/*"
+  - "docs/*"
