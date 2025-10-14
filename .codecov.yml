@@ -14,3 +14,4 @@ ignore:
   - "examples/*"
   - "tests/*"
   - "docs/*"
+  - "setup.py"  # Build script

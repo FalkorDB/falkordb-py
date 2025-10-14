@@ -14,3 +14,12 @@ lifecycle
 unix
 Redis
 Cypher
+gcc
+setuptools
+Ubuntu
+Debian
+macOS
+xcode
+urllib
+tarfile
+submodule
