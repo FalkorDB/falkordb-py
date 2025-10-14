@@ -138,43 +138,52 @@ class BuildEmbedded(build):
         # Run original build code
         build.run(self)
         
-        # Check if building for embedded
-        # Look for FALKORDB_BUILD_EMBEDDED env var or if we're building with [embedded] extra
-        should_build_embedded = os.environ.get('FALKORDB_BUILD_EMBEDDED', '').lower() in ('1', 'true', 'yes')
+        # Automatically build embedded binaries when:
+        # 1. Building from source (not installing from wheel)
+        # 2. User can opt-out with FALKORDB_SKIP_EMBEDDED=1
         
-        if not should_build_embedded:
-            # Check if any command line args indicate embedded
-            for arg in sys.argv:
-                if 'embedded' in arg.lower():
-                    should_build_embedded = True
-                    break
-        
-        if not should_build_embedded:
-            print('Skipping embedded binaries build (set FALKORDB_BUILD_EMBEDDED=1 to build)')
+        # Check if user explicitly wants to skip
+        skip_embedded = os.environ.get('FALKORDB_SKIP_EMBEDDED', '').lower() in ('1', 'true', 'yes')
+        if skip_embedded:
+            print('Skipping embedded binaries build (FALKORDB_SKIP_EMBEDDED=1)')
             return
         
-        print('='  * 80)
+        # Always build embedded binaries when building from source
+        # This ensures they're available for users who install with [embedded] extra
+        print('=' * 80)
         print('Building embedded FalkorDB support...')
+        print('This may take a few minutes (downloading and compiling Redis)...')
+        print('To skip: set FALKORDB_SKIP_EMBEDDED=1')
         print('=' * 80)
         
-        # Download Redis if not present
-        if not os.path.exists(REDIS_PATH):
-            print('Downloading Redis...')
-            download_redis_submodule()
-        
-        # Download FalkorDB module if not present
-        falkordb_module = os.path.join(BASEPATH, 'falkordb.so')
-        if not os.path.exists(falkordb_module):
-            print('Downloading FalkorDB module...')
-            download_falkordb_module()
-        
-        # Build Redis
-        print('Building Redis...')
-        build_redis()
-        
-        print('=' * 80)
-        print('Embedded setup complete!')
-        print('=' * 80)
+        try:
+            # Download Redis if not present
+            if not os.path.exists(REDIS_PATH):
+                print('Downloading Redis...')
+                download_redis_submodule()
+            
+            # Download FalkorDB module if not present
+            falkordb_module = os.path.join(BASEPATH, 'falkordb.so')
+            if not os.path.exists(falkordb_module):
+                print('Downloading FalkorDB module...')
+                download_falkordb_module()
+            
+            # Build Redis
+            print('Building Redis...')
+            build_redis()
+            
+            print('=' * 80)
+            print('Embedded setup complete!')
+            print('Binaries are available in falkordb/bin/')
+            print('=' * 80)
+        except Exception as e:
+            print('=' * 80)
+            print(f'Warning: Failed to build embedded binaries: {e}')
+            print('The package will still work for non-embedded usage.')
+            print('To use embedded mode, you can:')
+            print('  1. Install build tools (gcc, make) and try again')
+            print('  2. Manually place redis-server and falkordb.so in falkordb/bin/')
+            print('=' * 80)
 
 
 class InstallEmbedded(install):
@@ -194,20 +203,13 @@ class DevelopEmbedded(develop):
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
     
-    # Check if Windows (unsupported)
+    # Check if Windows (unsupported for embedded mode)
     if sys.platform in ['win32', 'win64']:
-        print('Embedded mode is not supported on Windows', file=sys.stderr)
-        sys.exit(1)
-    
-    # Download binaries if building embedded
-    if not os.path.exists(REDIS_PATH) and os.environ.get('FALKORDB_BUILD_EMBEDDED', '').lower() in ('1', 'true', 'yes'):
-        logger.info(f'Downloading Redis version {REDIS_VERSION}')
-        download_redis_submodule()
-    
-    falkordb_module = os.path.join(BASEPATH, 'falkordb.so')
-    if not os.path.exists(falkordb_module) and os.environ.get('FALKORDB_BUILD_EMBEDDED', '').lower() in ('1', 'true', 'yes'):
-        logger.info(f'Downloading FalkorDB version {FALKORDB_VERSION}')
-        download_falkordb_module()
+        # Don't fail on Windows, just skip embedded build
+        # The package will still work for non-embedded usage
+        os.environ['FALKORDB_SKIP_EMBEDDED'] = '1'
+        print('Note: Embedded mode is not supported on Windows')
+        print('Package will be installed without embedded binaries')
     
     # Read requirements from pyproject.toml
     with open('pyproject.toml', 'r') as f:

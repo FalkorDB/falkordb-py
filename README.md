@@ -20,7 +20,7 @@ pip install FalkorDB
 
 To install with embedded FalkorDB support (includes Redis and FalkorDB binaries):
 ```sh
-FALKORDB_BUILD_EMBEDDED=1 pip install FalkorDB[embedded]
+pip install FalkorDB[embedded]
 ```
 
 The embedded installation automatically:
@@ -30,6 +30,11 @@ The embedded installation automatically:
 - Packages everything with the Python client
 
 **Note**: Embedded installation requires build tools (`gcc`, `make`) to be installed on your system.
+
+To skip building embedded binaries (faster install for non-embedded usage):
+```sh
+FALKORDB_SKIP_EMBEDDED=1 pip install FalkorDB
+```
 
 ## Usage
 
@@ -45,6 +50,7 @@ Or use embedded FalkorDB (no external server needed):
 from falkordb import FalkorDB
 
 # Create an embedded FalkorDB instance
+# Requires: pip install FalkorDB[embedded]
 db = FalkorDB(embedded=True)
 
 # Use it just like a remote connection
@@ -132,7 +138,7 @@ FalkorDB supports an embedded mode that runs Redis + FalkorDB in a local process
 The embedded installation automatically downloads, compiles, and packages Redis and the FalkorDB module:
 
 ```sh
-FALKORDB_BUILD_EMBEDDED=1 pip install FalkorDB[embedded]
+pip install FalkorDB[embedded]
 ```
 
 **Prerequisites:**
@@ -140,6 +146,8 @@ FALKORDB_BUILD_EMBEDDED=1 pip install FalkorDB[embedded]
 - Python development headers
 - On Ubuntu/Debian: `sudo apt-get install build-essential`
 - On macOS: Xcode Command Line Tools (`xcode-select --install`)
+
+**Note:** The build process happens automatically during installation and may take a few minutes to compile Redis.
 
 **Usage:**
 ```python
