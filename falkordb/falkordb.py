@@ -256,7 +256,7 @@ class FalkorDB:
         return self.connection.execute_command(*args)
 
     # GRAPH.UDF LIST [LIBRARYNAME] [WITHCODE]
-    def def udf_list(self, lib: Optional[str] = None, with_code: bool = False):
+    def udf_list(self, lib: Optional[str] = None, with_code: bool = False):
         """
         List User Defined Function (UDF) libraries.
 
