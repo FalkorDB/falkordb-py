@@ -2,18 +2,12 @@ import redis
 from .cluster import *
 from .sentinel import *
 from .graph import Graph
-from typing import List, Union
+from typing import List, Union, Optional
 
 # config commands
 LIST_CMD   = "GRAPH.LIST"
 CONFIG_CMD = "GRAPH.CONFIG"
-
-# UDF commands
-UDF_LOAD   = "GRAPH.UDF LOAD"
-UDF_LIST   = "GRAPH.UDF LIST"
-UDF_FLUSH  = "GRAPH.UDF FLUSH"
-UDF_DELETE = "GRAPH.UDF DELETE"
-
+UDF_CMD    = "GRAPH.UDF"
 
 class FalkorDB:
     """
@@ -251,7 +245,7 @@ class FalkorDB:
         return self.connection.execute_command(CONFIG_CMD, "SET", name, value)
 
     # GRAPH.UDF LOAD [REPLACE] <lib> <script>
-    def udf_load(self, name: str, script: str, replace: bool = False) -> bool:
+    def udf_load(self, name: str, script: str, replace: bool = False):
         """
         Load a User Defined Function (UDF) library.
 
@@ -260,18 +254,15 @@ class FalkorDB:
             script (str): The UDF script contents.
             replace (bool, optional): If True, replace an existing library with the same name.
                                       Defaults to False.
-
-        Returns:
-            bool: True if the library was loaded successfully.
         """
-        args = [UDF_LOAD]
+        args = [UDF_CMD, "LOAD"]
         if replace:
             args.append("REPLACE")
         args.extend([name, script])
         return self.connection.execute_command(*args)
 
     # GRAPH.UDF LIST [LIBRARYNAME] [WITHCODE]
-    def udf_list(self, lib: str | None = None, with_code: bool = False):
+    def def udf_list(self, lib: Optional[str] = None, with_code: bool = False):
         """
         List User Defined Function (UDF) libraries.
 
@@ -283,7 +274,7 @@ class FalkorDB:
         Returns:
             list: A list of UDF libraries and their metadata.
         """
-        args = [UDF_LIST]
+        args = [UDF_CMD, "LIST"]
         if lib is not None:
             args.append(lib)
         if with_code:
@@ -291,25 +282,19 @@ class FalkorDB:
         return self.connection.execute_command(*args)
 
     # GRAPH.UDF FLUSH
-    def udf_flush(self) -> bool:
+    def udf_flush(self):
         """
         Flush (remove) all User Defined Function (UDF) libraries.
-
-        Returns:
-            bool: True if all libraries were flushed successfully.
         """
-        return self.connection.execute_command(UDF_FLUSH)
+        return self.connection.execute_command(UDF_CMD, "FLUSH")
 
     # GRAPH.UDF DELETE <lib>
-    def udf_delete(self, lib: str) -> bool:
+    def udf_delete(self, lib: str):
         """
         Delete a User Defined Function (UDF) library.
 
         Args:
             lib (str): The name of the library to delete.
-
-        Returns:
-            bool: True if the library was deleted successfully.
         """
-        return self.connection.execute_command(UDF_DELETE, lib)
+        return self.connection.execute_command(UDF_CMD, "DELETE", lib)
 
