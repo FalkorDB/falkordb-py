@@ -5,9 +5,9 @@ from .graph import Graph
 from typing import List, Union, Optional
 
 # config commands
+UDF_CMD    = "GRAPH.UDF"
 LIST_CMD   = "GRAPH.LIST"
 CONFIG_CMD = "GRAPH.CONFIG"
-UDF_CMD    = "GRAPH.UDF"
 
 class FalkorDB:
     """
@@ -249,11 +249,23 @@ class FalkorDB:
             replace (bool, optional): If True, replace an existing library with the same name.
                                       Defaults to False.
         """
+
+        # prep arguments
         args = [UDF_CMD, "LOAD"]
         if replace:
             args.append("REPLACE")
         args.extend([name, script])
-        return self.connection.execute_command(*args)
+
+        # propagate command in cluster mode
+        if Is_Cluster(self.connection):
+            for node in self.connection.get_primaries():
+                # create a direct connection to this node
+                client = self.connection.get_redis_connection(node)
+                resp = client.execute_command(*args)
+        else:
+            resp = self.connection.execute_command(*args)
+
+        return resp
 
     # GRAPH.UDF LIST [LIBRARYNAME] [WITHCODE]
     def udf_list(self, lib: Optional[str] = None, with_code: bool = False):
@@ -268,11 +280,14 @@ class FalkorDB:
         Returns:
             list: A list of UDF libraries and their metadata.
         """
+
         args = [UDF_CMD, "LIST"]
         if lib is not None:
             args.append(lib)
+
         if with_code:
             args.append("WITHCODE")
+
         return self.connection.execute_command(*args)
 
     # GRAPH.UDF FLUSH
@@ -280,7 +295,17 @@ class FalkorDB:
         """
         Flush (remove) all User Defined Function (UDF) libraries.
         """
-        return self.connection.execute_command(UDF_CMD, "FLUSH")
+
+        # propagate command in cluster mode
+        if Is_Cluster(self.connection):
+            for node in self.connection.get_primaries():
+                # create a direct connection to this node
+                client = self.connection.get_redis_connection(node)
+                resp = client.execute_command(UDF_CMD, "FLUSH")
+        else:
+            resp = self.connection.execute_command(UDF_CMD, "FLUSH")
+
+        return resp
 
     # GRAPH.UDF DELETE <lib>
     def udf_delete(self, lib: str):
@@ -290,5 +315,15 @@ class FalkorDB:
         Args:
             lib (str): The name of the library to delete.
         """
-        return self.connection.execute_command(UDF_CMD, "DELETE", lib)
+
+        # propagate command in cluster mode
+        if Is_Cluster(self.connection):
+            for node in self.connection.get_primaries():
+                # create a direct connection to this node
+                client = self.connection.get_redis_connection(node)
+                resp = client.execute_command(UDF_CMD, "DELETE", lib)
+        else:
+            resp = self.connection.execute_command(UDF_CMD, "DELETE", lib)
+
+        return resp
 
