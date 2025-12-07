@@ -1,7 +1,7 @@
 import redis.asyncio as redis
 from .cluster import *
 from .graph import AsyncGraph
-from typing import List, Union
+from typing import List, Union, Optional
 
 # config command
 UDF_CMD    = "GRAPH.UDF"
