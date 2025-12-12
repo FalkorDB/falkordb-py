@@ -14,7 +14,7 @@ jobs:
     services:
       falkordb:
         # Docker Hub image
-        image: falkordb/falkordb:latest
+        image: falkordb/falkordb:edge
         # Map port 6379 on the Docker host to port 6379 on the FalkorDB container
         ports:
           - 6379:6379
