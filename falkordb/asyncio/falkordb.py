@@ -211,7 +211,6 @@ class FalkorDB():
             # best-effort close — don't raise on Redis errors
             pass
 
-
     async def __aenter__(self) -> "FalkorDB":
         """Return self to support async with-statement usage."""
 
