@@ -2,12 +2,12 @@ import redis
 from .cluster import *
 from .sentinel import *
 from .graph import Graph
-from typing import List, Union
+from typing import List, Union, Optional
 
-# config command
-LIST_CMD = "GRAPH.LIST"
+# config commands
+UDF_CMD    = "GRAPH.UDF"
+LIST_CMD   = "GRAPH.LIST"
 CONFIG_CMD = "GRAPH.CONFIG"
-
 
 class FalkorDB:
     """
@@ -237,3 +237,93 @@ class FalkorDB:
         """
 
         return self.connection.execute_command(CONFIG_CMD, "SET", name, value)
+
+    # GRAPH.UDF LOAD [REPLACE] <lib> <script>
+    def udf_load(self, name: str, script: str, replace: bool = False):
+        """
+        Load a User Defined Function (UDF) library.
+
+        Args:
+            name (str): The name of the library to load.
+            script (str): The UDF script contents.
+            replace (bool, optional): If True, replace an existing library with the same name.
+                                      Defaults to False.
+        """
+
+        # prep arguments
+        args = [UDF_CMD, "LOAD"]
+        if replace:
+            args.append("REPLACE")
+        args.extend([name, script])
+
+        # propagate command in cluster mode
+        if Is_Cluster(self.connection):
+            for node in self.connection.get_primaries():
+                # create a direct connection to this node
+                client = self.connection.get_redis_connection(node)
+                resp = client.execute_command(*args)
+        else:
+            resp = self.connection.execute_command(*args)
+
+        return resp
+
+    # GRAPH.UDF LIST [LIBRARYNAME] [WITHCODE]
+    def udf_list(self, lib: Optional[str] = None, with_code: bool = False):
+        """
+        List User Defined Function (UDF) libraries.
+
+        Args:
+            lib (str, optional): If provided, filter the list to this specific library.
+            with_code (bool, optional): If True, include the library source code in the result.
+                                        Defaults to False.
+
+        Returns:
+            list: A list of UDF libraries and their metadata.
+        """
+
+        args = [UDF_CMD, "LIST"]
+        if lib is not None:
+            args.append(lib)
+
+        if with_code:
+            args.append("WITHCODE")
+
+        return self.connection.execute_command(*args)
+
+    # GRAPH.UDF FLUSH
+    def udf_flush(self):
+        """
+        Flush (remove) all User Defined Function (UDF) libraries.
+        """
+
+        # propagate command in cluster mode
+        if Is_Cluster(self.connection):
+            for node in self.connection.get_primaries():
+                # create a direct connection to this node
+                client = self.connection.get_redis_connection(node)
+                resp = client.execute_command(UDF_CMD, "FLUSH")
+        else:
+            resp = self.connection.execute_command(UDF_CMD, "FLUSH")
+
+        return resp
+
+    # GRAPH.UDF DELETE <lib>
+    def udf_delete(self, lib: str):
+        """
+        Delete a User Defined Function (UDF) library.
+
+        Args:
+            lib (str): The name of the library to delete.
+        """
+
+        # propagate command in cluster mode
+        if Is_Cluster(self.connection):
+            for node in self.connection.get_primaries():
+                # create a direct connection to this node
+                client = self.connection.get_redis_connection(node)
+                resp = client.execute_command(UDF_CMD, "DELETE", lib)
+        else:
+            resp = self.connection.execute_command(UDF_CMD, "DELETE", lib)
+
+        return resp
+
