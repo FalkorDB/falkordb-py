@@ -289,15 +289,13 @@ async def test_slowlog():
 
     await g.delete()
 
-    create_query = """CREATE (:Rider {name:'Valentino Rossi'})-[:rides]->(:Team {name:'Yamaha'}),
-                             (:Rider {name:'Dani Pedrosa'})-[:rides]->(:Team {name:'Honda'}),
-                             (:Rider {name:'Andrea Dovizioso'})-[:rides]->(:Team {name:'Ducati'})"""
-    await g.query(create_query)
+    long_query = "UNWIND range (0, 200000) AS x RETURN max(x)"
+    await g.query(long_query)
 
     results = await g.slowlog()
     assert len(results[0]) == 4
     assert results[0][1] == "GRAPH.QUERY"
-    assert results[0][2] == create_query
+    assert results[0][2] == long_query
 
     # close the connection pool
     await pool.aclose()
