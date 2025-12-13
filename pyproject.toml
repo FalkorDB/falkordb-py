@@ -25,6 +25,10 @@ packages = [{include = "falkordb"}]
 python = "^3.8"
 redis = ">=6.0.0,<7.0.0"
 python-dateutil = "^2.9.0"
+psutil = {version = ">=5.9.0", optional = true}
+
+[tool.poetry.extras]
+embedded = ["psutil"]
 
 [tool.poetry.group.test.dependencies]
 pytest-cov = ">=4.1,<6.0"
@@ -32,5 +36,5 @@ pytest = "8.3.5"
 pytest-asyncio = ">=0.23.4,<0.25.0"
 
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["setuptools>=45", "wheel", "setuptools-scm"]
+build-backend = "setuptools.build_meta"

@@ -1,0 +1,16 @@
+include README.md
+include LICENSE
+include pyproject.toml
+include setup.py
+
+# Include binaries for embedded mode
+recursive-include falkordb/bin *
+include falkordb.so
+
+# Include embedded module
+recursive-include falkordb/embedded *.py
+
+# Exclude build artifacts
+global-exclude *.pyc
+global-exclude __pycache__
+global-exclude .DS_Store

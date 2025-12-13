@@ -1,3 +1,4 @@
+import os
 import redis
 from .cluster import *
 from .sentinel import *
@@ -23,6 +24,14 @@ class FalkorDB:
         result = graph.query("MATCH (n:Person) RETURN n LIMIT 1").result_set
         person = result[0][0]
         print(node.properties['name'])
+
+    Embedded usage example::
+        from falkordb import FalkorDB
+        # Create an embedded FalkorDB instance
+        db = FalkorDB(embedded=True)
+        graph = db.select_graph("social")
+        # Execute queries just like with a remote server
+        result = graph.query("CREATE (n:Person {name: 'Alice'}) RETURN n")
     """
 
     def __init__(
@@ -72,70 +81,179 @@ class FalkorDB:
         dynamic_startup_nodes=True,
         url=None,
         address_remap=None,
+        # Embedded FalkorDB Params
+        embedded=False,
+        dbfilename: Optional[str] = None,
+        serverconfig: Optional[dict] = None,
     ):
-
-        conn = redis.Redis(
-            host=host,
-            port=port,
-            db=0,
-            password=password,
-            socket_timeout=socket_timeout,
-            socket_connect_timeout=socket_connect_timeout,
-            socket_keepalive=socket_keepalive,
-            socket_keepalive_options=socket_keepalive_options,
-            connection_pool=connection_pool,
-            unix_socket_path=unix_socket_path,
-            encoding=encoding,
-            encoding_errors=encoding_errors,
-            decode_responses=True,
-            retry_on_error=retry_on_error,
-            ssl=ssl,
-            ssl_keyfile=ssl_keyfile,
-            ssl_certfile=ssl_certfile,
-            ssl_cert_reqs=ssl_cert_reqs,
-            ssl_ca_certs=ssl_ca_certs,
-            ssl_ca_path=ssl_ca_path,
-            ssl_ca_data=ssl_ca_data,
-            ssl_check_hostname=ssl_check_hostname,
-            ssl_password=ssl_password,
-            ssl_validate_ocsp=ssl_validate_ocsp,
-            ssl_validate_ocsp_stapled=ssl_validate_ocsp_stapled,
-            ssl_ocsp_context=ssl_ocsp_context,
-            ssl_ocsp_expected_cert=ssl_ocsp_expected_cert,
-            max_connections=max_connections,
-            single_connection_client=single_connection_client,
-            health_check_interval=health_check_interval,
-            client_name=client_name,
-            lib_name=lib_name,
-            lib_version=lib_version,
-            username=username,
-            retry=retry,
-            redis_connect_func=connect_func,
-            credential_provider=credential_provider,
-            protocol=protocol,
-        )
-
-        if Is_Sentinel(conn):
-            self.sentinel, self.service_name = Sentinel_Conn(conn, ssl)
-            conn = self.sentinel.master_for(self.service_name, ssl=ssl)
-
-        if Is_Cluster(conn):
-            conn = Cluster_Conn(
-                conn,
-                ssl,
-                cluster_error_retry_attempts,
-                startup_nodes,
-                require_full_coverage,
-                reinitialize_steps,
-                read_from_replicas,
-                dynamic_startup_nodes,
-                url,
-                address_remap,
+        # Handle embedded mode
+        if embedded:
+            # First check if psutil is installed (needed for process management)
+            try:
+                import psutil  # noqa: F401
+            except ImportError:
+                raise ImportError(
+                    "To use embedded FalkorDB, you need to install the 'embedded' extra: "
+                    "pip install falkordb[embedded]"
+                )
+            
+            try:
+                from .embedded import EmbeddedFalkorDB
+            except ImportError as e:
+                # This should not happen if psutil is installed, but just in case
+                raise ImportError(
+                    "Failed to import embedded module. "
+                    "Please ensure all dependencies are installed: pip install falkordb[embedded]"
+                ) from e
+            
+            # Check for redis-server and falkordb module
+            redis_executable = self._find_redis_executable()
+            falkordb_module = self._find_falkordb_module()
+            
+            if not redis_executable:
+                raise ImportError(
+                    "redis-server not found. For embedded mode, you need Redis installed. "
+                    "Install it via your system package manager or download from redis.io"
+                )
+            
+            if not falkordb_module:
+                raise ImportError(
+                    "FalkorDB module not found. For embedded mode, you need the FalkorDB module. "
+                    "Download it from https://github.com/FalkorDB/FalkorDB/releases"
+                )
+            
+            # Create embedded instance
+            embedded_db = EmbeddedFalkorDB(
+                dbfilename=dbfilename,
+                serverconfig=serverconfig or {},
+                redis_executable=redis_executable,
+                falkordb_module=falkordb_module,
             )
+            conn = embedded_db.connection
+            self._embedded_db = embedded_db
+        else:
+            conn = redis.Redis(
+                host=host,
+                port=port,
+                db=0,
+                password=password,
+                socket_timeout=socket_timeout,
+                socket_connect_timeout=socket_connect_timeout,
+                socket_keepalive=socket_keepalive,
+                socket_keepalive_options=socket_keepalive_options,
+                connection_pool=connection_pool,
+                unix_socket_path=unix_socket_path,
+                encoding=encoding,
+                encoding_errors=encoding_errors,
+                decode_responses=True,
+                retry_on_error=retry_on_error,
+                ssl=ssl,
+                ssl_keyfile=ssl_keyfile,
+                ssl_certfile=ssl_certfile,
+                ssl_cert_reqs=ssl_cert_reqs,
+                ssl_ca_certs=ssl_ca_certs,
+                ssl_ca_path=ssl_ca_path,
+                ssl_ca_data=ssl_ca_data,
+                ssl_check_hostname=ssl_check_hostname,
+                ssl_password=ssl_password,
+                ssl_validate_ocsp=ssl_validate_ocsp,
+                ssl_validate_ocsp_stapled=ssl_validate_ocsp_stapled,
+                ssl_ocsp_context=ssl_ocsp_context,
+                ssl_ocsp_expected_cert=ssl_ocsp_expected_cert,
+                max_connections=max_connections,
+                single_connection_client=single_connection_client,
+                health_check_interval=health_check_interval,
+                client_name=client_name,
+                lib_name=lib_name,
+                lib_version=lib_version,
+                username=username,
+                retry=retry,
+                redis_connect_func=connect_func,
+                credential_provider=credential_provider,
+                protocol=protocol,
+            )
+
+        # Skip sentinel and cluster checks for embedded mode
+        if not embedded:
+            if Is_Sentinel(conn):
+                self.sentinel, self.service_name = Sentinel_Conn(conn, ssl)
+                conn = self.sentinel.master_for(self.service_name, ssl=ssl)
+
+            if Is_Cluster(conn):
+                conn = Cluster_Conn(
+                    conn,
+                    ssl,
+                    cluster_error_retry_attempts,
+                    startup_nodes,
+                    require_full_coverage,
+                    reinitialize_steps,
+                    read_from_replicas,
+                    dynamic_startup_nodes,
+                    url,
+                    address_remap,
+                )
 
         self.connection = conn
         self.flushdb = conn.flushdb
         self.execute_command = conn.execute_command
+
+    @staticmethod
+    def _find_redis_executable():
+        """Find redis-server executable in package or system PATH."""
+        # First check package directory (for embedded installation)
+        package_dir = os.path.dirname(os.path.abspath(__file__))
+        package_redis = os.path.join(package_dir, 'bin', 'redis-server')
+        if os.path.exists(package_redis):
+            return package_redis
+        
+        # Check system PATH
+        import shutil
+        redis_path = shutil.which('redis-server')
+        if redis_path:
+            return redis_path
+        
+        # Check common installation paths
+        common_paths = [
+            '/usr/local/bin/redis-server',
+            '/usr/bin/redis-server',
+            '/opt/redis/bin/redis-server',
+        ]
+        for path in common_paths:
+            if os.path.exists(path):
+                return path
+        
+        return None
+    
+    @staticmethod
+    def _find_falkordb_module():
+        """Find FalkorDB module (.so file)."""
+        import platform
+        
+        # First check package directory (for embedded installation)
+        package_dir = os.path.dirname(os.path.abspath(__file__))
+        module_locations = [
+            os.path.join(package_dir, 'bin', 'falkordb.so'),
+            os.path.join(package_dir, 'falkordb.so'),
+            os.path.join(os.path.dirname(package_dir), 'bin', 'falkordb.so'),
+        ]
+        
+        for location in module_locations:
+            if os.path.exists(location):
+                return location
+        
+        # Check common installation paths
+        machine = platform.machine().lower()
+        common_paths = [
+            '/usr/local/lib/falkordb.so',
+            '/usr/lib/falkordb.so',
+            '/opt/falkordb/falkordb.so',
+        ]
+        
+        for path in common_paths:
+            if os.path.exists(path):
+                return path
+        
+        return None
 
     @classmethod
     def from_url(cls, url: str, **kwargs) -> "FalkorDB":
