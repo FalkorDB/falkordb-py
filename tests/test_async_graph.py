@@ -293,7 +293,7 @@ async def test_slowlog():
     await g.query(long_query)
 
     results = await g.slowlog()
-    assert len(results[0]) == 4
+    assert len(results[0]) == 5
     assert results[0][1] == "GRAPH.QUERY"
     assert results[0][2] == long_query
 
