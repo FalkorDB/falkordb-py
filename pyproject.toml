@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "FalkorDB"
-version = "1.2.0"
+version = "1.2.2"
 description = "Python client for interacting with FalkorDB database"
 authors = ["FalkorDB inc <info@falkordb.com>"]
 
@@ -8,12 +8,22 @@ readme = "README.md"
 repository = "http://github.com/falkorDB/falkordb-py"
 homepage = "http://falkordb-py.readthedocs.io"
 keywords = ['FalkorDB', 'GraphDB', 'Cypher']
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+]
 
 packages = [{include = "falkordb"}]
 
 [tool.poetry.dependencies]
 python = "^3.8"
-redis = "^5.0.1"
+redis = ">=6.0.0,<7.0.0"
 python-dateutil = "^2.9.0"
 
 [tool.poetry.group.test.dependencies]

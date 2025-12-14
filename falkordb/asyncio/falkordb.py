@@ -1,9 +1,10 @@
 import redis.asyncio as redis
 from .cluster import *
 from .graph import AsyncGraph
-from typing import List, Union
+from typing import List, Union, Optional
 
 # config command
+UDF_CMD    = "GRAPH.UDF"
 LIST_CMD   = "GRAPH.LIST"
 CONFIG_CMD = "GRAPH.CONFIG"
 
@@ -37,7 +38,6 @@ class FalkorDB():
             unix_socket_path=None,
             encoding='utf-8',
             encoding_errors='strict',
-            retry_on_timeout=False,
             retry_on_error=None,
             ssl=False,
             ssl_keyfile=None,
@@ -75,7 +75,6 @@ class FalkorDB():
                            unix_socket_path=unix_socket_path,
                            encoding=encoding, encoding_errors=encoding_errors,
                            decode_responses=True,
-                           retry_on_timeout=retry_on_timeout,
                            retry_on_error=retry_on_error, ssl=ssl,
                            ssl_keyfile=ssl_keyfile, ssl_certfile=ssl_certfile,
                            ssl_cert_reqs=ssl_cert_reqs,
@@ -90,7 +89,7 @@ class FalkorDB():
                            retry=retry, redis_connect_func=connect_func,
                            credential_provider=credential_provider,
                            protocol=protocol)
-        
+
         if Is_Cluster(conn):
             conn = Cluster_Conn(
                 conn,
@@ -168,7 +167,7 @@ class FalkorDB():
         Lists all graph names.
         See: https://docs.falkordb.com/commands/graph.list.html
 
-        Returns:            
+        Returns:
             List: List of graph names.
 
         """
@@ -206,3 +205,93 @@ class FalkorDB():
         """
 
         return await self.connection.execute_command(CONFIG_CMD, "SET", name, value)
+
+    # GRAPH.UDF LOAD [REPLACE] <lib> <script>
+    async def udf_load(self, name: str, script: str, replace: bool = False):
+        """
+        Load a User Defined Function (UDF) library.
+
+        Args:
+            name (str): The name of the library to load.
+            script (str): The UDF script contents.
+            replace (bool, optional): If True, replace an existing library with the same name.
+                                      Defaults to False.
+        """
+
+        # prep arguments
+        args = [UDF_CMD, "LOAD"]
+        if replace:
+            args.append("REPLACE")
+        args.extend([name, script])
+
+        # propagate command in cluster mode
+        if Is_Cluster(self.connection):
+            for node in self.connection.get_primaries():
+                # create a direct connection to this node
+                client = self.connection.get_redis_connection(node)
+                resp = await client.execute_command(*args)
+        else:
+            resp = await self.connection.execute_command(*args)
+
+        return resp
+
+    # GRAPH.UDF LIST [LIBRARYNAME] [WITHCODE]
+    async def udf_list(self, lib: Optional[str] = None, with_code: bool = False):
+        """
+        List User Defined Function (UDF) libraries.
+
+        Args:
+            lib (str, optional): If provided, filter the list to this specific library.
+            with_code (bool, optional): If True, include the library source code in the result.
+                                        Defaults to False.
+
+        Returns:
+            list: A list of UDF libraries and their metadata.
+        """
+
+        args = [UDF_CMD, "LIST"]
+        if lib is not None:
+            args.append(lib)
+
+        if with_code:
+            args.append("WITHCODE")
+
+        return await self.connection.execute_command(*args)
+
+    # GRAPH.UDF FLUSH
+    async def udf_flush(self):
+        """
+        Flush (remove) all User Defined Function (UDF) libraries.
+        """
+
+        # propagate command in cluster mode
+        if Is_Cluster(self.connection):
+            for node in self.connection.get_primaries():
+                # create a direct connection to this node
+                client = self.connection.get_redis_connection(node)
+                resp = await client.execute_command(UDF_CMD, "FLUSH")
+        else:
+            resp = await self.connection.execute_command(UDF_CMD, "FLUSH")
+
+        return resp
+
+    # GRAPH.UDF DELETE <lib>
+    async def udf_delete(self, lib: str):
+        """
+        Delete a User Defined Function (UDF) library.
+
+        Args:
+            lib (str): The name of the library to delete.
+        """
+
+        # propagate command in cluster mode
+        if Is_Cluster(self.connection):
+            for node in self.connection.get_primaries():
+                # create a direct connection to this node
+                client = self.connection.get_redis_connection(node)
+                resp = await client.execute_command(UDF_CMD, "DELETE", lib)
+        else:
+            resp = await self.connection.execute_command(UDF_CMD, "DELETE", lib)
+
+        return resp
+
