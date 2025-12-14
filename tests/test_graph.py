@@ -237,7 +237,7 @@ def test_slowlog(client):
     g.query(long_query)
 
     results = g.slowlog()
-    assert len(results[0]) == 4
+    assert len(results[0]) == 5
     assert results[0][1] == "GRAPH.QUERY"
     assert results[0][2] == long_query
 
