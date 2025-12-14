@@ -80,7 +80,7 @@ def test_str_with_none_edge_id():
     path_str = str(p)
     assert isinstance(path_str, str)
     # The edge should be represented with empty brackets since id is None
-    assert "<-[]-" in path_str or "-[]->".replace("-", "") in path_str
+    assert ('<-[]-' in path_str) or ('-[]->' in path_str)
 
 def test_str_with_edge_id():
     """Test that Path.__str__() works when edge.id is provided"""
