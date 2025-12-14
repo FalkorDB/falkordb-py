@@ -19,6 +19,16 @@ def test_new_empty_path():
     assert path._nodes == []
     assert path._edges == []
 
+def test_wrong_flows():
+    node_1 = Node(node_id=1)
+    node_2 = Node(node_id=2)
+    node_3 = Node(node_id=3)
+
+    edge_1 = Edge(node_1, None, node_2)
+    edge_2 = Edge(node_1, None, node_3)
+
+    nodes = [node_1, node_2, node_3]
+    edges = [edge_1, edge_2]
 
 def test_nodes_and_edges():
     node_1 = Node(node_id=1)
