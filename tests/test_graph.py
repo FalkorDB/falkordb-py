@@ -233,15 +233,13 @@ def test_cached_execution(client):
 
 def test_slowlog(client):
     g = client
-    create_query = """CREATE (:Rider {name:'Valentino Rossi'})-[:rides]->(:Team {name:'Yamaha'}),
-                             (:Rider {name:'Dani Pedrosa'})-[:rides]->(:Team {name:'Honda'}),
-                             (:Rider {name:'Andrea Dovizioso'})-[:rides]->(:Team {name:'Ducati'})"""
-    g.query(create_query)
+    long_query = "UNWIND range (0, 200000) AS x RETURN max(x)"
+    g.query(long_query)
 
     results = g.slowlog()
-    assert len(results[0]) == 4
+    assert len(results[0]) == 5
     assert results[0][1] == "GRAPH.QUERY"
-    assert results[0][2] == create_query
+    assert results[0][2] == long_query
 
 
 @pytest.mark.xfail(strict=False)
