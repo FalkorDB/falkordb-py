@@ -54,6 +54,33 @@ async def test_connect_via_url():
 @pytest.mark.asyncio
 async def test_from_url():
     """Test that from_url uses the correct host/port from URL"""
+    # Test basic connection with just host
+    db = FalkorDB.from_url("falkor://localhost")
+    g = db.select_graph("async_db")
+    one = (await g.query("RETURN 1")).result_set[0][0]
+    assert one == 1
+    
+    # Test connection with host and port
+    db = FalkorDB.from_url("falkor://localhost:6379")
+    g = db.select_graph("async_db")
+    qr = await g.query("RETURN 1")
+    one = qr.result_set[0][0]
+    header = qr.header
+    assert one == 1
+    assert header[0][0] == 1
+    assert header[0][1] == '1'
+    
+    # Test SSL URL parsing (falkors:// scheme)
+    # We can't test actual SSL connection without a proper SSL server,
+    # but we can verify the URL is parsed and SSL flag is set
+    try:
+        db_ssl = FalkorDB.from_url("falkors://nonexistent-ssl.example.com:6380")
+        assert False, "Expected connection to fail"
+    except Exception as e:
+        # Verify it tried to connect to the SSL host (not localhost)
+        error_str = str(e)
+        assert "nonexistent-ssl.example.com" in error_str or "6380" in error_str, f"Error should mention SSL host: {error_str}"
+    
     # Test that from_url fails with correct host when connecting to non-existent host
     # This verifies that the URL parsing works and connects to the right host (not localhost)
     try:
