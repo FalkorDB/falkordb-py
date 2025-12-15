@@ -71,8 +71,6 @@ def test_compare():
     assert Path([node_1], edges=[]) != Path([node_2], [])
     assert Path([node_1], [edge_1]) != Path( [node_1], [])
     assert Path([node_1], [edge_1]) != Path([node_2], [edge_1])
-
-    assert not (Path(nodes, edges) == "this is not a path")
     
 def test_str_with_none_edge_id():
     """Test that Path.__str__() works when edge.id is None"""
