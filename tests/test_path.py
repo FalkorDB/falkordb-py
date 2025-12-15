@@ -73,3 +73,34 @@ def test_compare():
     assert Path([node_1], [edge_1]) != Path([node_2], [edge_1])
 
     assert not (Path(nodes, edges) == "this is not a path")
+    
+def test_str_with_none_edge_id():
+    """Test that Path.__str__() works when edge.id is None"""
+    node_1 = Node(node_id=1)
+    node_2 = Node(node_id=2)
+    edge_1 = Edge(node_1, None, node_2)
+    
+    nodes = [node_1, node_2]
+    edges = [edge_1]
+    
+    p = Path(nodes, edges)
+    # Should not raise an exception
+    path_str = str(p)
+    assert isinstance(path_str, str)
+    # The edge should be represented with empty brackets since id is None
+    assert ('<-[]-' in path_str) or ('-[]->' in path_str)
+
+def test_str_with_edge_id():
+    """Test that Path.__str__() works when edge.id is provided"""
+    node_1 = Node(node_id=1)
+    node_2 = Node(node_id=2)
+    edge_1 = Edge(node_1, None, node_2, edge_id=10)
+    
+    nodes = [node_1, node_2]
+    edges = [edge_1]
+    
+    p = Path(nodes, edges)
+    path_str = str(p)
+    assert isinstance(path_str, str)
+    # The edge should be represented with the ID
+    assert "10" in path_str
