@@ -54,7 +54,7 @@ def test_nodes_and_edges():
     assert p.get_edge(49) is None
 
     path_str = str(p)
-    assert path_str == "<(1)-[]->(2)>"
+    assert path_str == "<(1)<-[]->(2)>"
 
 
 def test_compare():
