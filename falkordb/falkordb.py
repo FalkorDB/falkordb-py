@@ -1,4 +1,5 @@
 import redis
+from redis.exceptions import RedisError
 from .cluster import *
 from .sentinel import *
 from .graph import Graph
@@ -238,6 +239,25 @@ class FalkorDB:
 
         return self.connection.execute_command(CONFIG_CMD, "SET", name, value)
 
+    def close(self) -> None:
+        """
+        Close the underlying connection(s).
+        """
+
+        try:
+            self.connection.close()
+        except RedisError:
+            # best-effort close — don't raise on Redis errors
+            pass
+
+    def __enter__(self) -> "FalkorDB":
+        """Return self to support usage in a with-statement."""
+
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+        """Close the connection when exiting a with-statement."""
+        self.close()
     # GRAPH.UDF LOAD [REPLACE] <lib> <script>
     def udf_load(self, name: str, script: str, replace: bool = False):
         """
