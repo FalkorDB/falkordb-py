@@ -140,10 +140,11 @@ class Path:
             node_id = self.get_node(i).id
             res += "(" + str(node_id) + ")"
             edge = self.get_edge(i)
+            edge_id_str = str(int(edge.id)) if edge.id is not None else ""
             res += (
-                "-[" + str(int(edge.id)) + "]->"
+                "-[" + edge_id_str + "]->"
                 if edge.src_node == node_id
-                else "<-[" + str(int(edge.id)) + "]-"
+                else "<-[" + edge_id_str + "]-"
             )
         node_id = self.get_node(edge_count).id
         res += "(" + str(node_id) + ")"

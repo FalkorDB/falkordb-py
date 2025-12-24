@@ -1,24 +1,41 @@
 [tool.poetry]
 name = "FalkorDB"
-version = "1.1.2"
+version = "1.4.0"
 description = "Python client for interacting with FalkorDB database"
 authors = ["FalkorDB inc <info@falkordb.com>"]
-
 readme = "README.md"
 repository = "http://github.com/falkorDB/falkordb-py"
 homepage = "http://falkordb-py.readthedocs.io"
 keywords = ['FalkorDB', 'GraphDB', 'Cypher']
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: Python :: Implementation :: PyPy",
+]
 
 packages = [{include = "falkordb"}]
 
 [tool.poetry.dependencies]
-python = "^3.8"
-redis = "^5.0.1"
+python = "^3.10"
+redis = "^7.1.0"
+python-dateutil = "^2.9.0"
 
 [tool.poetry.group.test.dependencies]
-pytest-cov = ">=4.1,<6.0"
-pytest = "8.3.5"
-pytest-asyncio = ">=0.23.4,<0.25.0"
+pytest-cov = "^7.0.0"
+pytest = "^9.0.2"
+pytest-asyncio = "^1.3.0"
 
 [build-system]
 requires = ["poetry-core"]
