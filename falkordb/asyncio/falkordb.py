@@ -1,4 +1,5 @@
 import redis.asyncio as redis
+from redis.exceptions import RedisError
 from .cluster import *
 from .graph import AsyncGraph
 from typing import List, Union, Optional
@@ -199,6 +200,26 @@ class FalkorDB():
 
         return await self.connection.execute_command(CONFIG_CMD, "SET", name, value)
 
+    async def aclose(self) -> None:
+        """
+        Close the underlying connection(s).
+        """
+
+        try:
+            await self.connection.aclose()
+        except RedisError:
+            # best-effort close — don't raise on Redis errors
+            pass
+
+    async def __aenter__(self) -> "FalkorDB":
+        """Return self to support async with-statement usage."""
+
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
+        """Close the connection when exiting an async with-statement."""
+
+        await self.aclose()
     # GRAPH.UDF LOAD [REPLACE] <lib> <script>
     async def udf_load(self, name: str, script: str, replace: bool = False):
         """
