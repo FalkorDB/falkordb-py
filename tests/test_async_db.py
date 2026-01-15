@@ -18,7 +18,7 @@ async def test_config(async_client):
     db = async_client
     config_name = "RESULTSET_SIZE"
 
-    # save olf configuration value
+    # save old configuration value
     prev_value = int(await db.config_get(config_name))
 
     # set configuration
