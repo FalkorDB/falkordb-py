@@ -3,10 +3,19 @@ import asyncio
 from falkordb.asyncio import FalkorDB
 from redis.asyncio import BlockingConnectionPool
 
-@pytest.mark.asyncio
-async def test_config():
+
+@pytest.fixture
+async def async_client():
+    """Fixture to provide an async FalkorDB client with connection pool."""
     pool = BlockingConnectionPool(max_connections=16, timeout=None, decode_responses=True)
     db = FalkorDB(connection_pool=pool)
+    yield db
+    await pool.aclose()
+
+
+@pytest.mark.asyncio
+async def test_config(async_client):
+    db = async_client
     config_name = "RESULTSET_SIZE"
 
     # save olf configuration value
@@ -34,28 +43,20 @@ async def test_config():
     with pytest.raises(Exception):
         await db.config_set(config_name, "invalid value")
 
-    # close the connection pool
-    await pool.aclose()
-
 @pytest.mark.asyncio
-async def test_connect_via_url():
-    pool = BlockingConnectionPool(max_connections=16, timeout=None, decode_responses=True)
-    db = FalkorDB(connection_pool=pool)
+async def test_connect_via_url(async_client):
+    db = async_client
 
     # make sure we're able to connect via url
     g = db.select_graph("async_db")
     one = (await g.query("RETURN 1")).result_set[0][0]
     assert one == 1
 
-    # close the connection pool
-    await pool.aclose()
-
 
 @pytest.mark.asyncio
-async def test_udf_load():
+async def test_udf_load(async_client):
     """Test loading a UDF library asynchronously"""
-    pool = BlockingConnectionPool(max_connections=16, timeout=None, decode_responses=True)
-    db = FalkorDB(connection_pool=pool)
+    db = async_client
     
     # Ensure clean state
     await db.udf_flush()
@@ -103,14 +104,12 @@ async def test_udf_load():
     
     # Clean up
     await db.udf_flush()
-    await pool.aclose()
 
 
 @pytest.mark.asyncio
-async def test_udf_list():
+async def test_udf_list(async_client):
     """Test listing UDF libraries asynchronously"""
-    pool = BlockingConnectionPool(max_connections=16, timeout=None, decode_responses=True)
-    db = FalkorDB(connection_pool=pool)
+    db = async_client
     
     # Ensure clean state
     await db.udf_flush()
@@ -151,14 +150,12 @@ async def test_udf_list():
     
     # Clean up
     await db.udf_flush()
-    await pool.aclose()
 
 
 @pytest.mark.asyncio
-async def test_udf_delete():
+async def test_udf_delete(async_client):
     """Test deleting a specific UDF library asynchronously"""
-    pool = BlockingConnectionPool(max_connections=16, timeout=None, decode_responses=True)
-    db = FalkorDB(connection_pool=pool)
+    db = async_client
     
     # Ensure clean state
     await db.udf_flush()
@@ -187,14 +184,12 @@ async def test_udf_delete():
     
     # Clean up
     await db.udf_flush()
-    await pool.aclose()
 
 
 @pytest.mark.asyncio
-async def test_udf_flush():
+async def test_udf_flush(async_client):
     """Test flushing all UDF libraries asynchronously"""
-    pool = BlockingConnectionPool(max_connections=16, timeout=None, decode_responses=True)
-    db = FalkorDB(connection_pool=pool)
+    db = async_client
     
     # Load multiple UDFs
     udf_script = """
@@ -217,5 +212,3 @@ async def test_udf_flush():
     # Verify all UDFs are removed
     udfs = await db.udf_list()
     assert udfs == []
-    
-    await pool.aclose()
