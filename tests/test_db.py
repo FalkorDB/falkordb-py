@@ -64,11 +64,13 @@ def test_udf_load(client):
     # Ensure clean state
     db.udf_flush()
     
-    # Define a simple UDF script
+    # Define a simple UDF script with proper registration
     udf_script = """
     function my_add(x, y) {
         return x + y;
     }
+    
+    falkor.register('my_add', my_add);
     """
     
     # Load the UDF
@@ -80,14 +82,28 @@ def test_udf_load(client):
     assert len(udfs) == 1
     assert udfs[0][1] == "testlib"
     
+    # Verify the function is registered
+    assert udfs[0][3] == ['my_add']
+    
+    # Call the loaded UDF in a query to verify it works
+    graph = db.select_graph("test_udf_graph")
+    query_result = graph.query("RETURN testlib.my_add(5, 3) AS result")
+    assert query_result.result_set[0][0] == 8
+    
     # Test replacing a UDF
     new_script = """
     function my_multiply(x, y) {
         return x * y;
     }
+    
+    falkor.register('my_multiply', my_multiply);
     """
     result = db.udf_load("testlib", new_script, replace=True)
     assert result == "OK"
+    
+    # Verify the replaced UDF works
+    query_result = graph.query("RETURN testlib.my_multiply(5, 3) AS result")
+    assert query_result.result_set[0][0] == 15
     
     # Clean up
     db.udf_flush()
