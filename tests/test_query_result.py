@@ -156,7 +156,12 @@ class TestParseScalarFunctions:
         """Test parsing node values."""
         mock_graph = Mock()
         mock_graph.schema.get_label.return_value = "Person"
-        mock_graph.schema.get_property.side_effect = lambda idx: ["name", "age"][idx]
+        
+        # Create a more explicit mock for get_property
+        def get_property(idx):
+            properties = {0: "name", 1: "age"}
+            return properties.get(idx, f"prop_{idx}")
+        mock_graph.schema.get_property.side_effect = get_property
         
         # Node format: [node_id, [label_ids], [[prop_id, scalar_type, scalar_value], ...]]
         value = [ResultSetScalarTypes.VALUE_NODE.value, [
