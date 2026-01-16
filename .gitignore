@@ -3,3 +3,6 @@ __pycache__
 .venv
 dist/
 *.egg-info/
+.coverage
+htmlcov/
+.pytest_cache/
