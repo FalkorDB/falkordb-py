@@ -1,5 +1,4 @@
 import pytest
-import sys
 from datetime import datetime, date, time
 from dateutil.relativedelta import relativedelta
 from collections import OrderedDict
