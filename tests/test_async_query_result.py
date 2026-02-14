@@ -64,7 +64,7 @@ def create_mock_graph():
 async def test_parse_unknown(capsys):
     """Test parsing unknown scalar type."""
     graph = create_mock_graph()
-    result = await __parse_unknown("unknown_value", graph)
+    await __parse_unknown("unknown_value", graph)
     captured = capsys.readouterr()
     assert "Unknown type" in captured.err
 
