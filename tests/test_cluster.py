@@ -1,4 +1,4 @@
-from unittest.mock import Mock, MagicMock, patch
+from unittest.mock import Mock, patch
 import socket
 import redis.exceptions as redis_exceptions
 from falkordb.cluster import Is_Cluster, Cluster_Conn
