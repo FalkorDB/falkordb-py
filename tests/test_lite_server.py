@@ -177,14 +177,12 @@ def test_stop_noop_when_process_already_exited(tmp_path):
 
 def test_read_stderr_flushes_open_file(tmp_path):
     server = _make_server(tmp_path)
-    stderr_file = open(tmp_path / "redis.stderr.log", "w", encoding="utf-8")
-    stderr_file.write("stderr-text")
-    server._stderr_file = stderr_file
+    with open(tmp_path / "redis.stderr.log", "w", encoding="utf-8") as stderr_file:
+        stderr_file.write("stderr-text")
+        server._stderr_file = stderr_file
 
-    output = server._read_stderr()
-    assert output == "stderr-text"
-
-    stderr_file.close()
+        output = server._read_stderr()
+        assert output == "stderr-text"
 
 
 def test_read_stderr_returns_empty_when_file_missing(tmp_path):
