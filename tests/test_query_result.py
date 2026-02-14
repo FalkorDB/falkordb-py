@@ -1,6 +1,5 @@
 import pytest
 from unittest.mock import Mock
-from dateutil.relativedelta import relativedelta
 from collections import OrderedDict
 from redis import ResponseError
 
