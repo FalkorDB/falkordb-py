@@ -1,3 +1,5 @@
 venv
 __pycache__
-poetry.lock
+.venv
+dist/
+*.egg-info/
