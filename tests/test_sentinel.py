@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import Mock, MagicMock, patch
+from unittest.mock import Mock, patch
 from falkordb.sentinel import Is_Sentinel, Sentinel_Conn
 
 
