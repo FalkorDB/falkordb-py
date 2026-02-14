@@ -11,6 +11,7 @@ class DummyProcess:
         self._poll_result = poll_result
         self.returncode = 7 if poll_result is not None else None
         self.wait_raises = wait_raises
+        self._wait_raise_count = 0
         self.terminated = False
         self.killed = False
         self.wait_called = False
@@ -23,7 +24,8 @@ class DummyProcess:
 
     def wait(self, timeout=None):
         self.wait_called = True
-        if self.wait_raises:
+        if self.wait_raises and self._wait_raise_count == 0:
+            self._wait_raise_count += 1
             raise subprocess.TimeoutExpired("redis-server", timeout)
 
     def kill(self):
@@ -58,9 +60,9 @@ def _make_server(tmp_path):
 
 def test_start_raises_with_stderr_content(monkeypatch, tmp_path):
     server = _make_server(tmp_path)
-    (tmp_path / "redis.stderr.log").write_text("boom", encoding="utf-8")
 
     monkeypatch.setattr("falkordb.lite.server.subprocess.Popen", lambda *args, **kwargs: DummyProcess(poll_result=1))
+    monkeypatch.setattr(server, "_read_stderr", lambda: "boom")
 
     with pytest.raises(EmbeddedServerError, match="boom"):
         server._start(tmp_path / "redis-server")
