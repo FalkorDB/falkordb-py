@@ -1,4 +1,3 @@
-import pytest
 from unittest.mock import Mock, MagicMock, patch
 import socket
 import redis.exceptions as redis_exceptions
