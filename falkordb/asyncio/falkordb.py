@@ -64,31 +64,76 @@ class FalkorDB():
             reinitialize_steps=5,
             read_from_replicas=False,
             address_remap=None,
+            embedded=False,
+            db_path=None,
+            embedded_config=None,
+            startup_timeout=10.0,
         ):
+        self._embedded_server = None
 
-        conn = redis.Redis(host=host, port=port, db=0, password=password,
-                           socket_timeout=socket_timeout,
-                           socket_connect_timeout=socket_connect_timeout,
-                           socket_keepalive=socket_keepalive,
-                           socket_keepalive_options=socket_keepalive_options,
-                           connection_pool=connection_pool,
-                           unix_socket_path=unix_socket_path,
-                           encoding=encoding, encoding_errors=encoding_errors,
-                           decode_responses=True,
-                           retry_on_error=retry_on_error, ssl=ssl,
-                           ssl_keyfile=ssl_keyfile, ssl_certfile=ssl_certfile,
-                           ssl_cert_reqs=ssl_cert_reqs,
-                           ssl_ca_certs=ssl_ca_certs,
-                           ssl_ca_data=ssl_ca_data,
-                           ssl_check_hostname=ssl_check_hostname,
-                           max_connections=max_connections,
-                           single_connection_client=single_connection_client,
-                           health_check_interval=health_check_interval,
-                           client_name=client_name, lib_name=lib_name,
-                           lib_version=lib_version, username=username,
-                           retry=retry, redis_connect_func=connect_func,
-                           credential_provider=credential_provider,
-                           protocol=protocol)
+        if embedded:
+            from ..lite.server import EmbeddedServer
+
+            if max_connections is None:
+                max_connections = 16
+
+            server = EmbeddedServer(
+                db_path=db_path,
+                config=embedded_config,
+                startup_timeout=startup_timeout,
+            )
+            self._embedded_server = server
+            connection_pool = redis.BlockingConnectionPool(
+                connection_class=redis.UnixDomainSocketConnection,
+                path=server.unix_socket_path,
+                max_connections=max_connections,
+                timeout=None,
+                socket_timeout=socket_timeout,
+                socket_connect_timeout=socket_connect_timeout,
+                socket_keepalive=socket_keepalive,
+                socket_keepalive_options=socket_keepalive_options,
+                encoding=encoding,
+                encoding_errors=encoding_errors,
+                decode_responses=True,
+                retry_on_error=retry_on_error,
+                retry=retry,
+                health_check_interval=health_check_interval,
+                client_name=client_name,
+                lib_name=lib_name,
+                lib_version=lib_version,
+                username=username,
+                password=password,
+                credential_provider=credential_provider,
+                protocol=protocol,
+            )
+
+        if embedded:
+            conn = redis.Redis(connection_pool=connection_pool,
+                               single_connection_client=single_connection_client)
+        else:
+            conn = redis.Redis(host=host, port=port, db=0, password=password,
+                               socket_timeout=socket_timeout,
+                               socket_connect_timeout=socket_connect_timeout,
+                               socket_keepalive=socket_keepalive,
+                               socket_keepalive_options=socket_keepalive_options,
+                               connection_pool=connection_pool,
+                               unix_socket_path=unix_socket_path,
+                               encoding=encoding, encoding_errors=encoding_errors,
+                               decode_responses=True,
+                               retry_on_error=retry_on_error, ssl=ssl,
+                               ssl_keyfile=ssl_keyfile, ssl_certfile=ssl_certfile,
+                               ssl_cert_reqs=ssl_cert_reqs,
+                               ssl_ca_certs=ssl_ca_certs,
+                               ssl_ca_data=ssl_ca_data,
+                               ssl_check_hostname=ssl_check_hostname,
+                               max_connections=max_connections,
+                               single_connection_client=single_connection_client,
+                               health_check_interval=health_check_interval,
+                               client_name=client_name, lib_name=lib_name,
+                               lib_version=lib_version, username=username,
+                               retry=retry, redis_connect_func=connect_func,
+                               credential_provider=credential_provider,
+                               protocol=protocol)
 
         if Is_Cluster(conn):
             conn = Cluster_Conn(
@@ -105,6 +150,19 @@ class FalkorDB():
         self.connection      = conn
         self.flushdb         = conn.flushdb
         self.execute_command = conn.execute_command
+
+    async def close(self):
+        if hasattr(self, "connection") and self.connection is not None:
+            await self.connection.aclose()
+        if self._embedded_server is not None:
+            self._embedded_server.stop()
+            self._embedded_server = None
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb):
+        await self.close()
 
     @classmethod
     def from_url(cls, url: str, **kwargs) -> "FalkorDB":
@@ -287,4 +345,3 @@ class FalkorDB():
             resp = await self.connection.execute_command(UDF_CMD, "DELETE", lib)
 
         return resp
-
