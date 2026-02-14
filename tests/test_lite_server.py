@@ -118,7 +118,8 @@ def test_start_timeout_calls_stop(monkeypatch, tmp_path):
 
     monkeypatch.setattr("falkordb.lite.server.subprocess.Popen", lambda *args, **kwargs: process)
     monkeypatch.setattr("falkordb.lite.server.os.path.exists", lambda path: False)
-    monkeypatch.setattr("falkordb.lite.server.time.monotonic", lambda: 1.0)
+    monotonic_values = iter([1.0, 1.0, 1.02])
+    monkeypatch.setattr("falkordb.lite.server.time.monotonic", lambda: next(monotonic_values))
     monkeypatch.setattr("falkordb.lite.server.time.sleep", lambda _seconds: None)
     monkeypatch.setattr(server, "stop", lambda: called.update({"stop": True}))
 
