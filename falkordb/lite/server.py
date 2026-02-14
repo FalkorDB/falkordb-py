@@ -29,11 +29,13 @@ class EmbeddedServer:
         startup_timeout: float = 10.0,
     ):
         self._process = None
+        self._stderr_file = None
         self._db_path = db_path
         self._startup_timeout = startup_timeout
         self._tmpdir = tempfile.mkdtemp(prefix="falkordb_")
         self._socket_path = os.path.join(self._tmpdir, "falkordb.sock")
         self._config_path = os.path.join(self._tmpdir, "redis.conf")
+        self._stderr_path = os.path.join(self._tmpdir, "redis.stderr.log")
 
         redis_server = get_redis_server_path()
         falkordb_module = get_falkordb_module_path()
@@ -50,18 +52,18 @@ class EmbeddedServer:
         atexit.register(self.stop)
 
     def _start(self, redis_server: Path) -> None:
+        self._stderr_file = open(self._stderr_path, "w", encoding="utf-8")
         self._process = subprocess.Popen(  # noqa: S603
             [str(redis_server), self._config_path],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            stdout=subprocess.DEVNULL,
+            stderr=self._stderr_file,
         )
 
         deadline = time.monotonic() + self._startup_timeout
         while time.monotonic() < deadline:
             if self._process.poll() is not None:
-                stderr = ""
-                if self._process.stderr is not None:
-                    stderr = self._process.stderr.read().decode("utf-8", errors="replace")
+                stderr = self._read_stderr()
+                self._close_stderr_file()
                 raise EmbeddedServerError(
                     f"redis-server exited with code {self._process.returncode}: {stderr}"
                 )
@@ -71,6 +73,7 @@ class EmbeddedServer:
                     conn = redis.Redis(unix_socket_path=self._socket_path, decode_responses=True)
                     conn.ping()
                     conn.close()
+                    self._close_stderr_file()
                     return
                 except redis.ConnectionError:
                     pass
@@ -88,12 +91,19 @@ class EmbeddedServer:
     def stop(self) -> None:
         """Stop embedded redis-server and cleanup temporary files."""
         if self._process is not None and self._process.poll() is None:
+            conn = None
             try:
                 conn = redis.Redis(unix_socket_path=self._socket_path, decode_responses=True)
-                conn.shutdown(nosave=not bool(self._db_path))
-                conn.close()
+                try:
+                    conn.shutdown(nosave=not bool(self._db_path))
+                except redis.exceptions.ConnectionError:
+                    # redis-server can drop the connection as part of normal shutdown
+                    pass
             except Exception:
                 self._process.terminate()
+            finally:
+                if conn is not None:
+                    conn.close()
 
             try:
                 self._process.wait(timeout=5)
@@ -102,12 +112,23 @@ class EmbeddedServer:
                 self._process.wait(timeout=5)
 
         self._process = None
+        self._close_stderr_file()
         if os.path.isdir(self._tmpdir):
             shutil.rmtree(self._tmpdir, ignore_errors=True)
+
+    def _read_stderr(self) -> str:
+        if self._stderr_file is not None and not self._stderr_file.closed:
+            self._stderr_file.flush()
+        if not os.path.exists(self._stderr_path):
+            return ""
+        return Path(self._stderr_path).read_text(encoding="utf-8", errors="replace")
+
+    def _close_stderr_file(self) -> None:
+        if self._stderr_file is not None and not self._stderr_file.closed:
+            self._stderr_file.close()
 
     def __del__(self):
         try:
             self.stop()
         except Exception:
             pass
-

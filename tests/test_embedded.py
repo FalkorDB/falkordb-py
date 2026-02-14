@@ -86,9 +86,20 @@ def test_generate_config_with_persistence(tmp_path):
 
     assert f"dir {tmp_path}" in conf
     assert "dbfilename embedded.rdb" in conf
+    assert "save 900 1" in conf
+    assert "save 300 10" in conf
+    assert "save 60 10000" in conf
     assert "appendonly yes" in conf
     assert "unixsocket /tmp/test.sock" in conf
     assert "maxmemory 1gb" in conf
+
+
+def test_generate_config_rejects_loadmodule_override(tmp_path):
+    with pytest.raises(ValueError):
+        generate_config(
+            falkordb_module_path=tmp_path / "falkordb.so",
+            user_config={"loadmodule": "/tmp/other.so"},
+        )
 
 
 def test_missing_lite_dependency_error(monkeypatch):

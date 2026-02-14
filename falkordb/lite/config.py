@@ -15,7 +15,7 @@ DEFAULT_CONFIG = {
 }
 
 PERSISTENT_OVERRIDES = {
-    "save": "900 1 300 10 60 10000",
+    "save": [("900", "1"), ("300", "10"), ("60", "10000")],
     "appendonly": "yes",
     "appendfsync": "everysec",
 }
@@ -44,11 +44,22 @@ def generate_config(
         config["unixsocketperm"] = "700"
         config["port"] = "0"
 
-    config["loadmodule"] = str(falkordb_module_path)
-
     if user_config:
+        if "loadmodule" in user_config:
+            raise ValueError("'loadmodule' is reserved and cannot be overridden")
         config.update(user_config)
 
-    lines = [f"{key} {value}" for key, value in config.items()]
-    return "\n".join(lines) + "\n"
+    config["loadmodule"] = str(falkordb_module_path)
 
+    lines = []
+    for key, value in config.items():
+        if key == "save" and isinstance(value, list):
+            for rule in value:
+                if isinstance(rule, (tuple, list)) and len(rule) == 2:
+                    lines.append(f"save {rule[0]} {rule[1]}")
+                else:
+                    lines.append(f"save {rule}")
+            continue
+        lines.append(f"{key} {value}")
+
+    return "\n".join(lines) + "\n"

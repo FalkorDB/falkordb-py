@@ -78,7 +78,6 @@ class FalkorDB:
         startup_timeout=10.0,
     ):
         self._embedded_server = None
-        self._embedded = embedded
 
         if embedded:
             from .lite.server import EmbeddedServer

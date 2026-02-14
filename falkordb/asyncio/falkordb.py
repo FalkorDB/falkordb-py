@@ -1,3 +1,4 @@
+import asyncio
 import redis.asyncio as redis
 from .cluster import *
 from .graph import AsyncGraph
@@ -68,6 +69,7 @@ class FalkorDB():
             db_path=None,
             embedded_config=None,
             startup_timeout=10.0,
+            connection_acquire_timeout=5.0,
         ):
         self._embedded_server = None
 
@@ -87,7 +89,7 @@ class FalkorDB():
                 connection_class=redis.UnixDomainSocketConnection,
                 path=server.unix_socket_path,
                 max_connections=max_connections,
-                timeout=None,
+                timeout=connection_acquire_timeout,
                 socket_timeout=socket_timeout,
                 socket_connect_timeout=socket_connect_timeout,
                 socket_keepalive=socket_keepalive,
@@ -155,7 +157,7 @@ class FalkorDB():
         if hasattr(self, "connection") and self.connection is not None:
             await self.connection.aclose()
         if self._embedded_server is not None:
-            self._embedded_server.stop()
+            await asyncio.to_thread(self._embedded_server.stop)
             self._embedded_server = None
 
     async def __aenter__(self):
