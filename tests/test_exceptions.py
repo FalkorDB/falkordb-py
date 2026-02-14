@@ -1,4 +1,3 @@
-import pytest
 from falkordb.exceptions import SchemaVersionMismatchException
 
 
