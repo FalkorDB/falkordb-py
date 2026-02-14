@@ -2,7 +2,7 @@ import pytest
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 from collections import OrderedDict
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 from redis import ResponseError
 
 from falkordb.asyncio.query_result import (
