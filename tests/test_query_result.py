@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import Mock, MagicMock
+from unittest.mock import Mock
 from datetime import datetime, date, time
 from dateutil.relativedelta import relativedelta
 from collections import OrderedDict
