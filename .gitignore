@@ -5,3 +5,6 @@ poetry.lock
 .coverage.*
 htmlcov/
 cov_annotate/
+.venv
+dist/
+*.egg-info/
