@@ -1,4 +1,3 @@
-import pytest
 from falkordb.helpers import quote_string, stringify_param_value
 
 
