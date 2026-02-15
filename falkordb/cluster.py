@@ -1,6 +1,8 @@
-from redis.cluster import RedisCluster
-import redis.exceptions as redis_exceptions
 import socket
+
+import redis.exceptions as redis_exceptions  # type: ignore[import-not-found]
+from redis.cluster import RedisCluster  # type: ignore[import-not-found]
+
 
 # detect if a connection is a Cluster
 def Is_Cluster(conn):

@@ -1,5 +1,6 @@
 from falkordb import FalkorDB
 
+
 def test_constraints():
     db = FalkorDB(host='localhost', port=6379)
     g = db.select_graph("constraints")

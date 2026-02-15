@@ -1,5 +1,7 @@
 import pytest
-from falkordb import Node, Edge
+
+from falkordb import Edge, Node
+
 
 def test_init():
     with pytest.raises(AssertionError):

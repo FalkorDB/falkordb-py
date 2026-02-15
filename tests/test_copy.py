@@ -1,5 +1,6 @@
 from falkordb import FalkorDB
 
+
 def test_graph_copy():
     # create a simple graph and clone it
     # make sure graphs are the same

@@ -1,29 +1,29 @@
 import sys
+from collections import OrderedDict
+from datetime import date, datetime, time
 from enum import Enum
 from typing import List
-from collections import OrderedDict
-from datetime import datetime, date, time
-from dateutil.relativedelta import relativedelta
 
-from redis import ResponseError
+from dateutil.relativedelta import relativedelta  # type: ignore[import-untyped]
+from redis import ResponseError  # type: ignore[import-not-found]
 
 from falkordb.edge import Edge
+from falkordb.exceptions import SchemaVersionMismatchException
 from falkordb.node import Node
 from falkordb.path import Path
-from falkordb.exceptions import SchemaVersionMismatchException
 
 # statistics
-LABELS_ADDED            = "Labels added"
-LABELS_REMOVED          = "Labels removed"
-NODES_CREATED           = "Nodes created"
-NODES_DELETED           = "Nodes deleted"
-PROPERTIES_SET          = "Properties set"
-INDICES_CREATED         = "Indices created"
-INDICES_DELETED         = "Indices deleted"
-CACHED_EXECUTION        = "Cached execution"
-PROPERTIES_REMOVED      = "Properties removed"
-RELATIONSHIPS_DELETED   = "Relationships deleted"
-RELATIONSHIPS_CREATED   = "Relationships created"
+LABELS_ADDED = "Labels added"
+LABELS_REMOVED = "Labels removed"
+NODES_CREATED = "Nodes created"
+NODES_DELETED = "Nodes deleted"
+PROPERTIES_SET = "Properties set"
+INDICES_CREATED = "Indices created"
+INDICES_DELETED = "Indices deleted"
+CACHED_EXECUTION = "Cached execution"
+PROPERTIES_REMOVED = "Properties removed"
+RELATIONSHIPS_DELETED = "Relationships deleted"
+RELATIONSHIPS_CREATED = "Relationships created"
 INTERNAL_EXECUTION_TIME = "internal execution time"
 
 STATS = [
@@ -40,6 +40,7 @@ STATS = [
     RELATIONSHIPS_DELETED,
     INTERNAL_EXECUTION_TIME,
 ]
+
 
 class ResultSetScalarTypes(Enum):
     """
@@ -65,23 +66,24 @@ class ResultSetScalarTypes(Enum):
         VALUE_DURATION  (int): Duration scalar type (16)
     """
 
-    VALUE_UNKNOWN   = 0
-    VALUE_NULL      = 1
-    VALUE_STRING    = 2
-    VALUE_INTEGER   = 3
-    VALUE_BOOLEAN   = 4
-    VALUE_DOUBLE    = 5
-    VALUE_ARRAY     = 6
-    VALUE_EDGE      = 7
-    VALUE_NODE      = 8
-    VALUE_PATH      = 9
-    VALUE_MAP       = 10
-    VALUE_POINT     = 11
+    VALUE_UNKNOWN = 0
+    VALUE_NULL = 1
+    VALUE_STRING = 2
+    VALUE_INTEGER = 3
+    VALUE_BOOLEAN = 4
+    VALUE_DOUBLE = 5
+    VALUE_ARRAY = 6
+    VALUE_EDGE = 7
+    VALUE_NODE = 8
+    VALUE_PATH = 9
+    VALUE_MAP = 10
+    VALUE_POINT = 11
     VALUE_VECTORF32 = 12
-    VALUE_DATETIME  = 13
-    VALUE_DATE      = 14
-    VALUE_TIME      = 15
-    VALUE_DURATION  = 16
+    VALUE_DATETIME = 13
+    VALUE_DATE = 14
+    VALUE_TIME = 15
+    VALUE_DURATION = 16
+
 
 async def __parse_unknown(value, graph):
     """
@@ -96,6 +98,7 @@ async def __parse_unknown(value, graph):
     """
     sys.stderr.write("Unknown type\n")
 
+
 async def __parse_null(value, graph) -> None:
     """
     Parse a null value.
@@ -108,6 +111,7 @@ async def __parse_null(value, graph) -> None:
         None: Always returns None.
     """
     return None
+
 
 async def __parse_string(value, graph) -> str:
     """
@@ -128,6 +132,7 @@ async def __parse_string(value, graph) -> str:
 
     return value
 
+
 async def __parse_integer(value, graph) -> int:
     """
     Parse the integer value from the value.
@@ -140,6 +145,7 @@ async def __parse_integer(value, graph) -> int:
         int: The parsed integer value.
     """
     return int(value)
+
 
 async def __parse_boolean(value, graph) -> bool:
     """
@@ -155,6 +161,7 @@ async def __parse_boolean(value, graph) -> bool:
     value = value.decode() if isinstance(value, bytes) else value
     return value == "true"
 
+
 async def __parse_double(value, graph) -> float:
     """
     Parse the value as a double.
@@ -167,6 +174,7 @@ async def __parse_double(value, graph) -> float:
         float: The parsed double value.
     """
     return float(value)
+
 
 async def __parse_array(value, graph) -> List:
     """
@@ -182,6 +190,7 @@ async def __parse_array(value, graph) -> List:
     scalar = [await parse_scalar(value[i], graph) for i in range(len(value))]
     return scalar
 
+
 async def __parse_vectorf32(value, graph) -> List:
     """
     Parse a vector32f.
@@ -196,19 +205,24 @@ async def __parse_vectorf32(value, graph) -> List:
 
     return [float(v) for v in value]
 
+
 async def __parse_datetime(value, graph) -> datetime:
     return datetime.utcfromtimestamp(value)
+
 
 async def __parse_date(value, graph) -> date:
     return datetime.utcfromtimestamp(value).date()
 
+
 async def __parse_time(value, graph) -> time:
     return datetime.utcfromtimestamp(value).time()
+
 
 async def __parse_duration(value, graph) -> relativedelta:
     timestamp = datetime.utcfromtimestamp(value)
     epoch = datetime(1970, 1, 1)
     return relativedelta(timestamp, epoch)
+
 
 async def __parse_entity_properties(props, graph):
     """
@@ -229,6 +243,7 @@ async def __parse_entity_properties(props, graph):
 
     return properties
 
+
 async def __parse_node(value, graph) -> Node:
     """
     Parse the value to a node.
@@ -247,6 +262,7 @@ async def __parse_node(value, graph) -> Node:
     properties = await __parse_entity_properties(value[2], graph)
     return Node(node_id=node_id, alias="", labels=labels, properties=properties)
 
+
 async def __parse_edge(value, graph) -> Edge:
     """
     Parse the value to an edge.
@@ -263,7 +279,10 @@ async def __parse_edge(value, graph) -> Edge:
     src_node_id = int(value[2])
     dest_node_id = int(value[3])
     properties = await __parse_entity_properties(value[4], graph)
-    return Edge(src_node_id, relation, dest_node_id, edge_id=edge_id, properties=properties)
+    return Edge(
+        src_node_id, relation, dest_node_id, edge_id=edge_id, properties=properties
+    )
+
 
 async def __parse_path(value, graph) -> Path:
     """
@@ -279,6 +298,7 @@ async def __parse_path(value, graph) -> Path:
     nodes = await parse_scalar(value[0], graph)
     edges = await parse_scalar(value[1], graph)
     return Path(nodes, edges)
+
 
 async def __parse_map(value, graph) -> OrderedDict:
     """
@@ -300,6 +320,7 @@ async def __parse_map(value, graph) -> OrderedDict:
 
     return m
 
+
 async def __parse_point(value, graph):
     """
     Parse the value to point.
@@ -313,6 +334,7 @@ async def __parse_point(value, graph):
     """
     p = {"latitude": float(value[0]), "longitude": float(value[1])}
     return p
+
 
 async def parse_scalar(value, graph):
     """
@@ -333,29 +355,31 @@ async def parse_scalar(value, graph):
 
 
 PARSE_SCALAR_TYPES = [
-    __parse_unknown,   # VALUE_UNKNOWN
-    __parse_null,      # VALUE_NULL
-    __parse_string,    # VALUE_STRING
-    __parse_integer,   # VALUE_INTEGER
-    __parse_boolean,   # VALUE_BOOLEAN
-    __parse_double,    # VALUE_DOUBLE
-    __parse_array,     # VALUE_ARRAY
-    __parse_edge,      # VALUE_EDGE
-    __parse_node,      # VALUE_NODE
-    __parse_path,      # VALUE_PATH
-    __parse_map,       # VALUE_MAP
-    __parse_point,     # VALUE_POINT
-    __parse_vectorf32, # VALUE_VECTORF32
+    __parse_unknown,  # VALUE_UNKNOWN
+    __parse_null,  # VALUE_NULL
+    __parse_string,  # VALUE_STRING
+    __parse_integer,  # VALUE_INTEGER
+    __parse_boolean,  # VALUE_BOOLEAN
+    __parse_double,  # VALUE_DOUBLE
+    __parse_array,  # VALUE_ARRAY
+    __parse_edge,  # VALUE_EDGE
+    __parse_node,  # VALUE_NODE
+    __parse_path,  # VALUE_PATH
+    __parse_map,  # VALUE_MAP
+    __parse_point,  # VALUE_POINT
+    __parse_vectorf32,  # VALUE_VECTORF32
     __parse_datetime,  # VALUE_DATETIME
-    __parse_date,      # VALUE_DATE
-    __parse_time,      # VALUE_TIME
-    __parse_duration   # VALUE_DURATION
+    __parse_date,  # VALUE_DATE
+    __parse_time,  # VALUE_TIME
+    __parse_duration,  # VALUE_DURATION
 ]
+
 
 class QueryResult:
     """
-        Represents the result of a query operation on a graph.
+    Represents the result of a query operation on a graph.
     """
+
     def __init__(self, graph):
         """
         Initializes a QueryResult instance.
@@ -364,8 +388,8 @@ class QueryResult:
             graph: The graph on which the query was executed.
         """
 
-        self.graph      = graph
-        self.header     = []
+        self.graph = graph
+        self.header = []
         self.result_set = []
         self._raw_stats = []
 
@@ -432,7 +456,8 @@ class QueryResult:
             s (str): The statistical metric to retrieve.
 
         Returns:
-            float: The value of the specified statistical metric. Returns 0 if the metric is not found.
+            float: The value of the specified statistical metric.
+                Returns 0 if the metric is not found.
         """
         for stat in self._raw_stats:
             if s in stat:

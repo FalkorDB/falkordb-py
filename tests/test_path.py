@@ -1,5 +1,6 @@
 import pytest
-from falkordb import Node, Edge, Path
+
+from falkordb import Edge, Node, Path
 
 
 def test_init():
@@ -71,16 +72,16 @@ def test_compare():
     assert Path([node_1], edges=[]) != Path([node_2], [])
     assert Path([node_1], [edge_1]) != Path( [node_1], [])
     assert Path([node_1], [edge_1]) != Path([node_2], [edge_1])
-    
+
 def test_str_with_none_edge_id():
     """Test that Path.__str__() works when edge.id is None"""
     node_1 = Node(node_id=1)
     node_2 = Node(node_id=2)
     edge_1 = Edge(node_1, None, node_2)
-    
+
     nodes = [node_1, node_2]
     edges = [edge_1]
-    
+
     p = Path(nodes, edges)
     # Should not raise an exception
     path_str = str(p)
@@ -93,10 +94,10 @@ def test_str_with_edge_id():
     node_1 = Node(node_id=1)
     node_2 = Node(node_id=2)
     edge_1 = Edge(node_1, None, node_2, edge_id=10)
-    
+
     nodes = [node_1, node_2]
     edges = [edge_1]
-    
+
     p = Path(nodes, edges)
     path_str = str(p)
     assert isinstance(path_str, str)

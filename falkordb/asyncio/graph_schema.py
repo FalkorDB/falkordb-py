@@ -1,11 +1,10 @@
-
 # procedures
-DB_LABELS             = "DB.LABELS"
-DB_PROPERTYKEYS       = "DB.PROPERTYKEYS"
-DB_RELATIONSHIPTYPES  = "DB.RELATIONSHIPTYPES"
+DB_LABELS = "DB.LABELS"
+DB_PROPERTYKEYS = "DB.PROPERTYKEYS"
+DB_RELATIONSHIPTYPES = "DB.RELATIONSHIPTYPES"
 
 
-class GraphSchema():
+class GraphSchema:
     """
     The graph schema.
     Maintains the labels, properties and relationships of the graph.
@@ -19,7 +18,7 @@ class GraphSchema():
             graph (Graph): The graph.
 
         Returns:
-           GraphSchema: The graph schema. 
+           GraphSchema: The graph schema.
         """
 
         self.graph = graph
@@ -34,9 +33,9 @@ class GraphSchema():
 
         """
 
-        self.version       = 0
-        self.labels        = []
-        self.properties    = []
+        self.version = 0
+        self.labels = []
+        self.properties = []
         self.relationships = []
 
     async def refresh_labels(self) -> None:
