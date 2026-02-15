@@ -1,6 +1,6 @@
 import sys
 from collections import OrderedDict
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timezone
 from enum import Enum
 from typing import List
 
@@ -207,20 +207,20 @@ def __parse_vectorf32(value, graph) -> List:
 
 
 def __parse_datetime(value, graph) -> datetime:
-    return datetime.utcfromtimestamp(value)
+    return datetime.fromtimestamp(value, tz=timezone.utc)
 
 
 def __parse_date(value, graph) -> date:
-    return datetime.utcfromtimestamp(value).date()
+    return datetime.fromtimestamp(value, tz=timezone.utc).date()
 
 
 def __parse_time(value, graph) -> time:
-    return datetime.utcfromtimestamp(value).time()
+    return datetime.fromtimestamp(value, tz=timezone.utc).time()
 
 
 def __parse_duration(value, graph) -> relativedelta:
-    timestamp = datetime.utcfromtimestamp(value)
-    epoch = datetime(1970, 1, 1)
+    timestamp = datetime.fromtimestamp(value, tz=timezone.utc)
+    epoch = datetime(1970, 1, 1, tzinfo=timezone.utc)
     return relativedelta(timestamp, epoch)
 
 
