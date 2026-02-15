@@ -1,7 +1,6 @@
 import pytest
 from redis import ResponseError
 from falkordb import FalkorDB
-from collections import OrderedDict
 
 class Index():
     def __init__(self, raw_response):

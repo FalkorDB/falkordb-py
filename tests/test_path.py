@@ -27,8 +27,8 @@ def test_wrong_flows():
     edge_1 = Edge(node_1, None, node_2)
     edge_2 = Edge(node_1, None, node_3)
 
-    nodes = [node_1, node_2, node_3]
-    edges = [edge_1, edge_2]
+    _ = [node_1, node_2, node_3]
+    _ = [edge_1, edge_2]
 
 def test_nodes_and_edges():
     node_1 = Node(node_id=1)

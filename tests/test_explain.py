@@ -61,7 +61,7 @@ def test_merge(client):
 
     try:
         g.create_node_range_index("person", "age")
-    except:
+    except Exception:
         pass
     plan = g.explain("MERGE (p1:person {age: 40}) MERGE (p2:person {age: 41})")
 

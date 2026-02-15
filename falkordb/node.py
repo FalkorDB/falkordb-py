@@ -27,7 +27,7 @@ class Node:
         self.labels = None
 
         if isinstance(labels, list):
-            self.labels = [l for l in labels if isinstance(l, str) and l != ""]
+            self.labels = [label for label in labels if isinstance(label, str) and label != ""]
         elif isinstance(labels, str) and labels != "":
             self.labels = [labels]
 

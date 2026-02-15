@@ -68,7 +68,7 @@ async def test_merge():
 
     try:
         await g.create_node_range_index("person", "age")
-    except:
+    except Exception:
         pass
     plan = await g.explain("MERGE (p1:person {age: 40}) MERGE (p2:person {age: 41})")
 

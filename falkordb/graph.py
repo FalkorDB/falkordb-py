@@ -3,7 +3,7 @@ from .graph_schema import GraphSchema
 from .query_result import QueryResult
 from .execution_plan import ExecutionPlan
 from .exceptions import SchemaVersionMismatchException
-from .helpers import quote_string, stringify_param_value
+from .helpers import stringify_param_value
 
 # procedures
 GRAPH_INDEXES          = "DB.INDEXES"

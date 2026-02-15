@@ -1,5 +1,3 @@
-from typing import List
-from .exceptions import SchemaVersionMismatchException
 
 # procedures
 DB_LABELS             = "DB.LABELS"
@@ -13,7 +11,7 @@ class GraphSchema():
     Maintains the labels, properties and relationships of the graph.
     """
 
-    def __init__(self, graph: 'Graph'):
+    def __init__(self, graph):
         """
         Initialize the graph schema.
 
@@ -51,7 +49,7 @@ class GraphSchema():
         """
 
         result_set = self.graph.call_procedure(DB_LABELS).result_set
-        self.labels = [l[0] for l in result_set]
+        self.labels = [label[0] for label in result_set]
 
     def refresh_relations(self) -> None:
         """
@@ -108,12 +106,12 @@ class GraphSchema():
         """
 
         try:
-            l = self.labels[idx]
+            label = self.labels[idx]
         except IndexError:
             # refresh labels
             self.refresh_labels()
-            l = self.labels[idx]
-        return l
+            label = self.labels[idx]
+        return label
 
     def get_relation(self, idx: int) -> str:
         """

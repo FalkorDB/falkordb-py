@@ -1,5 +1,4 @@
 import pytest
-import asyncio
 from falkordb.asyncio import FalkorDB
 from redis.asyncio import BlockingConnectionPool
 

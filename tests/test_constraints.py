@@ -1,5 +1,3 @@
-import pytest
-from redis import ResponseError
 from falkordb import FalkorDB
 
 def test_constraints():

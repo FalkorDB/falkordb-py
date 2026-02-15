@@ -1,4 +1,3 @@
-import pytest
 from falkordb import FalkorDB
 
 def test_graph_copy():

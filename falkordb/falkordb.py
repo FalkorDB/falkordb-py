@@ -1,6 +1,6 @@
 import redis
-from .cluster import *
-from .sentinel import *
+from .cluster import Is_Cluster, Cluster_Conn
+from .sentinel import Is_Sentinel, Sentinel_Conn
 from .graph import Graph
 from typing import List, Union, Optional
 

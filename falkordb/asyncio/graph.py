@@ -3,7 +3,6 @@ from .graph_schema import GraphSchema
 from .query_result import QueryResult
 
 from falkordb.graph          import Graph
-from falkordb.helpers        import quote_string, stringify_param_value
 from falkordb.exceptions     import SchemaVersionMismatchException
 from falkordb.execution_plan import ExecutionPlan
 

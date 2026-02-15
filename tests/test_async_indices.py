@@ -1,8 +1,6 @@
 import pytest
 from redis import ResponseError
-from falkordb import Edge, Node
 from falkordb.asyncio import FalkorDB
-from collections import OrderedDict
 from redis.asyncio import BlockingConnectionPool
 
 class Index():
