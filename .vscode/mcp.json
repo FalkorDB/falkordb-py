@@ -1,8 +1,0 @@
-{
-    "servers": {
-      "falkordb-py Docs": {
-        "type": "sse",
-        "url": "https://gitmcp.io/falkordb/falkordb-py"
-      }
-    }
-  }
