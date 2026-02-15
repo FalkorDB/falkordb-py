@@ -401,7 +401,7 @@ class QueryResult:
             error = response[0]
             if str(error) == "version mismatch":
                 version = response[1]
-                error = VersionMismatchException(version)
+                error = SchemaVersionMismatchException(version)
             raise error
 
         # if we encountered a run-time error, the last response
