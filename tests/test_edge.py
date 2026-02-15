@@ -9,9 +9,7 @@ def test_init():
         Edge(Node(), None, None)
         Edge(None, None, Node())
 
-    assert isinstance(
-        Edge(Node(node_id=1), None, Node(node_id=2)), Edge
-    )
+    assert isinstance(Edge(Node(node_id=1), None, Node(node_id=2)), Edge)
 
 
 def test_to_string():
@@ -20,9 +18,7 @@ def test_to_string():
     ).to_string()
     assert props_result == '{a:"a",b:10}'
 
-    no_props_result = Edge(
-        Node(), None, Node(), properties={}
-    ).to_string()
+    no_props_result = Edge(Node(), None, Node(), properties={}).to_string()
     assert no_props_result == ""
 
 
@@ -30,27 +26,21 @@ def test_stringify():
     john = Node(
         alias="a",
         labels="person",
-        properties={"name": 'John Doe', "age": 33, "someArray": [1, 2, 3]},
+        properties={"name": "John Doe", "age": 33, "someArray": [1, 2, 3]},
     )
 
-    japan = Node(alias="b",
-                 labels="country",
-                 properties={"name": 'Japan'}
-    )
+    japan = Node(alias="b", labels="country", properties={"name": "Japan"})
 
     edge_with_relation = Edge(
-            john,
-            "visited",
-            japan,
-            properties={"purpose": "pleasure"}
+        john, "visited", japan, properties={"purpose": "pleasure"}
     )
-    assert("(a)-[:visited{purpose:\"pleasure\"}]->(b)" == str(edge_with_relation))
+    assert '(a)-[:visited{purpose:"pleasure"}]->(b)' == str(edge_with_relation)
 
     edge_no_relation_no_props = Edge(japan, "", john)
-    assert("(b)-[]->(a)" == str(edge_no_relation_no_props))
+    assert "(b)-[]->(a)" == str(edge_no_relation_no_props)
 
     edge_only_props = Edge(john, "", japan, properties={"a": "b", "c": 3})
-    assert("(a)-[{a:\"b\",c:3}]->(b)" == str(edge_only_props))
+    assert '(a)-[{a:"b",c:3}]->(b)' == str(edge_only_props)
 
 
 def test_comparision():

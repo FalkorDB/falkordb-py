@@ -2,7 +2,7 @@ from falkordb import FalkorDB
 
 
 def test_constraints():
-    db = FalkorDB(host='localhost', port=6379)
+    db = FalkorDB(host="localhost", port=6379)
     g = db.select_graph("constraints")
 
     # create node constraints
@@ -16,7 +16,7 @@ def test_constraints():
     g.create_edge_unique_constraint("KNOWS", "v1", "v2")
 
     constraints = g.list_constraints()
-    assert(len(constraints) == 6)
+    assert len(constraints) == 6
 
     # drop constraints
     g.drop_node_unique_constraint("Person", "name")
@@ -28,18 +28,18 @@ def test_constraints():
     g.drop_edge_unique_constraint("KNOWS", "v1", "v2")
 
     constraints = g.list_constraints()
-    assert(len(constraints) == 0)
+    assert len(constraints) == 0
+
 
 def test_create_existing_constraint():
     # trying to create an existing constraint
-    db = FalkorDB(host='localhost', port=6379)
+    db = FalkorDB(host="localhost", port=6379)
     g = db.select_graph("constraints")
 
     # create node constraints
     g.create_node_unique_constraint("Person", "name")
     try:
         g.create_node_unique_constraint("Person", "name")
-        assert(False)
+        assert False
     except Exception as e:
-        assert("Constraint already exists" == str(e))
-
+        assert "Constraint already exists" == str(e)

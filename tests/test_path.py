@@ -20,6 +20,7 @@ def test_new_empty_path():
     assert path._nodes == []
     assert path._edges == []
 
+
 def test_wrong_flows():
     node_1 = Node(node_id=1)
     node_2 = Node(node_id=2)
@@ -30,6 +31,7 @@ def test_wrong_flows():
 
     _ = [node_1, node_2, node_3]
     _ = [edge_1, edge_2]
+
 
 def test_nodes_and_edges():
     node_1 = Node(node_id=1)
@@ -65,13 +67,14 @@ def test_compare():
     nodes = [node_1, node_2]
     edges = [edge_1]
 
-    assert Path([], [])             == Path([], [])
-    assert Path(nodes, edges)       == Path(nodes, edges)
-    assert Path(nodes, [])          != Path([], [])
-    assert Path([node_1], [])       != Path([], [])
+    assert Path([], []) == Path([], [])
+    assert Path(nodes, edges) == Path(nodes, edges)
+    assert Path(nodes, []) != Path([], [])
+    assert Path([node_1], []) != Path([], [])
     assert Path([node_1], edges=[]) != Path([node_2], [])
-    assert Path([node_1], [edge_1]) != Path( [node_1], [])
+    assert Path([node_1], [edge_1]) != Path([node_1], [])
     assert Path([node_1], [edge_1]) != Path([node_2], [edge_1])
+
 
 def test_str_with_none_edge_id():
     """Test that Path.__str__() works when edge.id is None"""
@@ -87,7 +90,8 @@ def test_str_with_none_edge_id():
     path_str = str(p)
     assert isinstance(path_str, str)
     # The edge should be represented with empty brackets since id is None
-    assert ('<-[]-' in path_str) or ('-[]->' in path_str)
+    assert ("<-[]-" in path_str) or ("-[]->" in path_str)
+
 
 def test_str_with_edge_id():
     """Test that Path.__str__() works when edge.id is provided"""
