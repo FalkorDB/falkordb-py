@@ -44,3 +44,23 @@ Repository = "http://github.com/falkorDB/falkordb-py"
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "ruff>=0.8.0",
+    "mypy>=1.11.0",
+    "types-redis>=4.6.0",  # Type stubs for your redis dependency
+]
+
+[tool.ruff]
+target-version = "py39"
+line-length = 88
+
+[tool.ruff.lint]
+select = ["F", "E", "W", "I"]  # Pyflakes, pycodestyle, isort
+# F catches undefined names (F821)
+
+[tool.mypy]
+python_version = "3.9"
+warn_unused_configs = true
+ignore_missing_imports = true  # Start lenient, tighten later
