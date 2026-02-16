@@ -1,1 +1,1 @@
-from .falkordb import FalkorDB
+from .falkordb import FalkorDB as FalkorDB
