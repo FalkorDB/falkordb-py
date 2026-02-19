@@ -13,6 +13,17 @@ LIST_CMD = "GRAPH.LIST"
 CONFIG_CMD = "GRAPH.CONFIG"
 
 
+def _get_falkordb_version() -> str:
+    """Get the FalkorDB package version dynamically."""
+    try:
+        from importlib.metadata import PackageNotFoundError, version
+
+        return version("FalkorDB")
+    except (ImportError, PackageNotFoundError):
+        # Fallback for development or if package metadata not available
+        return "1.5.0"
+
+
 class FalkorDB:
     """
     FalkorDB Class for interacting with a FalkorDB server.
@@ -82,15 +93,18 @@ class FalkorDB:
         # Create driver_info if not provided but lib_name/lib_version are
         # provided (for backward compatibility)
         if driver_info is None:
+            default_version = _get_falkordb_version()
             if lib_name is not None or lib_version is not None:
                 # Use provided values or defaults
                 driver_info = DriverInfo(
                     name=lib_name or "FalkorDB",
-                    lib_version=lib_version or "1.5.0"
+                    lib_version=lib_version or default_version
                 )
             else:
                 # Use default FalkorDB driver info
-                driver_info = DriverInfo(name="FalkorDB", lib_version="1.5.0")
+                driver_info = DriverInfo(
+                    name="FalkorDB", lib_version=default_version
+                )
 
         conn = redis.Redis(
             host=host,
