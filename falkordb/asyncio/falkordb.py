@@ -1,6 +1,7 @@
 from typing import List, Optional, Union
 
 import redis.asyncio as redis  # type: ignore[import-not-found]
+from redis.connection import DriverInfo
 
 from .cluster import Cluster_Conn, Is_Cluster
 from .graph import AsyncGraph
@@ -53,8 +54,9 @@ class FalkorDB:
         single_connection_client=False,
         health_check_interval=0,
         client_name=None,
-        lib_name="FalkorDB",
-        lib_version="1.0.0",
+        lib_name=None,  # Deprecated, kept for backward compatibility
+        lib_version=None,  # Deprecated, kept for backward compatibility
+        driver_info=None,
         username=None,
         retry=None,
         connect_func=None,
@@ -68,6 +70,19 @@ class FalkorDB:
         read_from_replicas=False,
         address_remap=None,
     ):
+
+        # Create driver_info if not provided but lib_name/lib_version are
+        # provided (for backward compatibility)
+        if driver_info is None:
+            if lib_name is not None or lib_version is not None:
+                # Use provided values or defaults
+                driver_info = DriverInfo(
+                    name=lib_name or "FalkorDB",
+                    lib_version=lib_version or "1.5.0"
+                )
+            else:
+                # Use default FalkorDB driver info
+                driver_info = DriverInfo(name="FalkorDB", lib_version="1.5.0")
 
         conn = redis.Redis(
             host=host,
@@ -95,8 +110,7 @@ class FalkorDB:
             single_connection_client=single_connection_client,
             health_check_interval=health_check_interval,
             client_name=client_name,
-            lib_name=lib_name,
-            lib_version=lib_version,
+            driver_info=driver_info,
             username=username,
             retry=retry,
             redis_connect_func=connect_func,
