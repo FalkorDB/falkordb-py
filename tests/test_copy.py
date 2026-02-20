@@ -1,11 +1,11 @@
-import pytest
 from falkordb import FalkorDB
+
 
 def test_graph_copy():
     # create a simple graph and clone it
     # make sure graphs are the same
 
-    db = FalkorDB(host='localhost', port=6379)
+    db = FalkorDB(host="localhost", port=6379)
     src = db.select_graph("copy_src")
 
     # create entities
@@ -26,27 +26,27 @@ def test_graph_copy():
     # validate src and dest are the same
     # validate entities
     q = "MATCH (a) RETURN a ORDER BY ID(a)"
-    src_res  = src.query(q).result_set
+    src_res = src.query(q).result_set
     dest_res = dest.query(q).result_set
-    assert(src_res == dest_res)
+    assert src_res == dest_res
 
     q = "MATCH ()-[e]->() RETURN e ORDER BY ID(e)"
-    src_res  = src.query(q).result_set
+    src_res = src.query(q).result_set
     dest_res = dest.query(q).result_set
-    assert(src_res == dest_res)
+    assert src_res == dest_res
 
     # validate schema
-    src_res  = src.call_procedure("DB.LABELS").result_set
+    src_res = src.call_procedure("DB.LABELS").result_set
     dest_res = dest.call_procedure("DB.LABELS").result_set
-    assert(src_res == dest_res)
+    assert src_res == dest_res
 
-    src_res  = src.call_procedure("DB.PROPERTYKEYS").result_set
+    src_res = src.call_procedure("DB.PROPERTYKEYS").result_set
     dest_res = dest.call_procedure("DB.PROPERTYKEYS").result_set
-    assert(src_res == dest_res)
+    assert src_res == dest_res
 
-    src_res  = src.call_procedure("DB.RELATIONSHIPTYPES").result_set
+    src_res = src.call_procedure("DB.RELATIONSHIPTYPES").result_set
     dest_res = dest.call_procedure("DB.RELATIONSHIPTYPES").result_set
-    assert(src_res == dest_res)
+    assert src_res == dest_res
 
     # validate indices
     q = """CALL DB.INDEXES()
@@ -56,9 +56,9 @@ def test_graph_copy():
     src_res = src.query(q).result_set
     dest_res = dest.query(q).result_set
 
-    assert(src_res == dest_res)
+    assert src_res == dest_res
 
     # validate constraints
     src_res = src.list_constraints()
     dest_res = dest.list_constraints()
-    assert(src_res == dest_res)
+    assert src_res == dest_res

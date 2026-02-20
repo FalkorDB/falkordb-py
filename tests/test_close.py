@@ -1,10 +1,10 @@
 from types import SimpleNamespace
-from unittest.mock import Mock, AsyncMock
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from falkordb.falkordb import FalkorDB as SyncFalkorDB
 from falkordb.asyncio.falkordb import FalkorDB as AsyncFalkorDB
+from falkordb.falkordb import FalkorDB as SyncFalkorDB
 
 
 def test_sync_context_manager_calls_close():

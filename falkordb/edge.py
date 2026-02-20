@@ -1,15 +1,23 @@
-from typing import Optional
-from .node import Node
+from typing import Optional, Union
+
 from .helpers import quote_string
+from .node import Node
+
 
 class Edge:
     """
     An edge connecting two nodes.
     """
 
-    def __init__(self, src_node: Node, relation: str, dest_node: Node,
-                 edge_id: Optional[int] = None, alias: Optional[str] = '',
-                 properties=None):
+    def __init__(
+        self,
+        src_node: Union[Node, int],
+        relation: str,
+        dest_node: Union[Node, int],
+        edge_id: Optional[int] = None,
+        alias: Optional[str] = "",
+        properties=None,
+    ):
         """
         Create a new edge.
 
@@ -30,11 +38,11 @@ class Edge:
         if src_node is None or dest_node is None:
             raise AssertionError("Both src_node & dest_node must be provided")
 
-        self.id         = edge_id
-        self.alias      = alias
-        self.src_node   = src_node
-        self.dest_node  = dest_node
-        self.relation   = relation
+        self.id = edge_id
+        self.alias = alias
+        self.src_node = src_node
+        self.dest_node = dest_node
+        self.relation = relation
         self.properties = properties or {}
 
     def to_string(self) -> str:
