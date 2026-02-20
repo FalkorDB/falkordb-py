@@ -1,7 +1,9 @@
 from typing import List, Optional, Union
 
 import redis.asyncio as redis  # type: ignore[import-not-found]
+from redis.driver_info import DriverInfo
 
+from .._version import get_package_version
 from .cluster import Cluster_Conn, Is_Cluster
 from .graph import AsyncGraph
 
@@ -95,8 +97,7 @@ class FalkorDB:
             single_connection_client=single_connection_client,
             health_check_interval=health_check_interval,
             client_name=client_name,
-            lib_name=lib_name,
-            lib_version=lib_version,
+            driver_info=DriverInfo(lib_name, lib_version or get_package_version()),
             username=username,
             retry=retry,
             redis_connect_func=connect_func,
