@@ -3,6 +3,7 @@ from typing import List, Optional, Union
 import redis.asyncio as redis  # type: ignore[import-not-found]
 from redis.connection import DriverInfo
 
+from .._version import get_package_version
 from .cluster import Cluster_Conn, Is_Cluster
 from .graph import AsyncGraph
 
@@ -10,16 +11,6 @@ from .graph import AsyncGraph
 UDF_CMD = "GRAPH.UDF"
 LIST_CMD = "GRAPH.LIST"
 CONFIG_CMD = "GRAPH.CONFIG"
-
-from importlib.metadata import version as get_version, PackageNotFoundError
-
-
-def _get_falkordb_version():
-    """Get the FalkorDB package version."""
-    try:
-        return get_version("FalkorDB")
-    except PackageNotFoundError:
-        return "unknown"
 
 
 class FalkorDB:
@@ -106,7 +97,7 @@ class FalkorDB:
             single_connection_client=single_connection_client,
             health_check_interval=health_check_interval,
             client_name=client_name,
-            driver_info=DriverInfo(lib_name, lib_version or _get_falkordb_version()),
+            driver_info=DriverInfo(lib_name, lib_version or get_package_version()),
             username=username,
             retry=retry,
             redis_connect_func=connect_func,
