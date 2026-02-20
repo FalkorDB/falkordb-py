@@ -3,3 +3,6 @@ __pycache__
 .venv
 dist/
 *.egg-info/
+.coverage
+coverage.xml
+wordlist.dic

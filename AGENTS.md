@@ -30,14 +30,16 @@ uv run pytest --cov --cov-report=xml
 ```
 Async tests use `pytest-asyncio` and are prefixed `test_async_*.py`. They mirror the sync tests 1:1.
 
-## Pre-commit Lint Checks
-Always run these three checks before every commit:
+## Pre-commit Checks
+Always run these checks before every commit:
 ```bash
 uv run ruff format --check .
 uv run ruff check .
 uv run mypy falkordb/
+pyspelling --config .github/spellcheck-settings.yml
 ```
 If formatting fails, fix with `uv run ruff format .` before committing.
+If spellcheck fails, add missing words to `.github/wordlist.txt`.
 
 ## Code Style
 - **Formatter/linter**: Ruff (line length 88, target Python 3.10)
@@ -91,5 +93,6 @@ When modifying sync code, always check if the async counterpart needs the same c
 
 ## CI/CD
 - **`lint.yml`**: Runs ruff format, ruff check, and mypy on Python 3.14
+- **`spellcheck.yml`**: Runs pyspelling on all `*.md` files using aspell; custom wordlist at `.github/wordlist.txt`
 - **`test.yml`**: Runs pytest against a `falkordb/falkordb:edge` Docker service on Python 3.10–3.14; uploads coverage to Codecov
 
