@@ -1,4 +1,5 @@
 import re
+from typing import List, Optional
 
 
 class ProfileStats:
@@ -12,13 +13,14 @@ class ProfileStats:
 
     def __init__(self, records_produced: int, execution_time: float):
         """
-        Initializes a new ProfileStats instance with the given records_produced and execution_time.
+        Initializes a new ProfileStats instance with the given
+        records_produced and execution_time.
 
         Args:
             records_produced (int): The number of records produced.
             execution_time (float): The execution time in milliseconds.
         """
-        self.execution_time   = execution_time
+        self.execution_time = execution_time
         self.records_produced = records_produced
 
 
@@ -33,25 +35,32 @@ class Operation:
         profile_stats (ProfileStats): Profile statistics for the operation.
     """
 
-    def __init__(self, name: str, args=None, profile_stats: bool = None):
+    def __init__(
+        self,
+        name: str,
+        args: Optional[str] = None,
+        profile_stats: Optional[ProfileStats] = None,
+    ):
         """
         Creates a new Operation instance.
 
         Args:
             name (str): The name of the operation.
             args (str, optional): Operation arguments.
-            profile_stats (ProfileStats, optional): Profile statistics for the operation.
+            profile_stats (ProfileStats, optional): Profile statistics
+                for the operation.
         """
-        self.name          = name
-        self.args          = args
-        self.children      = []
+        self.name = name
+        self.args = args
+        self.children: List[Operation] = []
         self.profile_stats = profile_stats
 
     @property
-    def execution_time(self) -> int:
+    def execution_time(self) -> float:
         """
         returns operation's execution time in ms
         """
+        assert self.profile_stats is not None
         return self.profile_stats.execution_time
 
     @property
@@ -59,6 +68,7 @@ class Operation:
         """
         returns number of records produced by operation.
         """
+        assert self.profile_stats is not None
         return self.profile_stats.records_produced
 
     def append_child(self, child):
@@ -191,6 +201,7 @@ class ExecutionPlan:
         Returns:
             str: String representation of the execution plan.
         """
+
         def aggregate_str(str_children):
             return "\n".join(
                 [
@@ -235,8 +246,10 @@ class ExecutionPlan:
         Args:
             op: Operation to traverse.
             op_f: Function applied for each operation.
-            aggregate_f: Aggregation function applied for all children of a single operation.
-            combine_f: Combine function applied for the operation result and the children result.
+            aggregate_f: Aggregation function applied for all
+                children of a single operation.
+            combine_f: Combine function applied for the operation
+                result and the children result.
         """
         # apply op_f for each operation
         op_res = op_f(op)
@@ -259,9 +272,9 @@ class ExecutionPlan:
             Operation: Root of the structured operation tree.
         """
         # initial state
-        i       = 0
-        level   = 0
-        stack   = []
+        i = 0
+        level = 0
+        stack = []
         current = None
 
         def create_operation(args):

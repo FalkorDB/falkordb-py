@@ -6,3 +6,5 @@ dist/
 .coverage
 htmlcov/
 .pytest_cache/
+coverage.xml
+wordlist.dic
