@@ -96,3 +96,8 @@ When modifying sync code, always check if the async counterpart needs the same c
 - **`spellcheck.yml`**: Runs pyspelling on all `*.md` files using aspell; custom wordlist at `.github/wordlist.txt`
 - **`test.yml`**: Runs pytest against a `falkordb/falkordb:edge` Docker service on Python 3.10–3.14; uploads coverage to Codecov
 
+## Before Finishing a Task
+After completing any task, review whether your changes require updates to:
+- **`README.md`** — if public API, usage examples, or installation instructions changed
+- **`AGENTS.md`** — if project structure, build commands, architecture patterns, or conventions changed
+
