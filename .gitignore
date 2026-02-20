@@ -1,8 +1,12 @@
 venv
 __pycache__
+poetry.lock
+.coverage
+.coverage.*
+htmlcov/
+cov_annotate/
 .venv
 dist/
 *.egg-info/
-.coverage
 coverage.xml
 wordlist.dic
