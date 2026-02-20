@@ -1,14 +1,20 @@
-import redis.asyncio as redis
-from .cluster import *
+from typing import List, Optional, Union
+
+import redis.asyncio as redis  # type: ignore[import-not-found]
+from redis.driver_info import DriverInfo
+from redis.exceptions import RedisError
+
+from .._version import get_package_version
+from .cluster import Cluster_Conn, Is_Cluster
 from .graph import AsyncGraph
-from typing import List, Union, Optional
 
 # config command
-UDF_CMD    = "GRAPH.UDF"
-LIST_CMD   = "GRAPH.LIST"
+UDF_CMD = "GRAPH.UDF"
+LIST_CMD = "GRAPH.LIST"
 CONFIG_CMD = "GRAPH.CONFIG"
 
-class FalkorDB():
+
+class FalkorDB:
     """
     Asynchronous FalkorDB Class for interacting with a FalkorDB server.
 
@@ -26,69 +32,79 @@ class FalkorDB():
     """
 
     def __init__(
-            self,
-            host='localhost',
-            port=6379,
-            password=None,
-            socket_timeout=None,
-            socket_connect_timeout=None,
-            socket_keepalive=None,
-            socket_keepalive_options=None,
-            connection_pool=None,
-            unix_socket_path=None,
-            encoding='utf-8',
-            encoding_errors='strict',
-            retry_on_error=None,
-            ssl=False,
-            ssl_keyfile=None,
-            ssl_certfile=None,
-            ssl_cert_reqs='required',
-            ssl_ca_certs=None,
-            ssl_ca_data=None,
-            ssl_check_hostname=False,
-            max_connections=None,
-            single_connection_client=False,
-            health_check_interval=0,
-            client_name=None,
-            lib_name='FalkorDB',
-            lib_version='1.0.0',
-            username=None,
-            retry=None,
-            connect_func=None,
-            credential_provider=None,
-            protocol=2,
-            # FalkorDB Cluster Params
-            cluster_error_retry_attempts=3,
-            startup_nodes=None,
-            require_full_coverage=False,
-            reinitialize_steps=5,
-            read_from_replicas=False,
-            address_remap=None,
-        ):
+        self,
+        host="localhost",
+        port=6379,
+        password=None,
+        socket_timeout=None,
+        socket_connect_timeout=None,
+        socket_keepalive=None,
+        socket_keepalive_options=None,
+        connection_pool=None,
+        unix_socket_path=None,
+        encoding="utf-8",
+        encoding_errors="strict",
+        retry_on_error=None,
+        ssl=False,
+        ssl_keyfile=None,
+        ssl_certfile=None,
+        ssl_cert_reqs="required",
+        ssl_ca_certs=None,
+        ssl_ca_data=None,
+        ssl_check_hostname=False,
+        max_connections=None,
+        single_connection_client=False,
+        health_check_interval=0,
+        client_name=None,
+        lib_name="FalkorDB",
+        lib_version="1.0.0",
+        username=None,
+        retry=None,
+        connect_func=None,
+        credential_provider=None,
+        protocol=2,
+        # FalkorDB Cluster Params
+        cluster_error_retry_attempts=3,
+        startup_nodes=None,
+        require_full_coverage=False,
+        reinitialize_steps=5,
+        read_from_replicas=False,
+        address_remap=None,
+    ):
 
-        conn = redis.Redis(host=host, port=port, db=0, password=password,
-                           socket_timeout=socket_timeout,
-                           socket_connect_timeout=socket_connect_timeout,
-                           socket_keepalive=socket_keepalive,
-                           socket_keepalive_options=socket_keepalive_options,
-                           connection_pool=connection_pool,
-                           unix_socket_path=unix_socket_path,
-                           encoding=encoding, encoding_errors=encoding_errors,
-                           decode_responses=True,
-                           retry_on_error=retry_on_error, ssl=ssl,
-                           ssl_keyfile=ssl_keyfile, ssl_certfile=ssl_certfile,
-                           ssl_cert_reqs=ssl_cert_reqs,
-                           ssl_ca_certs=ssl_ca_certs,
-                           ssl_ca_data=ssl_ca_data,
-                           ssl_check_hostname=ssl_check_hostname,
-                           max_connections=max_connections,
-                           single_connection_client=single_connection_client,
-                           health_check_interval=health_check_interval,
-                           client_name=client_name, lib_name=lib_name,
-                           lib_version=lib_version, username=username,
-                           retry=retry, redis_connect_func=connect_func,
-                           credential_provider=credential_provider,
-                           protocol=protocol)
+        conn = redis.Redis(
+            host=host,
+            port=port,
+            db=0,
+            password=password,
+            socket_timeout=socket_timeout,
+            socket_connect_timeout=socket_connect_timeout,
+            socket_keepalive=socket_keepalive,
+            socket_keepalive_options=socket_keepalive_options,
+            connection_pool=connection_pool,
+            unix_socket_path=unix_socket_path,
+            encoding=encoding,
+            encoding_errors=encoding_errors,
+            decode_responses=True,
+            retry_on_error=retry_on_error,
+            ssl=ssl,
+            ssl_keyfile=ssl_keyfile,
+            ssl_certfile=ssl_certfile,
+            ssl_cert_reqs=ssl_cert_reqs,
+            ssl_ca_certs=ssl_ca_certs,
+            ssl_ca_data=ssl_ca_data,
+            ssl_check_hostname=ssl_check_hostname,
+            max_connections=max_connections,
+            single_connection_client=single_connection_client,
+            health_check_interval=health_check_interval,
+            client_name=client_name,
+            driver_info=DriverInfo(lib_name, lib_version or get_package_version()),
+            username=username,
+            retry=retry,
+            redis_connect_func=connect_func,
+            credential_provider=credential_provider,
+            protocol=protocol,
+        )
 
         if Is_Cluster(conn):
             conn = Cluster_Conn(
@@ -102,8 +118,8 @@ class FalkorDB():
                 address_remap,
             )
 
-        self.connection      = conn
-        self.flushdb         = conn.flushdb
+        self.connection = conn
+        self.flushdb = conn.flushdb
         self.execute_command = conn.execute_command
 
     @classmethod
@@ -114,7 +130,8 @@ class FalkorDB():
         Args:
             cls: The class itself.
             url (str): The URL.
-            kwargs: Additional keyword arguments to pass to the ``DB.from_url`` function.
+            kwargs: Additional keyword arguments to pass to the
+                ``DB.from_url`` function.
 
         Returns:
             DB: A new DB instance.
@@ -126,10 +143,10 @@ class FalkorDB():
         """
 
         # switch from redis:// to falkordb://
-        if url.startswith('falkor://'):
-            url = 'redis://' + url[len('falkor://'):]
-        elif url.startswith('falkors://'):
-            url = 'rediss://' + url[len('falkors://'):]
+        if url.startswith("falkor://"):
+            url = "redis://" + url[len("falkor://") :]
+        elif url.startswith("falkors://"):
+            url = "rediss://" + url[len("falkors://") :]
 
         conn = redis.from_url(url, **kwargs)
 
@@ -158,7 +175,9 @@ class FalkorDB():
             AsyncGraph: A new Graph instance associated with the selected graph.
         """
         if not isinstance(graph_id, str) or graph_id == "":
-            raise TypeError(f"Expected a string parameter, but received {type(graph_id)}.")
+            raise TypeError(
+                f"Expected a string parameter, but received {type(graph_id)}."
+            )
 
         return AsyncGraph(self, graph_id)
 
@@ -206,6 +225,27 @@ class FalkorDB():
 
         return await self.connection.execute_command(CONFIG_CMD, "SET", name, value)
 
+    async def aclose(self) -> None:
+        """
+        Close the underlying connection(s).
+        """
+
+        try:
+            await self.connection.aclose()
+        except RedisError:
+            # best-effort close — don't raise on Redis errors
+            pass
+
+    async def __aenter__(self) -> "FalkorDB":
+        """Return self to support async with-statement usage."""
+
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
+        """Close the connection when exiting an async with-statement."""
+
+        await self.aclose()
+
     # GRAPH.UDF LOAD [REPLACE] <lib> <script>
     async def udf_load(self, name: str, script: str, replace: bool = False):
         """
@@ -214,8 +254,8 @@ class FalkorDB():
         Args:
             name (str): The name of the library to load.
             script (str): The UDF script contents.
-            replace (bool, optional): If True, replace an existing library with the same name.
-                                      Defaults to False.
+            replace (bool, optional): If True, replace an existing
+                library with the same name. Defaults to False.
         """
 
         # prep arguments
@@ -241,9 +281,10 @@ class FalkorDB():
         List User Defined Function (UDF) libraries.
 
         Args:
-            lib (str, optional): If provided, filter the list to this specific library.
-            with_code (bool, optional): If True, include the library source code in the result.
-                                        Defaults to False.
+            lib (str, optional): If provided, filter the list to
+                this specific library.
+            with_code (bool, optional): If True, include the library
+                source code in the result. Defaults to False.
 
         Returns:
             list: A list of UDF libraries and their metadata.
@@ -294,4 +335,3 @@ class FalkorDB():
             resp = await self.connection.execute_command(UDF_CMD, "DELETE", lib)
 
         return resp
-

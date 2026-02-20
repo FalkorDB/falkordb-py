@@ -1,13 +1,19 @@
-import redis
-from .cluster import *
-from .sentinel import *
+from typing import List, Optional, Union
+
+import redis  # type: ignore[import-not-found]
+from redis.driver_info import DriverInfo
+from redis.exceptions import RedisError
+
+from ._version import get_package_version
+from .cluster import Cluster_Conn, Is_Cluster
 from .graph import Graph
-from typing import List, Union, Optional
+from .sentinel import Is_Sentinel, Sentinel_Conn
 
 # config commands
-UDF_CMD    = "GRAPH.UDF"
-LIST_CMD   = "GRAPH.LIST"
+UDF_CMD = "GRAPH.UDF"
+LIST_CMD = "GRAPH.LIST"
 CONFIG_CMD = "GRAPH.CONFIG"
+
 
 class FalkorDB:
     """
@@ -106,8 +112,7 @@ class FalkorDB:
             single_connection_client=single_connection_client,
             health_check_interval=health_check_interval,
             client_name=client_name,
-            lib_name=lib_name,
-            lib_version=lib_version,
+            driver_info=DriverInfo(lib_name, lib_version or get_package_version()),
             username=username,
             retry=retry,
             redis_connect_func=connect_func,
@@ -145,7 +150,8 @@ class FalkorDB:
         Args:
             cls: The class itself.
             url (str): The URL.
-            kwargs: Additional keyword arguments to pass to the ``DB.from_url`` function.
+            kwargs: Additional keyword arguments to pass to the
+                ``DB.from_url`` function.
 
         Returns:
             DB: A new DB instance.
@@ -238,6 +244,26 @@ class FalkorDB:
 
         return self.connection.execute_command(CONFIG_CMD, "SET", name, value)
 
+    def close(self) -> None:
+        """
+        Close the underlying connection(s).
+        """
+
+        try:
+            self.connection.close()
+        except RedisError:
+            # best-effort close — don't raise on Redis errors
+            pass
+
+    def __enter__(self) -> "FalkorDB":
+        """Return self to support usage in a with-statement."""
+
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+        """Close the connection when exiting a with-statement."""
+        self.close()
+
     # GRAPH.UDF LOAD [REPLACE] <lib> <script>
     def udf_load(self, name: str, script: str, replace: bool = False):
         """
@@ -246,8 +272,8 @@ class FalkorDB:
         Args:
             name (str): The name of the library to load.
             script (str): The UDF script contents.
-            replace (bool, optional): If True, replace an existing library with the same name.
-                                      Defaults to False.
+            replace (bool, optional): If True, replace an existing
+                library with the same name. Defaults to False.
         """
 
         # prep arguments
@@ -273,9 +299,10 @@ class FalkorDB:
         List User Defined Function (UDF) libraries.
 
         Args:
-            lib (str, optional): If provided, filter the list to this specific library.
-            with_code (bool, optional): If True, include the library source code in the result.
-                                        Defaults to False.
+            lib (str, optional): If provided, filter the list to
+                this specific library.
+            with_code (bool, optional): If True, include the library
+                source code in the result. Defaults to False.
 
         Returns:
             list: A list of UDF libraries and their metadata.
@@ -326,4 +353,3 @@ class FalkorDB:
             resp = self.connection.execute_command(UDF_CMD, "DELETE", lib)
 
         return resp
-

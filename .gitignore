@@ -8,3 +8,5 @@ cov_annotate/
 .venv
 dist/
 *.egg-info/
+coverage.xml
+wordlist.dic

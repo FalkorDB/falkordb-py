@@ -1,15 +1,20 @@
 from typing import List, Optional, Union
+
 from .helpers import quote_string
+
 
 class Node:
     """
     A graph node.
     """
 
-    def __init__(self, node_id: Optional[int] = None,
-                 alias: Optional[str] = '',
-                 labels: Optional[Union[str, List[str]]] = None,
-                 properties=None):
+    def __init__(
+        self,
+        node_id: Optional[int] = None,
+        alias: Optional[str] = "",
+        labels: Optional[Union[str, List[str]]] = None,
+        properties=None,
+    ):
         """
         Create a new node.
 
@@ -22,12 +27,14 @@ class Node:
         Returns:
             None
         """
-        self.id     = node_id
-        self.alias  = alias
+        self.id = node_id
+        self.alias = alias
         self.labels = None
 
         if isinstance(labels, list):
-            self.labels = [l for l in labels if isinstance(l, str) and l != ""]
+            self.labels = [
+                label for label in labels if isinstance(label, str) and label != ""
+            ]
         elif isinstance(labels, str) and labels != "":
             self.labels = [labels]
 
