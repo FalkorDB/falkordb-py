@@ -11,19 +11,15 @@ UDF_CMD = "GRAPH.UDF"
 LIST_CMD = "GRAPH.LIST"
 CONFIG_CMD = "GRAPH.CONFIG"
 
-try:
-    from importlib.metadata import version as get_version
-except ImportError:
-    # Fallback for Python < 3.8
-    from importlib_metadata import version as get_version  # type: ignore[import-not-found]
+from importlib.metadata import version as get_version, PackageNotFoundError
 
 
 def _get_falkordb_version():
     """Get the FalkorDB package version."""
     try:
         return get_version("FalkorDB")
-    except Exception:
-        return "1.0.0"
+    except PackageNotFoundError:
+        return "unknown"
 
 
 class FalkorDB:
