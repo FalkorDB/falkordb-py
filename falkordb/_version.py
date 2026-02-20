@@ -1,6 +1,7 @@
 """Package version utilities."""
 
-from importlib.metadata import PackageNotFoundError, version as get_version
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as get_version
 
 
 def get_package_version() -> str:
