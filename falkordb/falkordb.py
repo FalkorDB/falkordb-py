@@ -1,7 +1,7 @@
 from typing import List, Optional, Union
 
 import redis  # type: ignore[import-not-found]
-from redis.connection import DriverInfo
+from redis.driver_info import DriverInfo
 
 from ._version import get_package_version
 from .cluster import Cluster_Conn, Is_Cluster
