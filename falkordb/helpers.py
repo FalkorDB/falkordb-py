@@ -17,6 +17,7 @@ def quote_string(v):
 
     return f'"{v}"'
 
+
 def stringify_param_value(value):
     """
     turn a parameter value into a string suitable for the params header of
@@ -39,9 +40,9 @@ def stringify_param_value(value):
         return "null"
 
     if isinstance(value, (list, tuple)):
-        return f'[{",".join(map(stringify_param_value, value))}]'
+        return f"[{','.join(map(stringify_param_value, value))}]"
 
     if isinstance(value, dict):
-        return f'{{{",".join(f"{k}:{stringify_param_value(v)}" for k, v in value.items())}}}'  # noqa
+        return f"{{{','.join(f'{k}:{stringify_param_value(v)}' for k, v in value.items())}}}"  # noqa
 
     return str(value)

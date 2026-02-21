@@ -1,25 +1,26 @@
-from typing import List, Dict, Optional
-from .graph_schema import GraphSchema
-from .query_result import QueryResult
-from .execution_plan import ExecutionPlan
+from typing import Any, Dict, List, Optional
+
 from .exceptions import SchemaVersionMismatchException
-from .helpers import quote_string, stringify_param_value
+from .execution_plan import ExecutionPlan
+from .graph_schema import GraphSchema
+from .helpers import stringify_param_value
+from .query_result import QueryResult
 
 # procedures
-GRAPH_INDEXES          = "DB.INDEXES"
+GRAPH_INDEXES = "DB.INDEXES"
 GRAPH_LIST_CONSTRAINTS = "DB.CONSTRAINTS"
 
 # commands
-COPY_CMD      = "GRAPH.COPY"
-QUERY_CMD     = "GRAPH.QUERY"
-DELETE_CMD    = "GRAPH.DELETE"
-EXPLAIN_CMD   = "GRAPH.EXPLAIN"
-SLOWLOG_CMD   = "GRAPH.SLOWLOG"
-PROFILE_CMD   = "GRAPH.PROFILE"
-RO_QUERY_CMD  = "GRAPH.RO_QUERY"
+COPY_CMD = "GRAPH.COPY"
+QUERY_CMD = "GRAPH.QUERY"
+DELETE_CMD = "GRAPH.DELETE"
+EXPLAIN_CMD = "GRAPH.EXPLAIN"
+SLOWLOG_CMD = "GRAPH.SLOWLOG"
+PROFILE_CMD = "GRAPH.PROFILE"
+RO_QUERY_CMD = "GRAPH.RO_QUERY"
 
 
-class Graph():
+class Graph:
     """
     Graph, collection of nodes and edges.
     """
@@ -34,9 +35,9 @@ class Graph():
 
         """
 
-        self._name           = name
-        self.client          = client
-        self.schema          = GraphSchema(self)
+        self._name = name
+        self.client = client
+        self.schema = GraphSchema(self)
         self.execute_command = client.execute_command
 
     @property
@@ -51,8 +52,13 @@ class Graph():
 
         return self._name
 
-    def _query(self, q: str, params: Optional[Dict[str, object]] = None,
-              timeout: Optional[int] = None, read_only: bool = False) -> QueryResult:
+    def _query(
+        self,
+        q: str,
+        params: Optional[Dict[str, object]] = None,
+        timeout: Optional[int] = None,
+        read_only: bool = False,
+    ) -> QueryResult:
         """
         Executes a query against the graph.
         See: https://docs.falkordb.com/commands/graph.query.html
@@ -78,7 +84,7 @@ class Graph():
         # ask for compact result-set format
         # specify known graph version
         cmd = RO_QUERY_CMD if read_only else QUERY_CMD
-        command = [cmd, self.name, query, "--compact"]
+        command: List[Any] = [cmd, self.name, query, "--compact"]
 
         # include timeout is specified
         if isinstance(timeout, int):
@@ -96,8 +102,12 @@ class Graph():
             self.schema.refresh(e.version)
             raise e
 
-    def query(self, q: str, params: Optional[Dict[str, object]] = None,
-              timeout: Optional[int] = None) -> QueryResult:
+    def query(
+        self,
+        q: str,
+        params: Optional[Dict[str, object]] = None,
+        timeout: Optional[int] = None,
+    ) -> QueryResult:
         """
         Executes a query against the graph.
         See: https://docs.falkordb.com/commands/graph.query.html
@@ -114,8 +124,12 @@ class Graph():
 
         return self._query(q, params=params, timeout=timeout, read_only=False)
 
-    def ro_query(self, q: str, params: Optional[Dict[str, object]] = None,
-              timeout: Optional[int] = None) -> QueryResult:
+    def ro_query(
+        self,
+        q: str,
+        params: Optional[Dict[str, object]] = None,
+        timeout: Optional[int] = None,
+    ) -> QueryResult:
         """
         Executes a read-only query against the graph.
         See: https://docs.falkordb.com/commands/graph.ro_query.html
@@ -230,7 +244,7 @@ class Graph():
         plan = self.execute_command(EXPLAIN_CMD, self._name, query)
         return ExecutionPlan(plan)
 
-    def _build_params_header(self, params: dict) -> str:
+    def _build_params_header(self, params: Optional[dict]) -> str:
         """
         Build parameters header.
 
@@ -253,9 +267,13 @@ class Graph():
         return params_header
 
     # procedures
-    def call_procedure(self, procedure: str, read_only: bool = True,
-                       args: Optional[List] = None,
-                       emit: Optional[List[str]] = None) -> QueryResult:
+    def call_procedure(
+        self,
+        procedure: str,
+        read_only: bool = True,
+        args: Optional[List] = None,
+        emit: Optional[List[str]] = None,
+    ) -> QueryResult:
         """
         Call a procedure.
 
@@ -275,14 +293,14 @@ class Graph():
         # args = [quote_string(arg) for arg in args]
 
         params = None
-        if(len(args) > 0):
+        if len(args) > 0:
             params = {}
             # convert arguments to query parameters
             # CALL <proc>(1) -> CYPHER param_0=1 CALL <proc>($param_0)
             for i, arg in enumerate(args):
-                param_name = f'param{i}'
+                param_name = f"param{i}"
                 params[param_name] = arg
-                args[i] = '$' + param_name
+                args[i] = "$" + param_name
 
         q = f"CALL {procedure}({','.join(args)})"
 
@@ -293,8 +311,9 @@ class Graph():
 
     # index operations
 
-    def _drop_index(self, idx_type: str, entity_type: str, label: str,
-                    attribute: str) -> QueryResult:
+    def _drop_index(
+        self, idx_type: str, entity_type: str, label: str, attribute: str
+    ) -> QueryResult:
         """Drop a graph index.
 
         Args:
@@ -413,8 +432,14 @@ class Graph():
         """
         return self.call_procedure(GRAPH_INDEXES)
 
-    def _create_typed_index(self, idx_type: str, entity_type: str, label: str,
-                            *properties: List[str], options=None) -> QueryResult:
+    def _create_typed_index(
+        self,
+        idx_type: str,
+        entity_type: str,
+        label: str,
+        *properties: str,
+        options=None,
+    ) -> QueryResult:
         """Create a typed index for nodes or edges.
 
         Args:
@@ -448,7 +473,7 @@ class Graph():
                 if isinstance(value, str):
                     options_map += key + ":'" + value + "',"
                 else:
-                    options_map += key + ':' + str(value) + ','
+                    options_map += key + ":" + str(value) + ","
             options_map = options_map[:-1] + "}"
             q += f" OPTIONS {options_map}"
 
@@ -480,8 +505,13 @@ class Graph():
         """
         return self._create_typed_index("FULLTEXT", "NODE", label, *properties)
 
-    def create_node_vector_index(self, label: str, *properties, dim: int = 0,
-                                 similarity_function: str = "euclidean") -> QueryResult:
+    def create_node_vector_index(
+        self,
+        label: str,
+        *properties,
+        dim: int = 0,
+        similarity_function: str = "euclidean",
+    ) -> QueryResult:
         """Create a vector index for a node.
         See: https://docs.falkordb.com/commands/graph.query.html#vector-indexing
 
@@ -494,8 +524,10 @@ class Graph():
         Returns:
             Any: The result of the index creation query.
         """
-        options = {'dimension': dim, 'similarityFunction': similarity_function}
-        return self._create_typed_index("VECTOR", "NODE", label, *properties, options=options)
+        options = {"dimension": dim, "similarityFunction": similarity_function}
+        return self._create_typed_index(
+            "VECTOR", "NODE", label, *properties, options=options
+        )
 
     def create_edge_range_index(self, relation: str, *properties) -> QueryResult:
         """Create a range index for an edge.
@@ -523,8 +555,13 @@ class Graph():
         """
         return self._create_typed_index("FULLTEXT", "EDGE", relation, *properties)
 
-    def create_edge_vector_index(self, relation: str, *properties, dim: int = 0,
-                                 similarity_function: str = "euclidean") -> QueryResult:
+    def create_edge_vector_index(
+        self,
+        relation: str,
+        *properties,
+        dim: int = 0,
+        similarity_function: str = "euclidean",
+    ) -> QueryResult:
         """Create a vector index for an edge.
         See: https://docs.falkordb.com/commands/graph.query.html#vector-indexing
 
@@ -537,18 +574,32 @@ class Graph():
         Returns:
             Any: The result of the index creation query.
         """
-        options = {'dimension': dim, 'similarityFunction': similarity_function}
-        return self._create_typed_index("VECTOR", "EDGE", relation, *properties, options=options)
+        options = {"dimension": dim, "similarityFunction": similarity_function}
+        return self._create_typed_index(
+            "VECTOR", "EDGE", relation, *properties, options=options
+        )
 
-    def _create_constraint(self, constraint_type: str, entity_type: str, label: str, *properties):
+    def _create_constraint(
+        self, constraint_type: str, entity_type: str, label: str, *properties
+    ):
         """
         Create a constraint
         """
 
-        # GRAPH.CONSTRAINT CREATE key constraintType {NODE label | RELATIONSHIP reltype} PROPERTIES propCount prop [prop...]
-        return self.execute_command("GRAPH.CONSTRAINT", "CREATE", self.name,
-                                    constraint_type, entity_type, label,
-                                    "PROPERTIES", len(properties), *properties)
+        # GRAPH.CONSTRAINT CREATE key constraintType
+        # {NODE label | RELATIONSHIP reltype}
+        # PROPERTIES propCount prop [prop...]
+        return self.execute_command(
+            "GRAPH.CONSTRAINT",
+            "CREATE",
+            self.name,
+            constraint_type,
+            entity_type,
+            label,
+            "PROPERTIES",
+            len(properties),
+            *properties,
+        )
 
     def create_node_unique_constraint(self, label: str, *properties):
         """
@@ -558,8 +609,9 @@ class Graph():
         The constraint is created asynchronously, use list constraints to pull on
         constraint creation status
 
-        Note: unique constraints require a the existance of a range index
-        over the constraint properties, this function will create any missing range indices
+        Note: unique constraints require the existence of a range
+        index over the constraint properties, this function will
+        create any missing range indices
 
         Args:
             label (str): Node label to apply constraint to
@@ -583,8 +635,9 @@ class Graph():
         The constraint is created asynchronously, use list constraints to pull on
         constraint creation status
 
-        Note: unique constraints require a the existance of a range index
-        over the constraint properties, this function will create any missing range indices
+        Note: unique constraints require the existence of a range
+        index over the constraint properties, this function will
+        create any missing range indices
 
         Args:
             relation (str): Edge relationship-type to apply constraint to
@@ -626,9 +679,13 @@ class Graph():
             relation (str): Edge relationship-type to apply constraint to
             properties: Variable number of property names to constrain
         """
-        return self._create_constraint("MANDATORY", "RELATIONSHIP", relation, *properties)
+        return self._create_constraint(
+            "MANDATORY", "RELATIONSHIP", relation, *properties
+        )
 
-    def _drop_constraint(self, constraint_type: str, entity_type: str, label: str, *properties):
+    def _drop_constraint(
+        self, constraint_type: str, entity_type: str, label: str, *properties
+    ):
         """
         Drops a constraint
 
@@ -639,9 +696,17 @@ class Graph():
         properties: entity's properties to remove constraint from
         """
 
-        return self.execute_command("GRAPH.CONSTRAINT", "DROP", self.name,
-                                    constraint_type, entity_type, label,
-                                    "PROPERTIES", len(properties), *properties)
+        return self.execute_command(
+            "GRAPH.CONSTRAINT",
+            "DROP",
+            self.name,
+            constraint_type,
+            entity_type,
+            label,
+            "PROPERTIES",
+            len(properties),
+            *properties,
+        )
 
     def drop_node_unique_constraint(self, label: str, *properties):
         """
@@ -695,7 +760,7 @@ class Graph():
         """
         return self._drop_constraint("MANDATORY", "RELATIONSHIP", relation, *properties)
 
-    def list_constraints(self) -> [Dict[str, object]]:
+    def list_constraints(self) -> List[Dict[str, object]]:
         """
         Lists graph's constraints
 
@@ -709,10 +774,13 @@ class Graph():
 
         constraints = []
         for row in result:
-            constraints.append({"type":       row[0],
-                                "label":      row[1],
-                                "properties": row[2],
-                                "entitytype": row[3],
-                                "status":     row[4]})
+            constraints.append(
+                {
+                    "type": row[0],
+                    "label": row[1],
+                    "properties": row[2],
+                    "entitytype": row[3],
+                    "status": row[4],
+                }
+            )
         return constraints
-

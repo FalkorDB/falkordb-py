@@ -1,13 +1,15 @@
 import pytest
 from redis import ResponseError
-from falkordb import FalkorDB, Edge, Node, Path, Operation
+
+from falkordb import Edge, FalkorDB, Node, Operation, Path
 
 
 @pytest.fixture
 def client(request):
-    db = FalkorDB(host='localhost', port=6379)
+    db = FalkorDB(host="localhost", port=6379)
     db.flushdb()
     return db.select_graph("graph")
+
 
 def test_graph_creation(client):
     graph = client
@@ -30,8 +32,8 @@ def test_graph_creation(client):
     query = f"CREATE {john}, {japan}, {edge} RETURN p,v,c"
     result = graph.query(query)
 
-    person  = result.result_set[0][0]
-    visit   = result.result_set[0][1]
+    person = result.result_set[0][0]
+    visit = result.result_set[0][1]
     country = result.result_set[0][2]
 
     assert person == john
@@ -55,7 +57,7 @@ def test_array_functions(client):
     a = Node(
         node_id=0,
         labels="person",
-        properties={"name": "a", "age": 32, "array": [0, 1, 2]}
+        properties={"name": "a", "age": 32, "array": [0, 1, 2]},
     )
 
     graph.query(f"CREATE {a}")
@@ -67,9 +69,9 @@ def test_array_functions(client):
 
 
 def test_path(client):
-    graph  = client
-    node0  = Node(alias="node0", node_id=0, labels="L1")
-    node1  = Node(alias="node1", node_id=1, labels="L1")
+    graph = client
+    node0 = Node(alias="node0", node_id=0, labels="L1")
+    node1 = Node(alias="node1", node_id=1, labels="L1")
     edge01 = Edge(node0, "R1", node1, edge_id=0, properties={"value": 1})
 
     graph.query(f"CREATE {node0}, {node1}, {edge01}")
@@ -83,7 +85,7 @@ def test_path(client):
 
 
 def test_vector(client):
-    graph  = client
+    graph = client
     res = graph.query("RETURN vecf32([1.2, 2.3, -1.2, 0.1])").result_set
 
     actual = [round(x, 3) for x in res[0][0]]
@@ -118,15 +120,16 @@ def test_map(client):
 
     assert actual == expected
 
-    src  = Node(alias="src", node_id=0, labels="L1", properties={"v": 0})
-    dest = Node(alias="dest", node_id=1, labels="L2", properties={"v":2})
-    e    = Edge(src, "R1", dest, edge_id=0, properties={"value": 1})
+    src = Node(alias="src", node_id=0, labels="L1", properties={"v": 0})
+    dest = Node(alias="dest", node_id=1, labels="L2", properties={"v": 2})
+    e = Edge(src, "R1", dest, edge_id=0, properties={"value": 1})
     g.query(f"CREATE {src}, {dest}, {e}")
 
     query = "MATCH (src)-[e]->(dest) RETURN {src:src, e:e, dest:dest}"
     actual = g.query(query).result_set[0][0]
-    expected = { "src": src, "e": e, "dest": dest }
+    expected = {"src": src, "e": e, "dest": dest}
     assert actual == expected
+
 
 def test_point(client):
     g = client
@@ -163,9 +166,16 @@ def test_index_response(client):
 def test_stringify_query_result(client):
     g = client
 
-    john = Node(alias="a", labels="person",
-                properties={ "name": "John Doe", "age": 33, "gender": "male",
-                            "status": "single", })
+    john = Node(
+        alias="a",
+        labels="person",
+        properties={
+            "name": "John Doe",
+            "age": 33,
+            "gender": "male",
+            "status": "single",
+        },
+    )
     japan = Node(alias="b", labels="country", properties={"name": "Japan"})
 
     e = Edge(john, "visited", japan, properties={"purpose": "pleasure"})
@@ -182,9 +192,9 @@ def test_stringify_query_result(client):
     query = """MATCH (p:person)-[v:visited {purpose:"pleasure"}]->(c:country)
                RETURN p, v, c"""
 
-    result  = g.query(query)
-    person  = result.result_set[0][0]
-    visit   = result.result_set[0][1]
+    result = g.query(query)
+    person = result.result_set[0][0]
+    visit = result.result_set[0][1]
     country = result.result_set[0][2]
 
     assert (
@@ -387,19 +397,30 @@ def test_cache_sync(client):
 
 def test_execution_plan(client):
     g = client
-    create_query = """CREATE
-                      (:Rider {name:'Valentino Rossi'})-[:rides]->(:Team {name:'Yamaha'}),
-                      (:Rider {name:'Dani Pedrosa'})-[:rides]->(:Team {name:'Honda'}),
-                      (:Rider {name:'Andrea Dovizioso'})-[:rides]->(:Team {name:'Ducati'})"""
+    create_query = (
+        "CREATE"
+        " (:Rider {name:'Valentino Rossi'})"
+        "-[:rides]->(:Team {name:'Yamaha'}),"
+        " (:Rider {name:'Dani Pedrosa'})"
+        "-[:rides]->(:Team {name:'Honda'}),"
+        " (:Rider {name:'Andrea Dovizioso'})"
+        "-[:rides]->(:Team {name:'Ducati'})"
+    )
     g.query(create_query)
 
     result = g.explain(
         """MATCH (r:Rider)-[:rides]->(t:Team)
            WHERE t.name = $name
-           RETURN r.name, t.name, $params""", {"name": "Yehuda"}
+           RETURN r.name, t.name, $params""",
+        {"name": "Yehuda"},
     )
 
-    expected = "Results\n    Project\n        Conditional Traverse | (t)->(r:Rider)\n            Filter\n                Node By Label Scan | (t:Team)"
+    expected = (
+        "Results\n    Project\n        "
+        "Conditional Traverse | (t)->(r:Rider)\n"
+        "            Filter\n"
+        "                Node By Label Scan | (t:Team)"
+    )
     assert str(result) == expected
 
     g.delete()
@@ -408,10 +429,15 @@ def test_execution_plan(client):
 def test_explain(client):
     g = client
     # graph creation / population
-    create_query = """CREATE
-                      (:Rider {name:'Valentino Rossi'})-[:rides]->(:Team {name:'Yamaha'}),
-                      (:Rider {name:'Dani Pedrosa'})-[:rides]->(:Team {name:'Honda'}),
-                      (:Rider {name:'Andrea Dovizioso'})-[:rides]->(:Team {name:'Ducati'})"""
+    create_query = (
+        "CREATE"
+        " (:Rider {name:'Valentino Rossi'})"
+        "-[:rides]->(:Team {name:'Yamaha'}),"
+        " (:Rider {name:'Dani Pedrosa'})"
+        "-[:rides]->(:Team {name:'Honda'}),"
+        " (:Rider {name:'Andrea Dovizioso'})"
+        "-[:rides]->(:Team {name:'Ducati'})"
+    )
     g.query(create_query)
 
     result = g.explain(

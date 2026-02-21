@@ -1,14 +1,17 @@
 import pytest
 from pytest import approx
 from redis import ResponseError
-from falkordb.asyncio import FalkorDB
-from falkordb import Edge, Node, Path, Operation
 from redis.asyncio import BlockingConnectionPool
+
+from falkordb import Edge, Node, Operation, Path
+from falkordb.asyncio import FalkorDB
 
 
 @pytest.mark.asyncio
 async def test_graph_creation():
-    pool = BlockingConnectionPool(max_connections=16, timeout=None, decode_responses=True)
+    pool = BlockingConnectionPool(
+        max_connections=16, timeout=None, decode_responses=True
+    )
     db = FalkorDB(connection_pool=pool)
     graph = db.select_graph("async_graph")
 
@@ -20,7 +23,7 @@ async def test_graph_creation():
             "age": 33,
             "gender": "male",
             "status": "single",
-            },
+        },
     )
 
     japan = Node(alias="c", labels="country", properties={"name": "Japan"})
@@ -30,8 +33,8 @@ async def test_graph_creation():
     query = f"CREATE {john}, {japan}, {edge} RETURN p,v,c"
     result = await graph.query(query)
 
-    person  = result.result_set[0][0]
-    visit   = result.result_set[0][1]
+    person = result.result_set[0][0]
+    visit = result.result_set[0][1]
     country = result.result_set[0][2]
 
     assert person == john
@@ -50,9 +53,12 @@ async def test_graph_creation():
     # close the connection pool
     await pool.aclose()
 
+
 @pytest.mark.asyncio
 async def test_array_functions():
-    pool = BlockingConnectionPool(max_connections=16, timeout=None, decode_responses=True)
+    pool = BlockingConnectionPool(
+        max_connections=16, timeout=None, decode_responses=True
+    )
     db = FalkorDB(connection_pool=pool)
     graph = db.select_graph("async_graph")
 
@@ -65,7 +71,7 @@ async def test_array_functions():
     a = Node(
         node_id=0,
         labels="person",
-        properties={"name": "a", "age": 32, "array": [0, 1, 2]}
+        properties={"name": "a", "age": 32, "array": [0, 1, 2]},
     )
 
     await graph.query(f"CREATE {a}")
@@ -78,16 +84,19 @@ async def test_array_functions():
     # close the connection pool
     await pool.aclose()
 
+
 @pytest.mark.asyncio
 async def test_path():
-    pool = BlockingConnectionPool(max_connections=16, timeout=None, decode_responses=True)
+    pool = BlockingConnectionPool(
+        max_connections=16, timeout=None, decode_responses=True
+    )
     db = FalkorDB(connection_pool=pool)
     graph = db.select_graph("async_graph")
 
     await graph.delete()
 
-    node0  = Node(alias="node0", node_id=0, labels="L1")
-    node1  = Node(alias="node1", node_id=1, labels="L1")
+    node0 = Node(alias="node0", node_id=0, labels="L1")
+    node1 = Node(alias="node1", node_id=1, labels="L1")
     edge01 = Edge(node0, "R1", node1, edge_id=0, properties={"value": 1})
 
     await graph.query(f"CREATE {node0}, {node1}, {edge01}")
@@ -102,9 +111,12 @@ async def test_path():
     # close the connection pool
     await pool.aclose()
 
+
 @pytest.mark.asyncio
 async def test_param():
-    pool = BlockingConnectionPool(max_connections=16, timeout=None, decode_responses=True)
+    pool = BlockingConnectionPool(
+        max_connections=16, timeout=None, decode_responses=True
+    )
     db = FalkorDB(connection_pool=pool)
     graph = db.select_graph("async_graph")
 
@@ -118,9 +130,12 @@ async def test_param():
     # close the connection pool
     await pool.aclose()
 
+
 @pytest.mark.asyncio
 async def test_map():
-    pool = BlockingConnectionPool(max_connections=16, timeout=None, decode_responses=True)
+    pool = BlockingConnectionPool(
+        max_connections=16, timeout=None, decode_responses=True
+    )
     db = FalkorDB(connection_pool=pool)
     g = db.select_graph("async_graph")
 
@@ -139,22 +154,25 @@ async def test_map():
 
     assert actual == expected
 
-    src  = Node(alias="src", node_id=0, labels="L1", properties={"v": 0})
-    dest = Node(alias="dest", node_id=1, labels="L2", properties={"v":2})
-    e    = Edge(src, "R1", dest, edge_id=0, properties={"value": 1})
+    src = Node(alias="src", node_id=0, labels="L1", properties={"v": 0})
+    dest = Node(alias="dest", node_id=1, labels="L2", properties={"v": 2})
+    e = Edge(src, "R1", dest, edge_id=0, properties={"value": 1})
     await g.query(f"CREATE {src}, {dest}, {e}")
 
     query = "MATCH (src)-[e]->(dest) RETURN {src:src, e:e, dest:dest}"
     actual = (await g.query(query)).result_set[0][0]
-    expected = { "src": src, "e": e, "dest": dest }
+    expected = {"src": src, "e": e, "dest": dest}
     assert actual == expected
 
     # close the connection pool
     await pool.aclose()
 
+
 @pytest.mark.asyncio
 async def test_point():
-    pool = BlockingConnectionPool(max_connections=16, timeout=None, decode_responses=True)
+    pool = BlockingConnectionPool(
+        max_connections=16, timeout=None, decode_responses=True
+    )
     db = FalkorDB(connection_pool=pool)
     g = db.select_graph("async_graph")
 
@@ -175,9 +193,12 @@ async def test_point():
     # close the connection pool
     await pool.aclose()
 
+
 @pytest.mark.asyncio
 async def test_index_response():
-    pool = BlockingConnectionPool(max_connections=16, timeout=None, decode_responses=True)
+    pool = BlockingConnectionPool(
+        max_connections=16, timeout=None, decode_responses=True
+    )
     db = FalkorDB(connection_pool=pool)
     g = db.select_graph("async_graph")
 
@@ -196,15 +217,25 @@ async def test_index_response():
     # close the connection pool
     await pool.aclose()
 
+
 @pytest.mark.asyncio
 async def test_stringify_query_result():
-    pool = BlockingConnectionPool(max_connections=16, timeout=None, decode_responses=True)
+    pool = BlockingConnectionPool(
+        max_connections=16, timeout=None, decode_responses=True
+    )
     db = FalkorDB(connection_pool=pool)
     g = db.select_graph("async_graph")
 
-    john = Node(alias="a", labels="person",
-                properties={ "name": "John Doe", "age": 33, "gender": "male",
-                            "status": "single", })
+    john = Node(
+        alias="a",
+        labels="person",
+        properties={
+            "name": "John Doe",
+            "age": 33,
+            "gender": "male",
+            "status": "single",
+        },
+    )
     japan = Node(alias="b", labels="country", properties={"name": "Japan"})
 
     e = Edge(john, "visited", japan, properties={"purpose": "pleasure"})
@@ -221,9 +252,9 @@ async def test_stringify_query_result():
     query = """MATCH (p:person)-[v:visited {purpose:"pleasure"}]->(c:country)
                RETURN p, v, c"""
 
-    result  = await g.query(query)
-    person  = result.result_set[0][0]
-    visit   = result.result_set[0][1]
+    result = await g.query(query)
+    person = result.result_set[0][0]
+    visit = result.result_set[0][1]
     country = result.result_set[0][2]
 
     assert (
@@ -236,9 +267,12 @@ async def test_stringify_query_result():
     # close the connection pool
     await pool.aclose()
 
+
 @pytest.mark.asyncio
 async def test_optional_match():
-    pool = BlockingConnectionPool(max_connections=16, timeout=None, decode_responses=True)
+    pool = BlockingConnectionPool(
+        max_connections=16, timeout=None, decode_responses=True
+    )
     db = FalkorDB(connection_pool=pool)
     g = db.select_graph("async_graph")
 
@@ -266,9 +300,12 @@ async def test_optional_match():
     # close the connection pool
     await pool.aclose()
 
+
 @pytest.mark.asyncio
 async def test_cached_execution():
-    pool = BlockingConnectionPool(max_connections=16, timeout=None, decode_responses=True)
+    pool = BlockingConnectionPool(
+        max_connections=16, timeout=None, decode_responses=True
+    )
     db = FalkorDB(connection_pool=pool)
     g = db.select_graph("async_graph")
 
@@ -281,9 +318,12 @@ async def test_cached_execution():
     # close the connection pool
     await pool.aclose()
 
+
 @pytest.mark.asyncio
 async def test_slowlog():
-    pool = BlockingConnectionPool(max_connections=16, timeout=None, decode_responses=True)
+    pool = BlockingConnectionPool(
+        max_connections=16, timeout=None, decode_responses=True
+    )
     db = FalkorDB(connection_pool=pool)
     g = db.select_graph("async_graph")
 
@@ -300,10 +340,13 @@ async def test_slowlog():
     # close the connection pool
     await pool.aclose()
 
+
 @pytest.mark.xfail(strict=False)
 @pytest.mark.asyncio
 async def test_query_timeout():
-    pool = BlockingConnectionPool(max_connections=16, timeout=None, decode_responses=True)
+    pool = BlockingConnectionPool(
+        max_connections=16, timeout=None, decode_responses=True
+    )
     db = FalkorDB(connection_pool=pool)
     g = db.select_graph("async_graph")
 
@@ -321,9 +364,12 @@ async def test_query_timeout():
     # close the connection pool
     await pool.aclose()
 
+
 @pytest.mark.asyncio
 async def test_read_only_query():
-    pool = BlockingConnectionPool(max_connections=16, timeout=None, decode_responses=True)
+    pool = BlockingConnectionPool(
+        max_connections=16, timeout=None, decode_responses=True
+    )
     db = FalkorDB(connection_pool=pool)
     g = db.select_graph("async_graph")
 
@@ -336,9 +382,12 @@ async def test_read_only_query():
     # close the connection pool
     await pool.aclose()
 
+
 @pytest.mark.asyncio
 async def test_multi_label():
-    pool = BlockingConnectionPool(max_connections=16, timeout=None, decode_responses=True)
+    pool = BlockingConnectionPool(
+        max_connections=16, timeout=None, decode_responses=True
+    )
     db = FalkorDB(connection_pool=pool)
     g = db.select_graph("async_graph")
 
@@ -367,41 +416,63 @@ async def test_multi_label():
     # close the connection pool
     await pool.aclose()
 
+
 @pytest.mark.asyncio
 async def test_execution_plan():
-    pool = BlockingConnectionPool(max_connections=16, timeout=None, decode_responses=True)
+    pool = BlockingConnectionPool(
+        max_connections=16, timeout=None, decode_responses=True
+    )
     db = FalkorDB(connection_pool=pool)
     g = db.select_graph("async_graph")
 
-    create_query = """CREATE
-                      (:Rider {name:'Valentino Rossi'})-[:rides]->(:Team {name:'Yamaha'}),
-                      (:Rider {name:'Dani Pedrosa'})-[:rides]->(:Team {name:'Honda'}),
-                      (:Rider {name:'Andrea Dovizioso'})-[:rides]->(:Team {name:'Ducati'})"""
+    create_query = (
+        "CREATE"
+        " (:Rider {name:'Valentino Rossi'})"
+        "-[:rides]->(:Team {name:'Yamaha'}),"
+        " (:Rider {name:'Dani Pedrosa'})"
+        "-[:rides]->(:Team {name:'Honda'}),"
+        " (:Rider {name:'Andrea Dovizioso'})"
+        "-[:rides]->(:Team {name:'Ducati'})"
+    )
     await g.query(create_query)
 
     result = await g.explain(
         """MATCH (r:Rider)-[:rides]->(t:Team)
            WHERE t.name = $name
-           RETURN r.name, t.name, $params""", {"name": "Yehuda"}
+           RETURN r.name, t.name, $params""",
+        {"name": "Yehuda"},
     )
 
-    expected = "Results\n    Project\n        Conditional Traverse | (t)->(r:Rider)\n            Filter\n                Node By Label Scan | (t:Team)"
+    expected = (
+        "Results\n    Project\n        "
+        "Conditional Traverse | (t)->(r:Rider)\n"
+        "            Filter\n"
+        "                Node By Label Scan | (t:Team)"
+    )
     assert str(result) == expected
 
     # close the connection pool
     await pool.aclose()
 
+
 @pytest.mark.asyncio
 async def test_explain():
-    pool = BlockingConnectionPool(max_connections=16, timeout=None, decode_responses=True)
+    pool = BlockingConnectionPool(
+        max_connections=16, timeout=None, decode_responses=True
+    )
     db = FalkorDB(connection_pool=pool)
     g = db.select_graph("async_graph")
 
     # graph creation / population
-    create_query = """CREATE
-                      (:Rider {name:'Valentino Rossi'})-[:rides]->(:Team {name:'Yamaha'}),
-                      (:Rider {name:'Dani Pedrosa'})-[:rides]->(:Team {name:'Honda'}),
-                      (:Rider {name:'Andrea Dovizioso'})-[:rides]->(:Team {name:'Ducati'})"""
+    create_query = (
+        "CREATE"
+        " (:Rider {name:'Valentino Rossi'})"
+        "-[:rides]->(:Team {name:'Yamaha'}),"
+        " (:Rider {name:'Dani Pedrosa'})"
+        "-[:rides]->(:Team {name:'Honda'}),"
+        " (:Rider {name:'Andrea Dovizioso'})"
+        "-[:rides]->(:Team {name:'Ducati'})"
+    )
     await g.query(create_query)
 
     result = await g.explain(

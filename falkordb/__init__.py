@@ -1,7 +1,8 @@
-from .falkordb       import FalkorDB
-from .node           import Node
-from .edge           import Edge
-from .path           import Path
-from .graph          import Graph
-from .execution_plan import ExecutionPlan, Operation
-from .query_result   import QueryResult
+from .edge import Edge as Edge
+from .execution_plan import ExecutionPlan as ExecutionPlan
+from .execution_plan import Operation as Operation
+from .falkordb import FalkorDB as FalkorDB
+from .graph import Graph as Graph
+from .node import Node as Node
+from .path import Path as Path
+from .query_result import QueryResult as QueryResult

@@ -1,12 +1,13 @@
-[tool.poetry]
+[project]
 name = "FalkorDB"
-version = "1.4.0"
+version = "1.6.0"
 description = "Python client for interacting with FalkorDB database"
-authors = ["FalkorDB inc <info@falkordb.com>"]
+authors = [
+    {name = "FalkorDB inc", email = "info@falkordb.com"}
+]
 readme = "README.md"
-repository = "http://github.com/falkorDB/falkordb-py"
-homepage = "http://falkordb-py.readthedocs.io"
-keywords = ['FalkorDB', 'GraphDB', 'Cypher']
+requires-python = ">=3.10"
+keywords = ["FalkorDB", "GraphDB", "Cypher"]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Environment :: Console",
@@ -24,19 +25,42 @@ classifiers = [
     "Programming Language :: Python :: Implementation :: CPython",
     "Programming Language :: Python :: Implementation :: PyPy",
 ]
+dependencies = [
+    "redis>=7.1.0",
+    "python-dateutil>=2.9.0",
+]
 
-packages = [{include = "falkordb"}]
+[project.optional-dependencies]
+test = [
+    "pytest-cov>=7.0.0",
+    "pytest>=9.0.2",
+    "pytest-asyncio>=1.3.0",
+]
 
-[tool.poetry.dependencies]
-python = "^3.10"
-redis = "^7.1.0"
-python-dateutil = "^2.9.0"
-
-[tool.poetry.group.test.dependencies]
-pytest-cov = "^7.0.0"
-pytest = "^9.0.2"
-pytest-asyncio = "^1.3.0"
+[project.urls]
+Homepage = "http://falkordb-py.readthedocs.io"
+Repository = "http://github.com/falkorDB/falkordb-py"
 
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "ruff>=0.8.0",
+    "mypy>=1.11.0",
+    "types-redis>=4.6.0",  # Type stubs for your redis dependency
+]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 88
+
+[tool.ruff.lint]
+select = ["F", "E", "W", "I"]  # Pyflakes, pycodestyle, isort
+# F catches undefined names (F821)
+
+[tool.mypy]
+python_version = "3.10"
+warn_unused_configs = true
+ignore_missing_imports = true  # Start lenient, tighten later

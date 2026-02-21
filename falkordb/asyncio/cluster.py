@@ -1,8 +1,9 @@
-from redis.asyncio.cluster import RedisCluster
-import redis.exceptions as redis_exceptions
-import redis.asyncio as redis
-import redis as sync_redis
 import socket
+
+import redis as sync_redis  # type: ignore[import-not-found]
+import redis.asyncio as redis  # type: ignore[import-not-found]
+import redis.exceptions as redis_exceptions  # type: ignore[import-not-found]
+from redis.asyncio.cluster import RedisCluster  # type: ignore[import-not-found]
 
 
 # detect if a connection is a cluster

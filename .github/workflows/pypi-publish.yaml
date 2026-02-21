@@ -2,6 +2,7 @@
 name: Release to PYPI
 permissions:
   contents: read
+  id-token: write
 on:
   push:
     tags:
@@ -11,7 +12,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - name: Build and publish to pypi
-        uses: JRubics/poetry-publish@v2.1
-        with:
-          pypi_token: ${{ secrets.PYPI_API_TOKEN }}
+      
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+      
+      - name: Build package
+        run: uv build
+      
+      - name: Publish to PyPI
+        run: uv publish

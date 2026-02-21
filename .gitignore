@@ -1,3 +1,8 @@
 venv
 __pycache__
-poetry.lock
+.venv
+dist/
+*.egg-info/
+.coverage
+coverage.xml
+wordlist.dic

@@ -1,24 +1,24 @@
-from typing import List, Dict, Optional
+from typing import Any, Dict, List, Optional
+
+from falkordb.exceptions import SchemaVersionMismatchException
+from falkordb.execution_plan import ExecutionPlan
+from falkordb.graph import Graph
+
 from .graph_schema import GraphSchema
 from .query_result import QueryResult
-
-from falkordb.graph          import Graph
-from falkordb.helpers        import quote_string, stringify_param_value
-from falkordb.exceptions     import SchemaVersionMismatchException
-from falkordb.execution_plan import ExecutionPlan
 
 # procedures
 GRAPH_INDEXES = "DB.INDEXES"
 GRAPH_LIST_CONSTRAINTS = "DB.CONSTRAINTS"
 
 # commands
-COPY_CMD      = "GRAPH.COPY"
-QUERY_CMD     = "GRAPH.QUERY"
-DELETE_CMD    = "GRAPH.DELETE"
-EXPLAIN_CMD   = "GRAPH.EXPLAIN"
-SLOWLOG_CMD   = "GRAPH.SLOWLOG"
-PROFILE_CMD   = "GRAPH.PROFILE"
-RO_QUERY_CMD  = "GRAPH.RO_QUERY"
+COPY_CMD = "GRAPH.COPY"
+QUERY_CMD = "GRAPH.QUERY"
+DELETE_CMD = "GRAPH.DELETE"
+EXPLAIN_CMD = "GRAPH.EXPLAIN"
+SLOWLOG_CMD = "GRAPH.SLOWLOG"
+PROFILE_CMD = "GRAPH.PROFILE"
+RO_QUERY_CMD = "GRAPH.RO_QUERY"
 
 
 class AsyncGraph(Graph):
@@ -37,10 +37,15 @@ class AsyncGraph(Graph):
         """
 
         super().__init__(client, name)
-        self.schema = GraphSchema(self)
+        self.schema = GraphSchema(self)  # type: ignore[assignment]
 
-    async def _query(self, q: str, params: Optional[Dict[str, object]] = None,
-              timeout: Optional[int] = None, read_only: bool = False) -> QueryResult:
+    async def _query(  # type: ignore[override]
+        self,
+        q: str,
+        params: Optional[Dict[str, object]] = None,
+        timeout: Optional[int] = None,
+        read_only: bool = False,
+    ) -> QueryResult:
         """
         Executes a query asynchronously against the graph.
         See: https://docs.falkordb.com/commands/graph.query.html
@@ -66,7 +71,7 @@ class AsyncGraph(Graph):
         # ask for compact result-set format
         # specify known graph version
         cmd = RO_QUERY_CMD if read_only else QUERY_CMD
-        command = [cmd, self.name, query, "--compact"]
+        command: List[Any] = [cmd, self.name, query, "--compact"]
 
         # include timeout is specified
         if isinstance(timeout, int):
@@ -86,8 +91,12 @@ class AsyncGraph(Graph):
             self.schema.refresh(e.version)
             raise e
 
-    async def query(self, q: str, params: Optional[Dict[str, object]] = None,
-              timeout: Optional[int] = None) -> QueryResult:
+    async def query(  # type: ignore[override]
+        self,
+        q: str,
+        params: Optional[Dict[str, object]] = None,
+        timeout: Optional[int] = None,
+    ) -> QueryResult:
         """
         Executes a query asynchronously against the graph.
         See: https://docs.falkordb.com/commands/graph.query.html
@@ -104,8 +113,12 @@ class AsyncGraph(Graph):
 
         return await self._query(q, params=params, timeout=timeout, read_only=False)
 
-    async def ro_query(self, q: str, params: Optional[Dict[str, object]] = None,
-              timeout: Optional[int] = None) -> QueryResult:
+    async def ro_query(  # type: ignore[override]
+        self,
+        q: str,
+        params: Optional[Dict[str, object]] = None,
+        timeout: Optional[int] = None,
+    ) -> QueryResult:
         """
         Executes a read-only query against the graph.
         See: https://docs.falkordb.com/commands/graph.ro_query.html
@@ -122,7 +135,7 @@ class AsyncGraph(Graph):
 
         return await self._query(q, params=params, timeout=timeout, read_only=True)
 
-    async def copy(self, clone: str):
+    async def copy(self, clone: str):  # type: ignore[override]
         """
         Creates a copy of graph
 
@@ -136,7 +149,7 @@ class AsyncGraph(Graph):
         await self.execute_command(COPY_CMD, self._name, clone)
         return AsyncGraph(self.client, clone)
 
-    async def delete(self) -> None:
+    async def delete(self) -> None:  # type: ignore[override]
         """
         Deletes the graph.
         See: https://docs.falkordb.com/commands/graph.delete.html
@@ -180,7 +193,7 @@ class AsyncGraph(Graph):
         """
         await self.execute_command(SLOWLOG_CMD, self._name, "RESET")
 
-    async def profile(self, query: str, params=None) -> ExecutionPlan:
+    async def profile(self, query: str, params=None) -> ExecutionPlan:  # type: ignore[override]
         """
         Execute a query and produce an execution plan augmented with metrics
         for each operation's execution. Return an execution plan,
@@ -200,7 +213,7 @@ class AsyncGraph(Graph):
         plan = await self.execute_command(PROFILE_CMD, self._name, query)
         return ExecutionPlan(plan)
 
-    async def explain(self, query: str, params=None) -> ExecutionPlan:
+    async def explain(self, query: str, params=None) -> ExecutionPlan:  # type: ignore[override]
         """
         Get the execution plan for a given query.
         GRAPH.EXPLAIN returns an ExecutionPlan object.
@@ -221,9 +234,13 @@ class AsyncGraph(Graph):
         return ExecutionPlan(plan)
 
     # procedures
-    async def call_procedure(self, procedure: str, read_only: bool = True,
-                       args: Optional[List] = None,
-                       emit: Optional[List[str]] = None) -> QueryResult:
+    async def call_procedure(  # type: ignore[override]
+        self,
+        procedure: str,
+        read_only: bool = True,
+        args: Optional[List] = None,
+        emit: Optional[List[str]] = None,
+    ) -> QueryResult:
         """
         Call a procedure.
 
@@ -243,14 +260,14 @@ class AsyncGraph(Graph):
         # args = [quote_string(arg) for arg in args]
 
         params = None
-        if(len(args) > 0):
+        if len(args) > 0:
             params = {}
             # convert arguments to query parameters
             # CALL <proc>(1) -> CYPHER param_0=1 CALL <proc>($param_0)
             for i, arg in enumerate(args):
-                param_name = f'param{i}'
+                param_name = f"param{i}"
                 params[param_name] = arg
-                args[i] = '$' + param_name
+                args[i] = "$" + param_name
 
         q = f"CALL {procedure}({','.join(args)})"
 
@@ -261,8 +278,13 @@ class AsyncGraph(Graph):
 
     # index operations
 
-    async def _drop_index(self, idx_type: str, entity_type: str, label: str,
-                    attribute: str) -> QueryResult:
+    async def _drop_index(  # type: ignore[override]
+        self,
+        idx_type: str,
+        entity_type: str,
+        label: str,
+        attribute: str,
+    ) -> QueryResult:
         """Drop a graph index.
 
         Args:
@@ -294,7 +316,7 @@ class AsyncGraph(Graph):
 
         return await self.query(q)
 
-    async def drop_node_range_index(self, label: str, attribute: str) -> QueryResult:
+    async def drop_node_range_index(self, label: str, attribute: str) -> QueryResult:  # type: ignore[override]
         """Drop a range index for a node.
         See: https://docs.falkordb.com/commands/graph.query.html#deleting-an-index-for-a-node-label
 
@@ -307,7 +329,7 @@ class AsyncGraph(Graph):
         """
         return await self._drop_index("RANGE", "NODE", label, attribute)
 
-    async def drop_node_fulltext_index(self, label: str, attribute: str) -> QueryResult:
+    async def drop_node_fulltext_index(self, label: str, attribute: str) -> QueryResult:  # type: ignore[override]
         """Drop a full-text index for a node.
         See: https://docs.falkordb.com/commands/graph.query.html#deleting-an-index-for-a-node-label
 
@@ -320,7 +342,7 @@ class AsyncGraph(Graph):
         """
         return await self._drop_index("FULLTEXT", "NODE", label, attribute)
 
-    async def drop_node_vector_index(self, label: str, attribute: str) -> QueryResult:
+    async def drop_node_vector_index(self, label: str, attribute: str) -> QueryResult:  # type: ignore[override]
         """Drop a vector index for a node.
         See: https://docs.falkordb.com/commands/graph.query.html#deleting-an-index-for-a-node-label
 
@@ -333,7 +355,7 @@ class AsyncGraph(Graph):
         """
         return await self._drop_index("VECTOR", "NODE", label, attribute)
 
-    async def drop_edge_range_index(self, label: str, attribute: str) -> QueryResult:
+    async def drop_edge_range_index(self, label: str, attribute: str) -> QueryResult:  # type: ignore[override]
         """Drop a range index for an edge.
         See: https://docs.falkordb.com/commands/graph.query.html#deleting-an-index-for-a-relationship-type
 
@@ -346,7 +368,7 @@ class AsyncGraph(Graph):
         """
         return await self._drop_index("RANGE", "EDGE", label, attribute)
 
-    async def drop_edge_fulltext_index(self, label: str, attribute: str) -> QueryResult:
+    async def drop_edge_fulltext_index(self, label: str, attribute: str) -> QueryResult:  # type: ignore[override]
         """Drop a full-text index for an edge.
         See: https://docs.falkordb.com/commands/graph.query.html#deleting-an-index-for-a-relationship-type
 
@@ -359,7 +381,7 @@ class AsyncGraph(Graph):
         """
         return await self._drop_index("FULLTEXT", "EDGE", label, attribute)
 
-    async def drop_edge_vector_index(self, label: str, attribute: str) -> QueryResult:
+    async def drop_edge_vector_index(self, label: str, attribute: str) -> QueryResult:  # type: ignore[override]
         """Drop a vector index for an edge.
         See: https://docs.falkordb.com/commands/graph.query.html#deleting-an-index-for-a-relationship-type
 
@@ -372,7 +394,7 @@ class AsyncGraph(Graph):
         """
         return await self._drop_index("VECTOR", "EDGE", label, attribute)
 
-    async def list_indices(self) -> QueryResult:
+    async def list_indices(self) -> QueryResult:  # type: ignore[override]
         """Retrieve a list of graph indices.
         See: https://docs.falkordb.com/commands/graph.query.html#procedures
 
@@ -381,8 +403,14 @@ class AsyncGraph(Graph):
         """
         return await self.call_procedure(GRAPH_INDEXES)
 
-    async def _create_typed_index(self, idx_type: str, entity_type: str, label: str,
-                            *properties: List[str], options=None) -> QueryResult:
+    async def _create_typed_index(  # type: ignore[override]
+        self,
+        idx_type: str,
+        entity_type: str,
+        label: str,
+        *properties: str,
+        options=None,
+    ) -> QueryResult:
         """Create a typed index for nodes or edges.
 
         Args:
@@ -416,13 +444,13 @@ class AsyncGraph(Graph):
                 if isinstance(value, str):
                     options_map += key + ":'" + value + "',"
                 else:
-                    options_map += key + ':' + str(value) + ','
+                    options_map += key + ":" + str(value) + ","
             options_map = options_map[:-1] + "}"
             q += f" OPTIONS {options_map}"
 
         return await self.query(q)
 
-    async def create_node_range_index(self, label: str, *properties) -> QueryResult:
+    async def create_node_range_index(self, label: str, *properties) -> QueryResult:  # type: ignore[override]
         """Create a range index for a node.
         See: https://docs.falkordb.com/commands/graph.query.html#creating-an-index-for-a-node-label
 
@@ -436,7 +464,7 @@ class AsyncGraph(Graph):
         res = await self._create_typed_index("RANGE", "NODE", label, *properties)
         return res
 
-    async def create_node_fulltext_index(self, label: str, *properties) -> QueryResult:
+    async def create_node_fulltext_index(self, label: str, *properties) -> QueryResult:  # type: ignore[override]
         """Create a full-text index for a node.
         See: https://docs.falkordb.com/commands/graph.query.html#creating-a-full-text-index-for-a-node-label
 
@@ -450,8 +478,13 @@ class AsyncGraph(Graph):
         res = await self._create_typed_index("FULLTEXT", "NODE", label, *properties)
         return res
 
-    async def create_node_vector_index(self, label: str, *properties, dim: int = 0,
-                                 similarity_function: str = "euclidean") -> QueryResult:
+    async def create_node_vector_index(  # type: ignore[override]
+        self,
+        label: str,
+        *properties,
+        dim: int = 0,
+        similarity_function: str = "euclidean",
+    ) -> QueryResult:
         """Create a vector index for a node.
         See: https://docs.falkordb.com/commands/graph.query.html#vector-indexing
 
@@ -464,11 +497,13 @@ class AsyncGraph(Graph):
         Returns:
             Any: The result of the index creation query.
         """
-        options = {'dimension': dim, 'similarityFunction': similarity_function}
-        res = await self._create_typed_index("VECTOR", "NODE", label, *properties, options=options)
+        options = {"dimension": dim, "similarityFunction": similarity_function}
+        res = await self._create_typed_index(
+            "VECTOR", "NODE", label, *properties, options=options
+        )
         return res
 
-    async def create_edge_range_index(self, relation: str, *properties) -> QueryResult:
+    async def create_edge_range_index(self, relation: str, *properties) -> QueryResult:  # type: ignore[override]
         """Create a range index for an edge.
         See: https://docs.falkordb.com/commands/graph.query.html#creating-an-index-for-a-relationship-type
 
@@ -482,7 +517,9 @@ class AsyncGraph(Graph):
         res = await self._create_typed_index("RANGE", "EDGE", relation, *properties)
         return res
 
-    async def create_edge_fulltext_index(self, relation: str, *properties) -> QueryResult:
+    async def create_edge_fulltext_index(  # type: ignore[override]
+        self, relation: str, *properties
+    ) -> QueryResult:
         """Create a full-text index for an edge.
         See: https://docs.falkordb.com/commands/graph.query.html#full-text-indexing
 
@@ -496,8 +533,13 @@ class AsyncGraph(Graph):
         res = await self._create_typed_index("FULLTEXT", "EDGE", relation, *properties)
         return res
 
-    async def create_edge_vector_index(self, relation: str, *properties, dim: int = 0,
-                                 similarity_function: str = "euclidean") -> QueryResult:
+    async def create_edge_vector_index(  # type: ignore[override]
+        self,
+        relation: str,
+        *properties,
+        dim: int = 0,
+        similarity_function: str = "euclidean",
+    ) -> QueryResult:
         """Create a vector index for an edge.
         See: https://docs.falkordb.com/commands/graph.query.html#vector-indexing
 
@@ -510,19 +552,33 @@ class AsyncGraph(Graph):
         Returns:
             Any: The result of the index creation query.
         """
-        options = {'dimension': dim, 'similarityFunction': similarity_function}
-        res = await self._create_typed_index("VECTOR", "EDGE", relation, *properties, options=options)
+        options = {"dimension": dim, "similarityFunction": similarity_function}
+        res = await self._create_typed_index(
+            "VECTOR", "EDGE", relation, *properties, options=options
+        )
         return res
 
-    async def _create_constraint(self, constraint_type: str, entity_type: str, label: str, *properties):
+    async def _create_constraint(
+        self, constraint_type: str, entity_type: str, label: str, *properties
+    ):
         """
         Create a constraint
         """
 
-        # GRAPH.CONSTRAINT CREATE key constraintType {NODE label | RELATIONSHIP reltype} PROPERTIES propCount prop [prop...]
-        return await self.execute_command("GRAPH.CONSTRAINT", "CREATE", self.name,
-                                    constraint_type, entity_type, label,
-                                    "PROPERTIES", len(properties), *properties)
+        # GRAPH.CONSTRAINT CREATE key constraintType
+        # {NODE label | RELATIONSHIP reltype}
+        # PROPERTIES propCount prop [prop...]
+        return await self.execute_command(
+            "GRAPH.CONSTRAINT",
+            "CREATE",
+            self.name,
+            constraint_type,
+            entity_type,
+            label,
+            "PROPERTIES",
+            len(properties),
+            *properties,
+        )
 
     async def create_node_unique_constraint(self, label: str, *properties):
         """
@@ -532,8 +588,9 @@ class AsyncGraph(Graph):
         The constraint is created asynchronously, use list constraints to pull on
         constraint creation status
 
-        Note: unique constraints require a the existance of a range index
-        over the constraint properties, this function will create any missing range indices
+        Note: unique constraints require the existence of a range
+        index over the constraint properties, this function will
+        create any missing range indices
 
         Args:
             label (str): Node label to apply constraint to
@@ -557,8 +614,9 @@ class AsyncGraph(Graph):
         The constraint is created asynchronously, use list constraints to pull on
         constraint creation status
 
-        Note: unique constraints require a the existance of a range index
-        over the constraint properties, this function will create any missing range indices
+        Note: unique constraints require the existence of a range
+        index over the constraint properties, this function will
+        create any missing range indices
 
         Args:
             relation (str): Edge relationship-type to apply constraint to
@@ -571,7 +629,9 @@ class AsyncGraph(Graph):
         except Exception:
             pass
 
-        return await self._create_constraint("UNIQUE", "RELATIONSHIP", relation, *properties)
+        return await self._create_constraint(
+            "UNIQUE", "RELATIONSHIP", relation, *properties
+        )
 
     async def create_node_mandatory_constraint(self, label: str, *properties):
         """
@@ -600,9 +660,13 @@ class AsyncGraph(Graph):
             relation (str): Edge relationship-type to apply constraint to
             properties: Variable number of property names to constrain
         """
-        return await self._create_constraint("MANDATORY", "RELATIONSHIP", relation, *properties)
+        return await self._create_constraint(
+            "MANDATORY", "RELATIONSHIP", relation, *properties
+        )
 
-    async def _drop_constraint(self, constraint_type: str, entity_type: str, label: str, *properties):
+    async def _drop_constraint(
+        self, constraint_type: str, entity_type: str, label: str, *properties
+    ):
         """
         Drops a constraint
 
@@ -613,9 +677,17 @@ class AsyncGraph(Graph):
         properties: entity's properties to remove constraint from
         """
 
-        return await self.execute_command("GRAPH.CONSTRAINT", "DROP", self.name,
-                                    constraint_type, entity_type, label,
-                                    "PROPERTIES", len(properties), *properties)
+        return await self.execute_command(
+            "GRAPH.CONSTRAINT",
+            "DROP",
+            self.name,
+            constraint_type,
+            entity_type,
+            label,
+            "PROPERTIES",
+            len(properties),
+            *properties,
+        )
 
     async def drop_node_unique_constraint(self, label: str, *properties):
         """
@@ -644,7 +716,9 @@ class AsyncGraph(Graph):
             properties: properties to remove constraint from
         """
 
-        return await self._drop_constraint("UNIQUE", "RELATIONSHIP", relation, *properties)
+        return await self._drop_constraint(
+            "UNIQUE", "RELATIONSHIP", relation, *properties
+        )
 
     async def drop_node_mandatory_constraint(self, label: str, *properties):
         """
@@ -667,9 +741,11 @@ class AsyncGraph(Graph):
             label (str): Edge relationship-type to remove the constraint from
             properties: properties to remove constraint from
         """
-        return await self._drop_constraint("MANDATORY", "RELATIONSHIP", relation, *properties)
+        return await self._drop_constraint(
+            "MANDATORY", "RELATIONSHIP", relation, *properties
+        )
 
-    async def list_constraints(self) -> [Dict[str, object]]:
+    async def list_constraints(self) -> List[Dict[str, object]]:  # type: ignore[override]
         """
         Lists graph's constraints
 
@@ -683,10 +759,13 @@ class AsyncGraph(Graph):
 
         constraints = []
         for row in result:
-            constraints.append({"type":       row[0],
-                                "label":      row[1],
-                                "properties": row[2],
-                                "entitytype": row[3],
-                                "status":     row[4]})
+            constraints.append(
+                {
+                    "type": row[0],
+                    "label": row[1],
+                    "properties": row[2],
+                    "entitytype": row[3],
+                    "status": row[4],
+                }
+            )
         return constraints
-
