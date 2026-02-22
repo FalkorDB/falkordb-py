@@ -159,9 +159,7 @@ class FalkorDB:
                 single_connection_client=single_connection_client,
                 health_check_interval=health_check_interval,
                 client_name=client_name,
-                driver_info=DriverInfo(
-                    lib_name, lib_version or get_package_version()
-                ),
+                driver_info=DriverInfo(lib_name, lib_version or get_package_version()),
                 username=username,
                 retry=retry,
                 redis_connect_func=connect_func,
@@ -201,8 +199,9 @@ class FalkorDB:
             # best-effort close — don't raise on Redis errors
             pass
 
-        if self._embedded_server is not None:
-            self._embedded_server.stop()
+        server = getattr(self, "_embedded_server", None)
+        if server is not None:
+            server.stop()
             self._embedded_server = None
 
     def __enter__(self) -> "FalkorDB":
