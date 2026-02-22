@@ -31,6 +31,8 @@ class FalkorDB:
         print(node.properties['name'])
     """
 
+    _embedded_server = None
+
     def __init__(
         self,
         host="localhost",

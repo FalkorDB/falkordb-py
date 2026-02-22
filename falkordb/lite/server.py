@@ -75,10 +75,12 @@ class EmbeddedServer:
                     conn = redis.Redis(
                         unix_socket_path=self._socket_path, decode_responses=True
                     )
-                    conn.ping()
-                    conn.close()
-                    self._close_stderr_file()
-                    return
+                    try:
+                        conn.ping()
+                        self._close_stderr_file()
+                        return
+                    finally:
+                        conn.close()
                 except redis.ConnectionError:
                     pass
             time.sleep(0.05)
@@ -137,4 +139,6 @@ class EmbeddedServer:
         try:
             self.stop()
         except Exception:
+            # Best-effort cleanup: __del__ must never raise, and during
+            # interpreter shutdown resources may already be torn down.
             pass

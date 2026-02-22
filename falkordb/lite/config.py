@@ -49,6 +49,11 @@ def generate_config(
             raise ValueError("'loadmodule' is reserved and cannot be overridden")
         config.update(user_config)
 
+    # Ensure port remains disabled when using unix socket
+    # (must be after user_config to prevent accidental override)
+    if unix_socket_path:
+        config["port"] = "0"
+
     config["loadmodule"] = str(falkordb_module_path)
 
     lines = []
@@ -59,6 +64,9 @@ def generate_config(
                     lines.append(f"save {rule[0]} {rule[1]}")
                 else:
                     lines.append(f"save {rule}")
+            continue
+        if isinstance(value, str) and value == "":
+            lines.append(f'{key} ""')
             continue
         lines.append(f"{key} {value}")
 

@@ -1,3 +1,4 @@
+import gc
 import subprocess
 
 import pytest
@@ -226,4 +227,5 @@ def test_del_swallows_stop_exceptions(tmp_path, monkeypatch):
         server, "stop", lambda: (_ for _ in ()).throw(RuntimeError("boom"))
     )
 
-    server.__del__()
+    del server
+    gc.collect()
