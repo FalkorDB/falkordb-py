@@ -65,7 +65,7 @@ async def test_from_url():
     g = db.select_graph("async_db")
     one = (await g.query("RETURN 1")).result_set[0][0]
     assert one == 1
-    await db.connection.aclose()
+    await db.aclose()
 
     # Test connection with host and port
     db = FalkorDB.from_url("falkor://localhost:6379")
@@ -76,7 +76,7 @@ async def test_from_url():
     assert one == 1
     assert header[0][0] == 1
     assert header[0][1] == "1"
-    await db.connection.aclose()
+    await db.aclose()
 
     # Test SSL URL parsing (falkors:// scheme)
     # We can't test actual SSL connection without a proper SSL server,
