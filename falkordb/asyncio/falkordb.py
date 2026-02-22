@@ -142,20 +142,16 @@ class FalkorDB:
         db = FalkorDB.from_url("unix://[username@]/path/to/socket.sock?db=0[&password=password]")
         """
 
-        db = cls()
-
         # switch from redis:// to falkordb://
         if url.startswith("falkor://"):
             url = "redis://" + url[len("falkor://") :]
         elif url.startswith("falkors://"):
             url = "rediss://" + url[len("falkors://") :]
 
+        kwargs["decode_responses"] = True
         conn = redis.from_url(url, **kwargs)
-        db.connection = conn
-        db.flushdb = conn.flushdb
-        db.execute_command = conn.execute_command
 
-        return db
+        return cls(connection_pool=conn.connection_pool)
 
     def select_graph(self, graph_id: str) -> AsyncGraph:
         """
