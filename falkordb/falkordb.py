@@ -1,13 +1,19 @@
-import redis
-from .cluster import *
-from .sentinel import *
+from typing import List, Optional, Union
+
+import redis  # type: ignore[import-not-found]
+from redis.driver_info import DriverInfo
+from redis.exceptions import RedisError
+
+from ._version import get_package_version
+from .cluster import Cluster_Conn, Is_Cluster
 from .graph import Graph
-from typing import List, Union, Optional
+from .sentinel import Is_Sentinel, Sentinel_Conn
 
 # config commands
-UDF_CMD    = "GRAPH.UDF"
-LIST_CMD   = "GRAPH.LIST"
+UDF_CMD = "GRAPH.UDF"
+LIST_CMD = "GRAPH.LIST"
 CONFIG_CMD = "GRAPH.CONFIG"
+
 
 class FalkorDB:
     """
@@ -153,8 +159,9 @@ class FalkorDB:
                 single_connection_client=single_connection_client,
                 health_check_interval=health_check_interval,
                 client_name=client_name,
-                lib_name=lib_name,
-                lib_version=lib_version,
+                driver_info=DriverInfo(
+                    lib_name, lib_version or get_package_version()
+                ),
                 username=username,
                 retry=retry,
                 redis_connect_func=connect_func,
@@ -185,24 +192,27 @@ class FalkorDB:
         self.execute_command = conn.execute_command
 
     def close(self) -> None:
-        """Close the current DB connection and stop the embedded server if present."""
-        if hasattr(self, "connection") and self.connection is not None:
+        """Close the underlying connection(s) and stop the embedded server
+        if present."""
+
+        try:
             self.connection.close()
+        except RedisError:
+            # best-effort close — don't raise on Redis errors
+            pass
+
         if self._embedded_server is not None:
             self._embedded_server.stop()
             self._embedded_server = None
 
     def __enter__(self) -> "FalkorDB":
+        """Return self to support usage in a with-statement."""
+
         return self
 
-    def __exit__(self, exc_type, exc, tb):
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+        """Close the connection when exiting a with-statement."""
         self.close()
-
-    def __del__(self):
-        try:
-            self.close()
-        except Exception:
-            pass
 
     @classmethod
     def from_url(cls, url: str, **kwargs) -> "FalkorDB":
@@ -212,7 +222,8 @@ class FalkorDB:
         Args:
             cls: The class itself.
             url (str): The URL.
-            kwargs: Additional keyword arguments to pass to the ``DB.from_url`` function.
+            kwargs: Additional keyword arguments to pass to the
+                ``DB.from_url`` function.
 
         Returns:
             DB: A new DB instance.
@@ -313,8 +324,8 @@ class FalkorDB:
         Args:
             name (str): The name of the library to load.
             script (str): The UDF script contents.
-            replace (bool, optional): If True, replace an existing library with the same name.
-                                      Defaults to False.
+            replace (bool, optional): If True, replace an existing
+                library with the same name. Defaults to False.
         """
 
         # prep arguments
@@ -340,9 +351,10 @@ class FalkorDB:
         List User Defined Function (UDF) libraries.
 
         Args:
-            lib (str, optional): If provided, filter the list to this specific library.
-            with_code (bool, optional): If True, include the library source code in the result.
-                                        Defaults to False.
+            lib (str, optional): If provided, filter the list to
+                this specific library.
+            with_code (bool, optional): If True, include the library
+                source code in the result. Defaults to False.
 
         Returns:
             list: A list of UDF libraries and their metadata.

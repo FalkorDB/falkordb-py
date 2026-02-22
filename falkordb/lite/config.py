@@ -2,9 +2,9 @@
 
 import os
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
-DEFAULT_CONFIG = {
+DEFAULT_CONFIG: dict[str, Any] = {
     "bind": "127.0.0.1",
     "port": "0",
     "save": "",
@@ -14,7 +14,7 @@ DEFAULT_CONFIG = {
     "databases": "16",
 }
 
-PERSISTENT_OVERRIDES = {
+PERSISTENT_OVERRIDES: dict[str, Any] = {
     "save": [("900", "1"), ("300", "10"), ("60", "10000")],
     "appendonly": "yes",
     "appendfsync": "everysec",
@@ -25,10 +25,10 @@ def generate_config(
     falkordb_module_path: Path,
     db_path: Optional[str] = None,
     unix_socket_path: Optional[str] = None,
-    user_config: Optional[dict] = None,
+    user_config: Optional[dict[str, Any]] = None,
 ) -> str:
     """Return redis.conf content for embedded mode."""
-    config = dict(DEFAULT_CONFIG)
+    config: dict[str, Any] = dict(DEFAULT_CONFIG)
 
     if db_path:
         abs_db_path = os.path.abspath(db_path)

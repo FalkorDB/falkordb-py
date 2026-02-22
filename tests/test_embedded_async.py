@@ -26,9 +26,12 @@ async def test_async_embedded_defaults_to_pool_of_16(monkeypatch):
     db = FalkorDB(embedded=True)
     assert db.connection.connection_pool.max_connections == 16
     assert db.connection.connection_pool.timeout == 5.0
-    assert db.connection.connection_pool.connection_kwargs["path"] == dummy_server.unix_socket_path
+    assert (
+        db.connection.connection_pool.connection_kwargs["path"]
+        == dummy_server.unix_socket_path
+    )
 
-    await db.close()
+    await db.aclose()
     assert dummy_server.stopped is True
 
 
@@ -42,7 +45,7 @@ async def test_async_embedded_uses_custom_acquire_timeout(monkeypatch):
 
     db = FalkorDB(embedded=True, connection_acquire_timeout=1.25)
     assert db.connection.connection_pool.timeout == 1.25
-    await db.close()
+    await db.aclose()
 
 
 @pytest.mark.asyncio

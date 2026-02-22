@@ -1,13 +1,14 @@
 """Embedded redis-server lifecycle management for FalkorDB."""
 
 import atexit
+import io
 import os
 import shutil
 import subprocess
 import tempfile
 import time
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 import redis
 
@@ -25,11 +26,11 @@ class EmbeddedServer:
     def __init__(
         self,
         db_path: Optional[str] = None,
-        config: Optional[dict] = None,
+        config: Optional[dict[str, Any]] = None,
         startup_timeout: float = 10.0,
     ):
-        self._process = None
-        self._stderr_file = None
+        self._process: Optional[subprocess.Popen[bytes]] = None
+        self._stderr_file: Optional[io.TextIOWrapper] = None
         self._db_path = db_path
         self._startup_timeout = startup_timeout
         self._tmpdir = tempfile.mkdtemp(prefix="falkordb_")
@@ -65,12 +66,15 @@ class EmbeddedServer:
                 stderr = self._read_stderr()
                 self._close_stderr_file()
                 raise EmbeddedServerError(
-                    f"redis-server exited with code {self._process.returncode}: {stderr}"
+                    f"redis-server exited with code "
+                    f"{self._process.returncode}: {stderr}"
                 )
 
             if os.path.exists(self._socket_path):
                 try:
-                    conn = redis.Redis(unix_socket_path=self._socket_path, decode_responses=True)
+                    conn = redis.Redis(
+                        unix_socket_path=self._socket_path, decode_responses=True
+                    )
                     conn.ping()
                     conn.close()
                     self._close_stderr_file()
@@ -93,7 +97,9 @@ class EmbeddedServer:
         if self._process is not None and self._process.poll() is None:
             conn = None
             try:
-                conn = redis.Redis(unix_socket_path=self._socket_path, decode_responses=True)
+                conn = redis.Redis(
+                    unix_socket_path=self._socket_path, decode_responses=True
+                )
                 try:
                     conn.shutdown(nosave=not bool(self._db_path))
                 except redis.exceptions.ConnectionError:

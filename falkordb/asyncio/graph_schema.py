@@ -1,19 +1,16 @@
-from typing import List
-from falkordb.exceptions import SchemaVersionMismatchException
-
 # procedures
-DB_LABELS             = "DB.LABELS"
-DB_PROPERTYKEYS       = "DB.PROPERTYKEYS"
-DB_RELATIONSHIPTYPES  = "DB.RELATIONSHIPTYPES"
+DB_LABELS = "DB.LABELS"
+DB_PROPERTYKEYS = "DB.PROPERTYKEYS"
+DB_RELATIONSHIPTYPES = "DB.RELATIONSHIPTYPES"
 
 
-class GraphSchema():
+class GraphSchema:
     """
     The graph schema.
     Maintains the labels, properties and relationships of the graph.
     """
 
-    def __init__(self, graph: 'Graph'):
+    def __init__(self, graph):
         """
         Initialize the graph schema.
 
@@ -21,7 +18,7 @@ class GraphSchema():
             graph (Graph): The graph.
 
         Returns:
-           GraphSchema: The graph schema. 
+           GraphSchema: The graph schema.
         """
 
         self.graph = graph
@@ -36,9 +33,9 @@ class GraphSchema():
 
         """
 
-        self.version       = 0
-        self.labels        = []
-        self.properties    = []
+        self.version = 0
+        self.labels = []
+        self.properties = []
         self.relationships = []
 
     async def refresh_labels(self) -> None:
@@ -51,7 +48,7 @@ class GraphSchema():
         """
 
         result_set = (await self.graph.call_procedure(DB_LABELS)).result_set
-        self.labels = [l[0] for l in result_set]
+        self.labels = [label[0] for label in result_set]
 
     async def refresh_relations(self) -> None:
         """
@@ -108,12 +105,12 @@ class GraphSchema():
         """
 
         try:
-            l = self.labels[idx]
+            label = self.labels[idx]
         except IndexError:
             # refresh labels
             await self.refresh_labels()
-            l = self.labels[idx]
-        return l
+            label = self.labels[idx]
+        return label
 
     async def get_relation(self, idx: int) -> str:
         """
