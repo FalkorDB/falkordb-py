@@ -4,5 +4,7 @@ __pycache__
 dist/
 *.egg-info/
 .coverage
+htmlcov/
+.pytest_cache/
 coverage.xml
 wordlist.dic
