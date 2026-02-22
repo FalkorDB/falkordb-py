@@ -31,7 +31,10 @@ def test_embedded_defaults_to_pool_of_16(monkeypatch):
 
     db = FalkorDB(embedded=True)
     assert db.connection.connection_pool.max_connections == 16
-    assert db.connection.connection_pool.connection_kwargs["path"] == dummy_server.unix_socket_path
+    assert (
+        db.connection.connection_pool.connection_kwargs["path"]
+        == dummy_server.unix_socket_path
+    )
 
     db.close()
     assert dummy_server.stopped is True
@@ -65,7 +68,9 @@ def test_embedded_passes_config_and_db_path(monkeypatch):
 
 def test_context_manager_closes_embedded_server(monkeypatch):
     dummy_server = DummyServer()
-    monkeypatch.setattr("falkordb.lite.server.EmbeddedServer", lambda *args, **kwargs: dummy_server)
+    monkeypatch.setattr(
+        "falkordb.lite.server.EmbeddedServer", lambda *args, **kwargs: dummy_server
+    )
     monkeypatch.setattr("falkordb.falkordb.Is_Sentinel", lambda _conn: False)
     monkeypatch.setattr("falkordb.falkordb.Is_Cluster", lambda _conn: False)
 

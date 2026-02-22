@@ -34,4 +34,3 @@ def get_falkordb_module_path() -> Path:
     if not path.exists():
         raise BinaryNotFoundError(f"FalkorDB module binary was not found at: {path}")
     return path
-

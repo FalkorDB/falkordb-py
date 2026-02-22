@@ -32,7 +32,9 @@ def test_get_redis_server_path_success(monkeypatch, tmp_path):
 
 
 def test_get_redis_server_path_missing_file(monkeypatch, tmp_path):
-    module = DummyBinModule(str(tmp_path / "missing-redis"), str(tmp_path / "falkordb.so"))
+    module = DummyBinModule(
+        str(tmp_path / "missing-redis"), str(tmp_path / "falkordb.so")
+    )
     monkeypatch.setitem(sys.modules, "falkordb_bin", module)
 
     with pytest.raises(BinaryNotFoundError, match="redis-server binary was not found"):
@@ -50,15 +52,21 @@ def test_get_falkordb_module_path_success(monkeypatch, tmp_path):
 
 
 def test_get_falkordb_module_path_missing_file(monkeypatch, tmp_path):
-    module = DummyBinModule(str(tmp_path / "redis-server"), str(tmp_path / "missing-module.so"))
+    module = DummyBinModule(
+        str(tmp_path / "redis-server"), str(tmp_path / "missing-module.so")
+    )
     monkeypatch.setitem(sys.modules, "falkordb_bin", module)
 
-    with pytest.raises(BinaryNotFoundError, match="FalkorDB module binary was not found"):
+    with pytest.raises(
+        BinaryNotFoundError, match="FalkorDB module binary was not found"
+    ):
         get_falkordb_module_path()
 
 
 def test_missing_lite_dependency_raises(monkeypatch):
     monkeypatch.delitem(sys.modules, "falkordb_bin", raising=False)
 
-    with pytest.raises(BinaryNotFoundError, match="Install with: pip install falkordb\\[lite\\]"):
+    with pytest.raises(
+        BinaryNotFoundError, match="Install with: pip install falkordb\\[lite\\]"
+    ):
         get_redis_server_path()

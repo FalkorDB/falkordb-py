@@ -67,18 +67,29 @@ def test_init_wires_config_and_registers_atexit(monkeypatch, tmp_path):
     redis_server_path = tmp_path / "redis-server"
     module_path = tmp_path / "falkordb.so"
 
-    monkeypatch.setattr("falkordb.lite.server.get_redis_server_path", lambda: redis_server_path)
-    monkeypatch.setattr("falkordb.lite.server.get_falkordb_module_path", lambda: module_path)
+    monkeypatch.setattr(
+        "falkordb.lite.server.get_redis_server_path", lambda: redis_server_path
+    )
+    monkeypatch.setattr(
+        "falkordb.lite.server.get_falkordb_module_path", lambda: module_path
+    )
 
     def fake_generate_config(**kwargs):
         calls["generate_config"] = kwargs
         return "port 0\n"
 
     monkeypatch.setattr("falkordb.lite.server.generate_config", fake_generate_config)
-    monkeypatch.setattr("falkordb.lite.server.EmbeddedServer._start", lambda self, redis_server: calls.update({"start": redis_server}))
-    monkeypatch.setattr("falkordb.lite.server.atexit.register", lambda fn: calls.update({"atexit": fn}))
+    monkeypatch.setattr(
+        "falkordb.lite.server.EmbeddedServer._start",
+        lambda self, redis_server: calls.update({"start": redis_server}),
+    )
+    monkeypatch.setattr(
+        "falkordb.lite.server.atexit.register", lambda fn: calls.update({"atexit": fn})
+    )
 
-    server = EmbeddedServer(db_path="/tmp/demo.rdb", config={"maxmemory": "1gb"}, startup_timeout=3.0)
+    server = EmbeddedServer(
+        db_path="/tmp/demo.rdb", config={"maxmemory": "1gb"}, startup_timeout=3.0
+    )
 
     assert calls["generate_config"]["falkordb_module_path"] == module_path
     assert calls["generate_config"]["db_path"] == "/tmp/demo.rdb"
@@ -90,7 +101,10 @@ def test_init_wires_config_and_registers_atexit(monkeypatch, tmp_path):
 def test_start_raises_with_stderr_content(monkeypatch, tmp_path):
     server = _make_server(tmp_path)
 
-    monkeypatch.setattr("falkordb.lite.server.subprocess.Popen", lambda *args, **kwargs: DummyProcess(poll_result=1))
+    monkeypatch.setattr(
+        "falkordb.lite.server.subprocess.Popen",
+        lambda *args, **kwargs: DummyProcess(poll_result=1),
+    )
     monkeypatch.setattr(server, "_read_stderr", lambda: "boom")
 
     with pytest.raises(EmbeddedServerError, match="boom"):
@@ -102,9 +116,15 @@ def test_start_success_when_socket_is_ready(monkeypatch, tmp_path):
     process = DummyProcess(poll_result=None)
     conn = DummyConn()
 
-    monkeypatch.setattr("falkordb.lite.server.subprocess.Popen", lambda *args, **kwargs: process)
-    monkeypatch.setattr("falkordb.lite.server.os.path.exists", lambda path: path == server._socket_path)
-    monkeypatch.setattr("falkordb.lite.server.redis.Redis", lambda *args, **kwargs: conn)
+    monkeypatch.setattr(
+        "falkordb.lite.server.subprocess.Popen", lambda *args, **kwargs: process
+    )
+    monkeypatch.setattr(
+        "falkordb.lite.server.os.path.exists", lambda path: path == server._socket_path
+    )
+    monkeypatch.setattr(
+        "falkordb.lite.server.redis.Redis", lambda *args, **kwargs: conn
+    )
 
     server._start(tmp_path / "redis-server")
     assert conn.ping_called is True
@@ -116,10 +136,14 @@ def test_start_timeout_calls_stop(monkeypatch, tmp_path):
     process = DummyProcess(poll_result=None)
     called = {"stop": False}
 
-    monkeypatch.setattr("falkordb.lite.server.subprocess.Popen", lambda *args, **kwargs: process)
+    monkeypatch.setattr(
+        "falkordb.lite.server.subprocess.Popen", lambda *args, **kwargs: process
+    )
     monkeypatch.setattr("falkordb.lite.server.os.path.exists", lambda path: False)
     monotonic_values = iter([1.0, 1.0, 1.02])
-    monkeypatch.setattr("falkordb.lite.server.time.monotonic", lambda: next(monotonic_values))
+    monkeypatch.setattr(
+        "falkordb.lite.server.time.monotonic", lambda: next(monotonic_values)
+    )
     monkeypatch.setattr("falkordb.lite.server.time.sleep", lambda _seconds: None)
     monkeypatch.setattr(server, "stop", lambda: called.update({"stop": True}))
 
@@ -133,7 +157,9 @@ def test_stop_ignores_connection_error_on_shutdown(monkeypatch, tmp_path):
     server._process = DummyProcess(poll_result=None)
     conn = DummyConn(shutdown_exc=redis.exceptions.ConnectionError("expected"))
 
-    monkeypatch.setattr("falkordb.lite.server.redis.Redis", lambda *args, **kwargs: conn)
+    monkeypatch.setattr(
+        "falkordb.lite.server.redis.Redis", lambda *args, **kwargs: conn
+    )
 
     server.stop()
     assert conn.closed is True
@@ -146,7 +172,9 @@ def test_stop_terminates_on_unexpected_shutdown_error(monkeypatch, tmp_path):
     server._process = process
     conn = DummyConn(shutdown_exc=RuntimeError("unexpected"))
 
-    monkeypatch.setattr("falkordb.lite.server.redis.Redis", lambda *args, **kwargs: conn)
+    monkeypatch.setattr(
+        "falkordb.lite.server.redis.Redis", lambda *args, **kwargs: conn
+    )
 
     server.stop()
     assert process.terminated is True
@@ -160,7 +188,9 @@ def test_stop_kills_process_on_wait_timeout(monkeypatch, tmp_path):
     server._process = process
     conn = DummyConn()
 
-    monkeypatch.setattr("falkordb.lite.server.redis.Redis", lambda *args, **kwargs: conn)
+    monkeypatch.setattr(
+        "falkordb.lite.server.redis.Redis", lambda *args, **kwargs: conn
+    )
 
     server.stop()
     assert process.killed is True
@@ -192,6 +222,8 @@ def test_read_stderr_returns_empty_when_file_missing(tmp_path):
 
 def test_del_swallows_stop_exceptions(tmp_path, monkeypatch):
     server = _make_server(tmp_path)
-    monkeypatch.setattr(server, "stop", lambda: (_ for _ in ()).throw(RuntimeError("boom")))
+    monkeypatch.setattr(
+        server, "stop", lambda: (_ for _ in ()).throw(RuntimeError("boom"))
+    )
 
     server.__del__()
