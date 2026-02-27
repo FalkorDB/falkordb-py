@@ -297,6 +297,9 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
+lite = [
+    { name = "falkordb-bin" },
+]
 test = [
     { name = "pytest" },
     { name = "pytest-asyncio" },
@@ -312,19 +315,39 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "falkordb-bin", marker = "extra == 'lite'", specifier = ">=1.4.0,<2.0.0" },
     { name = "pytest", marker = "extra == 'test'", specifier = ">=9.0.2" },
     { name = "pytest-asyncio", marker = "extra == 'test'", specifier = ">=1.3.0" },
     { name = "pytest-cov", marker = "extra == 'test'", specifier = ">=7.0.0" },
     { name = "python-dateutil", specifier = ">=2.9.0" },
     { name = "redis", specifier = ">=7.1.0" },
 ]
-provides-extras = ["test"]
+provides-extras = ["lite", "test"]
 
 [package.metadata.requires-dev]
 dev = [
     { name = "mypy", specifier = ">=1.11.0" },
     { name = "ruff", specifier = ">=0.8.0" },
     { name = "types-redis", specifier = ">=4.6.0" },
+]
+
+[[package]]
+name = "falkordb-bin"
+version = "1.4.1"
+source = { registry = "https://pypi.org/simple" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/63/0d/d126b80e55e00b93c8af8263c8eed9d13afceed7a75991e9d38323e36f7a/falkordb_bin-1.4.1-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:bbcc8d3fd34bc6bc0b5abcbfbcd54be5aaded066800cc92d2c2c865a67002006", size = 10583725, upload-time = "2026-02-14T15:57:49.049Z" },
+    { url = "https://files.pythonhosted.org/packages/16/b5/ef7cc56b30b8b509e0210b78e5ff58313109a4c4352c411a3844a2a81f65/falkordb_bin-1.4.1-cp310-cp310-manylinux_2_17_aarch64.whl", hash = "sha256:d88327eb75970a7d11c37bb4ce19fcf1e4fcefd47b4589ce452f213418023d5f", size = 20911174, upload-time = "2026-02-14T15:57:50.972Z" },
+    { url = "https://files.pythonhosted.org/packages/b8/e0/741beecc1b2cd9ecf3782be763a09480cd92c127b00dadb34f91832119c8/falkordb_bin-1.4.1-cp310-cp310-manylinux_2_17_x86_64.whl", hash = "sha256:10c702f9878153745928c9c68e65b8fbf5f4124dadc52d80d1118a9b453c1319", size = 22001846, upload-time = "2026-02-14T15:57:52.889Z" },
+    { url = "https://files.pythonhosted.org/packages/41/28/3786e5fb2fb7ec616aee6f01f30c0a1e9e49d0fea8427a5012d974ab12ca/falkordb_bin-1.4.1-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:4ec8ff270b694c902e385247bab1737a3085b29c7cd3af799fcd8dfe6b454bb1", size = 10583725, upload-time = "2026-02-14T15:57:54.767Z" },
+    { url = "https://files.pythonhosted.org/packages/59/cd/c4ece6c0ed47e45e769899417a421158967ab9cef0edafcd5ed7b0746984/falkordb_bin-1.4.1-cp311-cp311-manylinux_2_17_aarch64.whl", hash = "sha256:ac50404edc37d9b284bae144dbce6ec8421c6962fb89f912d6a0b8c56a61916e", size = 20911174, upload-time = "2026-02-14T15:57:56.377Z" },
+    { url = "https://files.pythonhosted.org/packages/26/65/2f1e5824148f10b2be42192e0e8b3f0c82ea9d51efa51d97ce0c060bfb57/falkordb_bin-1.4.1-cp311-cp311-manylinux_2_17_x86_64.whl", hash = "sha256:e52b29313542cf18e0463b1130c1f517ff7b594638ee2fe6eea2b6f8ccfd4b9d", size = 22001847, upload-time = "2026-02-14T15:57:58.307Z" },
+    { url = "https://files.pythonhosted.org/packages/ff/7e/8ecdfc535b51e5cbcda9fc28083e91ab17469f032c5c4a3317d44b805345/falkordb_bin-1.4.1-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:1eccc0425977adb53cec19cf0e54b8193c167f255e2eaadbd431a73b7073a2c4", size = 10583724, upload-time = "2026-02-14T15:58:00.398Z" },
+    { url = "https://files.pythonhosted.org/packages/3f/25/7424d5c4df388420af54bc3c51e1e356327b2d41da037a43868f3bb45c98/falkordb_bin-1.4.1-cp312-cp312-manylinux_2_17_aarch64.whl", hash = "sha256:afde9b65a12c42412bd61998e98fcb522198b0235cf7f19ed4dea28449cc36a6", size = 20911174, upload-time = "2026-02-14T15:58:02.362Z" },
+    { url = "https://files.pythonhosted.org/packages/94/05/497d9ac5f9ba8508cae8074538864e537a98f6ac0baa95340ffda73d4952/falkordb_bin-1.4.1-cp312-cp312-manylinux_2_17_x86_64.whl", hash = "sha256:b192f03d1bb63f5d5652c1f310d9adb2a01a40866d3cd9a2c267e8f5bdc51dc8", size = 22001846, upload-time = "2026-02-14T15:58:04.682Z" },
+    { url = "https://files.pythonhosted.org/packages/91/d7/71243f104105e948e3baa87bd66f239f272d3ca4d2636636c8d7c24ddd18/falkordb_bin-1.4.1-cp313-cp313-macosx_11_0_arm64.whl", hash = "sha256:a1ce349fcc868bec8144ce9d63e1ff00bd5b6f45a383c7774f1d9e3417aad537", size = 10583726, upload-time = "2026-02-14T15:58:07.95Z" },
+    { url = "https://files.pythonhosted.org/packages/52/b0/b59fb21b1ba0afc727c66f9127d557cabce89885f18ad61817d59f00c567/falkordb_bin-1.4.1-cp313-cp313-manylinux_2_17_aarch64.whl", hash = "sha256:520ff46ddb214177d71433414cd60cfb2e8130d56f26a45895088ba68f144a54", size = 20911175, upload-time = "2026-02-14T15:58:10.154Z" },
+    { url = "https://files.pythonhosted.org/packages/f0/90/61352691ecade84ec271f1f4571932092006f1d3748cfcb74ddbdb89b1a6/falkordb_bin-1.4.1-cp313-cp313-manylinux_2_17_x86_64.whl", hash = "sha256:f360edd128f4e9d7438ec18ee4012ca9ba799778b3c928d68bfd8f47f85dc406", size = 22001848, upload-time = "2026-02-14T15:58:12.929Z" },
 ]
 
 [[package]]
