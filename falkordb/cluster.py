@@ -23,11 +23,11 @@ def Cluster_Conn(
     url=None,
     address_remap=None,
 ):
-    connection_kwargs = conn.connection_pool.connection_kwargs
-    host = connection_kwargs.pop("host")
-    port = connection_kwargs.pop("port")
-    username = connection_kwargs.pop("username")
-    password = connection_kwargs.pop("password")
+    connection_kwargs = conn.connection_pool.connection_kwargs.copy()
+    host = connection_kwargs.pop("host", None)
+    port = connection_kwargs.pop("port", None)
+    username = connection_kwargs.pop("username", None)
+    password = connection_kwargs.pop("password", None)
 
     retry = connection_kwargs.pop("retry", None)
     retry_on_timeout = connection_kwargs.pop("retry_on_timeout", None)
@@ -41,6 +41,9 @@ def Cluster_Conn(
             redis_exceptions.ConnectionError,
         ],
     )
+    connection_kwargs.pop("connection_pool", None)
+    connection_kwargs.pop("db", None)
+    connection_kwargs.pop("decode_responses", None)
     return RedisCluster(
         host=host,
         port=port,
@@ -59,4 +62,5 @@ def Cluster_Conn(
         address_remap=address_remap,
         startup_nodes=startup_nodes,
         cluster_error_retry_attempts=cluster_error_retry_attempts,
+        **connection_kwargs,
     )
