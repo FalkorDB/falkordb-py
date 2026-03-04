@@ -309,7 +309,6 @@ class FalkorDB:
         if callable(get_primaries):
             return list(get_primaries())
         return getattr(self.connection, "PRIMARIES", "primaries")
-        return getattr(self.connection, "PRIMARIES", "primaries")
 
     def _normalize_cluster_fanout_response(self, response):
         if not isinstance(response, dict):
