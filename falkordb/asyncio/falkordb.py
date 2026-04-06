@@ -7,11 +7,27 @@ from redis.exceptions import RedisError
 from .._version import get_package_version
 from .cluster import Cluster_Conn, Is_Cluster
 from .graph import AsyncGraph
+from .sentinel import Is_Sentinel, Sentinel_Conn
 
 # config command
 UDF_CMD = "GRAPH.UDF"
 LIST_CMD = "GRAPH.LIST"
 CONFIG_CMD = "GRAPH.CONFIG"
+
+TOPOLOGY_MODES = {"auto", "standalone", "cluster", "sentinel"}
+FROM_URL_CLIENT_KWARGS = {
+    "topology_mode",
+    "sentinel_service_name",
+    "sentinel_nodes",
+    "cluster_error_retry_attempts",
+    "startup_nodes",
+    "require_full_coverage",
+    "reinitialize_steps",
+    "read_from_replicas",
+    "dynamic_startup_nodes",
+    "url",
+    "address_remap",
+}
 
 
 class FalkorDB:
@@ -75,8 +91,18 @@ class FalkorDB:
         require_full_coverage=False,
         reinitialize_steps=5,
         read_from_replicas=False,
+        dynamic_startup_nodes=True,
+        url=None,
         address_remap=None,
+        topology_mode="auto",
+        sentinel_service_name=None,
+        sentinel_nodes=None,
     ):
+        if topology_mode not in TOPOLOGY_MODES:
+            raise ValueError(
+                "Invalid topology_mode. Expected one of: "
+                "'auto', 'standalone', 'cluster', 'sentinel'."
+            )
 
         conn = redis.Redis(
             host=host,
@@ -111,8 +137,29 @@ class FalkorDB:
             credential_provider=credential_provider,
             protocol=protocol,
         )
+        resolved_topology_mode = topology_mode
+        self.sentinel = None
+        self.service_name = None
 
-        if Is_Cluster(conn):
+        should_use_sentinel = topology_mode == "sentinel"
+        if topology_mode == "auto":
+            should_use_sentinel = Is_Sentinel(conn)
+
+        if should_use_sentinel:
+            self.sentinel, self.service_name = Sentinel_Conn(
+                conn,
+                ssl,
+                service_name=sentinel_service_name,
+                sentinel_nodes=sentinel_nodes,
+            )
+            conn = self.sentinel.master_for(self.service_name, ssl=ssl)
+            resolved_topology_mode = "sentinel"
+
+        should_use_cluster = topology_mode == "cluster"
+        if topology_mode == "auto":
+            should_use_cluster = Is_Cluster(conn)
+
+        if should_use_cluster:
             conn = Cluster_Conn(
                 conn,
                 ssl,
@@ -121,10 +168,16 @@ class FalkorDB:
                 require_full_coverage,
                 reinitialize_steps,
                 read_from_replicas,
+                dynamic_startup_nodes,
+                url,
                 address_remap,
             )
+            resolved_topology_mode = "cluster"
+        elif resolved_topology_mode == "auto":
+            resolved_topology_mode = "standalone"
 
         self.connection = conn
+        self._topology_mode = resolved_topology_mode
         self.flushdb = conn.flushdb
         self.execute_command = conn.execute_command
 
@@ -153,11 +206,15 @@ class FalkorDB:
             url = "redis://" + url[len("falkor://") :]
         elif url.startswith("falkors://"):
             url = "rediss://" + url[len("falkors://") :]
+        client_kwargs = {
+            key: kwargs.pop(key)
+            for key in tuple(kwargs.keys())
+            if key in FROM_URL_CLIENT_KWARGS
+        }
 
         kwargs["decode_responses"] = True
         conn = redis.from_url(url, **kwargs)
-
-        return cls(connection_pool=conn.connection_pool)
+        return cls(connection_pool=conn.connection_pool, **client_kwargs)
 
     def select_graph(self, graph_id: str) -> AsyncGraph:
         """
@@ -241,6 +298,34 @@ class FalkorDB:
 
         await self.aclose()
 
+    def _is_cluster_topology(self) -> bool:
+        return self._topology_mode == "cluster"
+
+    def _cluster_primaries_target(self):
+        get_primaries = getattr(self.connection, "get_primaries", None)
+        if callable(get_primaries):
+            return list(get_primaries())
+        return getattr(self.connection, "PRIMARIES", "primaries")
+
+    def _normalize_cluster_fanout_response(self, response):
+        if not isinstance(response, dict):
+            return response
+        if len(response) == 0:
+            raise RedisError("No responses returned from cluster primaries")
+
+        first_value = next(iter(response.values()))
+        inconsistent = {
+            node: value
+            for node, value in response.items()
+            if isinstance(value, Exception) or value != first_value
+        }
+        if len(inconsistent) > 0:
+            raise RedisError(
+                f"Inconsistent responses from cluster primaries: {response}"
+            )
+
+        return first_value
+
     # GRAPH.UDF LOAD [REPLACE] <lib> <script>
     async def udf_load(self, name: str, script: str, replace: bool = False):
         """
@@ -260,11 +345,11 @@ class FalkorDB:
         args.extend([name, script])
 
         # propagate command in cluster mode
-        if Is_Cluster(self.connection):
-            for node in self.connection.get_primaries():
-                # create a direct connection to this node
-                client = self.connection.get_redis_connection(node)
-                resp = await client.execute_command(*args)
+        if self._is_cluster_topology():
+            resp = await self.connection.execute_command(
+                *args, target_nodes=self._cluster_primaries_target()
+            )
+            return self._normalize_cluster_fanout_response(resp)
         else:
             resp = await self.connection.execute_command(*args)
 
@@ -291,7 +376,11 @@ class FalkorDB:
 
         if with_code:
             args.append("WITHCODE")
-
+        if self._is_cluster_topology():
+            resp = await self.connection.execute_command(
+                *args, target_nodes=self._cluster_primaries_target()
+            )
+            return self._normalize_cluster_fanout_response(resp)
         return await self.connection.execute_command(*args)
 
     # GRAPH.UDF FLUSH
@@ -301,11 +390,13 @@ class FalkorDB:
         """
 
         # propagate command in cluster mode
-        if Is_Cluster(self.connection):
-            for node in self.connection.get_primaries():
-                # create a direct connection to this node
-                client = self.connection.get_redis_connection(node)
-                resp = await client.execute_command(UDF_CMD, "FLUSH")
+        if self._is_cluster_topology():
+            resp = await self.connection.execute_command(
+                UDF_CMD,
+                "FLUSH",
+                target_nodes=self._cluster_primaries_target(),
+            )
+            return self._normalize_cluster_fanout_response(resp)
         else:
             resp = await self.connection.execute_command(UDF_CMD, "FLUSH")
 
@@ -321,11 +412,14 @@ class FalkorDB:
         """
 
         # propagate command in cluster mode
-        if Is_Cluster(self.connection):
-            for node in self.connection.get_primaries():
-                # create a direct connection to this node
-                client = self.connection.get_redis_connection(node)
-                resp = await client.execute_command(UDF_CMD, "DELETE", lib)
+        if self._is_cluster_topology():
+            resp = await self.connection.execute_command(
+                UDF_CMD,
+                "DELETE",
+                lib,
+                target_nodes=self._cluster_primaries_target(),
+            )
+            return self._normalize_cluster_fanout_response(resp)
         else:
             resp = await self.connection.execute_command(UDF_CMD, "DELETE", lib)
 
