@@ -104,6 +104,32 @@ def test_param(client):
         assert expected_results == result.result_set
 
 
+def test_param_non_identifier_keys(client):
+    """Regression test for issue #211.
+
+    Parameter names and dictionary keys may contain characters that are not
+    valid in a bare Cypher identifier (e.g. '@type', UUIDs with hyphens).
+    These must be wrapped in backticks when serialized to the CYPHER header
+    and to inline map literals.
+    """
+    graph = client
+
+    result = graph.query("RETURN $`@type`", {"@type": "account"})
+    assert [["account"]] == result.result_set
+
+    uuid_key = "0be6ffd7-3844-46a3-a699-bf3b77c573cd"
+    result = graph.query(f"RETURN $`{uuid_key}`", {uuid_key: 17.0})
+    assert [[17.0]] == result.result_set
+
+    props = {
+        "@type": "account",
+        "id": "079b2482-c885-45ef-ba01-0995d64c0ae9",
+        uuid_key: 17.0,
+    }
+    result = graph.query("RETURN $props", {"props": props})
+    assert [[props]] == result.result_set
+
+
 def test_map(client):
     g = client
 

@@ -263,7 +263,7 @@ class Graph:
         # header starts with "CYPHER"
         params_header = "CYPHER "
         for key, value in params.items():
-            params_header += str(key) + "=" + stringify_param_value(value) + " "
+            params_header += f"`{key}`=" + stringify_param_value(value) + " "
         return params_header
 
     # procedures

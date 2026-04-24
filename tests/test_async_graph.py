@@ -132,6 +132,33 @@ async def test_param():
 
 
 @pytest.mark.asyncio
+async def test_param_non_identifier_keys():
+    """Regression test for issue #211."""
+    pool = BlockingConnectionPool(
+        max_connections=16, timeout=None, decode_responses=True
+    )
+    db = FalkorDB(connection_pool=pool)
+    graph = db.select_graph("async_graph")
+
+    result = await graph.query("RETURN $`@type`", {"@type": "account"})
+    assert [["account"]] == result.result_set
+
+    uuid_key = "0be6ffd7-3844-46a3-a699-bf3b77c573cd"
+    result = await graph.query(f"RETURN $`{uuid_key}`", {uuid_key: 17.0})
+    assert [[17.0]] == result.result_set
+
+    props = {
+        "@type": "account",
+        "id": "079b2482-c885-45ef-ba01-0995d64c0ae9",
+        uuid_key: 17.0,
+    }
+    result = await graph.query("RETURN $props", {"props": props})
+    assert [[props]] == result.result_set
+
+    await pool.aclose()
+
+
+@pytest.mark.asyncio
 async def test_map():
     pool = BlockingConnectionPool(
         max_connections=16, timeout=None, decode_responses=True

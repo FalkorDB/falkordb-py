@@ -43,6 +43,6 @@ def stringify_param_value(value):
         return f"[{','.join(map(stringify_param_value, value))}]"
 
     if isinstance(value, dict):
-        return f"{{{','.join(f'{k}:{stringify_param_value(v)}' for k, v in value.items())}}}"  # noqa
+        return f"{{{','.join(f'`{k}`:{stringify_param_value(v)}' for k, v in value.items())}}}"  # noqa
 
     return str(value)
