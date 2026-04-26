@@ -1,3 +1,27 @@
+def quote_identifier(key) -> str:
+    """
+    Wrap a Cypher identifier (parameter name or map key) in backticks.
+
+    FalkorDB's CYPHER parameter-header parser accepts backtick-quoted
+    identifiers but does not support escaping an embedded backtick by
+    doubling it. Rather than emit a query the server cannot parse, keys
+    containing a literal backtick are rejected here with a clear error.
+
+    Empty keys are also rejected — an empty identifier is not valid Cypher.
+    """
+    s = key.decode() if isinstance(key, bytes) else str(key)
+    if s == "":
+        raise ValueError(
+            "Cypher identifier (parameter name or map key) cannot be empty"
+        )
+    if "`" in s:
+        raise ValueError(
+            "Cypher identifier cannot contain a backtick: "
+            f"{s!r} (FalkorDB does not support escaped backticks in identifiers)"
+        )
+    return f"`{s}`"
+
+
 def quote_string(v):
     """
     FalkorDB strings must be quoted,
@@ -43,6 +67,6 @@ def stringify_param_value(value):
         return f"[{','.join(map(stringify_param_value, value))}]"
 
     if isinstance(value, dict):
-        return f"{{{','.join(f'`{k}`:{stringify_param_value(v)}' for k, v in value.items())}}}"  # noqa
+        return f"{{{','.join(f'{quote_identifier(k)}:{stringify_param_value(v)}' for k, v in value.items())}}}"  # noqa
 
     return str(value)

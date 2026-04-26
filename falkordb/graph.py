@@ -3,7 +3,7 @@ from typing import Any, Dict, List, Optional
 from .exceptions import SchemaVersionMismatchException
 from .execution_plan import ExecutionPlan
 from .graph_schema import GraphSchema
-from .helpers import stringify_param_value
+from .helpers import quote_identifier, stringify_param_value
 from .query_result import QueryResult
 
 # procedures
@@ -263,7 +263,9 @@ class Graph:
         # header starts with "CYPHER"
         params_header = "CYPHER "
         for key, value in params.items():
-            params_header += f"`{key}`=" + stringify_param_value(value) + " "
+            params_header += (
+                f"{quote_identifier(key)}=" + stringify_param_value(value) + " "
+            )
         return params_header
 
     # procedures
