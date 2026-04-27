@@ -1,27 +1,3 @@
-def quote_identifier(key) -> str:
-    """
-    Wrap a Cypher identifier (parameter name or map key) in backticks.
-
-    FalkorDB's CYPHER parameter-header parser accepts backtick-quoted
-    identifiers but does not support escaping an embedded backtick by
-    doubling it. Rather than emit a query the server cannot parse, keys
-    containing a literal backtick are rejected here with a clear error.
-
-    Empty keys are also rejected — an empty identifier is not valid Cypher.
-    """
-    s = key.decode() if isinstance(key, bytes) else str(key)
-    if s == "":
-        raise ValueError(
-            "Cypher identifier (parameter name or map key) cannot be empty"
-        )
-    if "`" in s:
-        raise ValueError(
-            "Cypher identifier cannot contain a backtick: "
-            f"{s!r} (FalkorDB does not support escaped backticks in identifiers)"
-        )
-    return f"`{s}`"
-
-
 def quote_string(v):
     """
     FalkorDB strings must be quoted,
@@ -51,7 +27,11 @@ def stringify_param_value(value):
     ways in which output differs from that of `str()`:
     * strings are quoted
     * None --> "null"
-    * in dictionaries, keys are _not_ quoted
+    * in dictionaries, keys are wrapped in backticks so that non-bare-
+      identifier keys (e.g. ``@type``, hyphenated UUIDs) are accepted by
+      the Cypher parser. Empty keys and keys containing a literal
+      backtick raise ``ValueError`` because FalkorDB's CYPHER header
+      parser does not support escaped backticks inside identifiers.
 
     :param value: the parameter value to be turned into a string
     :return: string
@@ -67,6 +47,18 @@ def stringify_param_value(value):
         return f"[{','.join(map(stringify_param_value, value))}]"
 
     if isinstance(value, dict):
-        return f"{{{','.join(f'{quote_identifier(k)}:{stringify_param_value(v)}' for k, v in value.items())}}}"  # noqa
+        parts = []
+        for k, v in value.items():
+            key_str = k.decode() if isinstance(k, bytes) else str(k)
+            if key_str == "":
+                raise ValueError("Cypher map key cannot be empty")
+            if "`" in key_str:
+                raise ValueError(
+                    "Cypher map key cannot contain a backtick: "
+                    f"{key_str!r} (FalkorDB does not support escaped "
+                    "backticks in identifiers)"
+                )
+            parts.append(f"`{key_str}`:{stringify_param_value(v)}")
+        return "{" + ",".join(parts) + "}"
 
     return str(value)
