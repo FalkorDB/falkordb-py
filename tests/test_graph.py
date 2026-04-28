@@ -4,6 +4,13 @@ from redis import ResponseError
 from falkordb import Edge, FalkorDB, Node, Operation, Path
 
 
+def quote_param_ref(key: str) -> str:
+    """Render a Cypher parameter reference for an arbitrary key, applying
+    the same backtick escaping the client uses internally so test queries
+    can reference parameters with non-identifier names."""
+    return f"`{key.replace('`', '``')}`"
+
+
 @pytest.fixture
 def client(request):
     db = FalkorDB(host="localhost", port=6379)
@@ -102,6 +109,74 @@ def test_param(client):
         result = graph.query(query, {"param": param})
         expected_results = [[param]]
         assert expected_results == result.result_set
+
+
+def test_param_non_identifier_keys(client):
+    """Regression test for issue #211.
+
+    Parameter names and dictionary keys may contain characters that are not
+    valid in a bare Cypher identifier (e.g. '@type', UUIDs with hyphens,
+    reserved keywords, leading digits, embedded backticks, unicode).
+    These must be safely backtick-quoted (with embedded backticks doubled)
+    when serialized to the CYPHER header and to inline map literals.
+    """
+    graph = client
+
+    # Round-trip a single key as a parameter name and read it back.
+    edge_case_keys = [
+        "@type",
+        "0be6ffd7-3844-46a3-a699-bf3b77c573cd",
+        "MATCH",
+        "RETURN",
+        "123abc",
+        "1",
+        "with space",
+        "with.dot",
+        "with:colon",
+        'with"quote',
+        "with\\backslash",
+        "日本語",
+        "🚀",
+    ]
+    for key in edge_case_keys:
+        result = graph.query(f"RETURN ${quote_param_ref(key)}", {key: "ok"})
+        assert [["ok"]] == result.result_set, f"failed for key {key!r}"
+
+    # Round-trip a property bag with edge-case keys via a single $props parameter.
+    props = {key: i for i, key in enumerate(edge_case_keys)}
+    result = graph.query("RETURN $props", {"props": props})
+    assert [[props]] == result.result_set
+
+    # Nested dict-in-list-in-dict — recursion must apply backtick quoting at
+    # every level.
+    nested = {
+        "outer key": [
+            {"inner@key": 1, "another-key": 2},
+            {"plain": 3},
+        ]
+    }
+    result = graph.query("RETURN $nested", {"nested": nested})
+    assert [[nested]] == result.result_set
+
+
+def test_param_invalid_keys_rejected(client):
+    """Empty keys and keys containing a literal backtick must be rejected
+    client-side with a clear error rather than producing a confusing
+    server-side parse error. FalkorDB's CYPHER header parser does not
+    support escaped backticks inside backtick-quoted identifiers."""
+    graph = client
+
+    # Empty key — as a parameter name and as a nested map key.
+    with pytest.raises(ValueError, match="cannot be empty"):
+        graph.query("RETURN 1", {"": "x"})
+    with pytest.raises(ValueError, match="cannot be empty"):
+        graph.query("RETURN $p", {"p": {"": 1}})
+
+    # Backtick in key — as a parameter name and as a nested map key.
+    with pytest.raises(ValueError, match="cannot contain a backtick"):
+        graph.query("RETURN 1", {"back`tick": "x"})
+    with pytest.raises(ValueError, match="cannot contain a backtick"):
+        graph.query("RETURN $p", {"p": {"back`tick": 1}})
 
 
 def test_map(client):
