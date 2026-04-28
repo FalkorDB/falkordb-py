@@ -7,6 +7,12 @@ from falkordb import Edge, Node, Operation, Path
 from falkordb.asyncio import FalkorDB
 
 
+def quote_param_ref(key: str) -> str:
+    """Mirror of the sync helper: render a Cypher parameter reference for
+    an arbitrary key, applying backtick escaping."""
+    return f"`{key.replace('`', '``')}`"
+
+
 @pytest.mark.asyncio
 async def test_graph_creation():
     pool = BlockingConnectionPool(
@@ -128,6 +134,78 @@ async def test_param():
         assert expected_results == result.result_set
 
     # close the connection pool
+    await pool.aclose()
+
+
+@pytest.mark.asyncio
+async def test_param_non_identifier_keys():
+    """Regression test for issue #211 — async mirror.
+
+    Covers @type, hyphenated UUIDs, reserved keywords, leading digits,
+    whitespace/punctuation, unicode, and embedded backticks (which must be
+    doubled inside backtick-quoted identifiers).
+    """
+    pool = BlockingConnectionPool(
+        max_connections=16, timeout=None, decode_responses=True
+    )
+    db = FalkorDB(connection_pool=pool)
+    graph = db.select_graph("async_graph")
+
+    edge_case_keys = [
+        "@type",
+        "0be6ffd7-3844-46a3-a699-bf3b77c573cd",
+        "MATCH",
+        "RETURN",
+        "123abc",
+        "1",
+        "with space",
+        "with.dot",
+        "with:colon",
+        'with"quote',
+        "with\\backslash",
+        "日本語",
+        "🚀",
+    ]
+    for key in edge_case_keys:
+        result = await graph.query(f"RETURN ${quote_param_ref(key)}", {key: "ok"})
+        assert [["ok"]] == result.result_set, f"failed for key {key!r}"
+
+    props = {key: i for i, key in enumerate(edge_case_keys)}
+    result = await graph.query("RETURN $props", {"props": props})
+    assert [[props]] == result.result_set
+
+    nested = {
+        "outer key": [
+            {"inner@key": 1, "another-key": 2},
+            {"plain": 3},
+        ]
+    }
+    result = await graph.query("RETURN $nested", {"nested": nested})
+    assert [[nested]] == result.result_set
+
+    await pool.aclose()
+
+
+@pytest.mark.asyncio
+async def test_param_invalid_keys_rejected():
+    """Async mirror — empty keys and backticks-in-keys must be rejected
+    client-side with a clear error."""
+    pool = BlockingConnectionPool(
+        max_connections=16, timeout=None, decode_responses=True
+    )
+    db = FalkorDB(connection_pool=pool)
+    graph = db.select_graph("async_graph")
+
+    with pytest.raises(ValueError, match="cannot be empty"):
+        await graph.query("RETURN 1", {"": "x"})
+    with pytest.raises(ValueError, match="cannot be empty"):
+        await graph.query("RETURN $p", {"p": {"": 1}})
+
+    with pytest.raises(ValueError, match="cannot contain a backtick"):
+        await graph.query("RETURN 1", {"back`tick": "x"})
+    with pytest.raises(ValueError, match="cannot contain a backtick"):
+        await graph.query("RETURN $p", {"p": {"back`tick": 1}})
+
     await pool.aclose()
 
 
