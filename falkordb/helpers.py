@@ -27,7 +27,11 @@ def stringify_param_value(value):
     ways in which output differs from that of `str()`:
     * strings are quoted
     * None --> "null"
-    * in dictionaries, keys are _not_ quoted
+    * in dictionaries, keys are wrapped in backticks so that non-bare-
+      identifier keys (e.g. ``@type``, hyphenated UUIDs) are accepted by
+      the Cypher parser. Empty keys and keys containing a literal
+      backtick raise ``ValueError`` because FalkorDB's CYPHER header
+      parser does not support escaped backticks inside identifiers.
 
     :param value: the parameter value to be turned into a string
     :return: string
@@ -43,6 +47,18 @@ def stringify_param_value(value):
         return f"[{','.join(map(stringify_param_value, value))}]"
 
     if isinstance(value, dict):
-        return f"{{{','.join(f'{k}:{stringify_param_value(v)}' for k, v in value.items())}}}"  # noqa
+        parts = []
+        for k, v in value.items():
+            key_str = k.decode() if isinstance(k, bytes) else str(k)
+            if key_str == "":
+                raise ValueError("Cypher map key cannot be empty")
+            if "`" in key_str:
+                raise ValueError(
+                    "Cypher map key cannot contain a backtick: "
+                    f"{key_str!r} (FalkorDB does not support escaped "
+                    "backticks in identifiers)"
+                )
+            parts.append(f"`{key_str}`:{stringify_param_value(v)}")
+        return "{" + ",".join(parts) + "}"
 
     return str(value)
