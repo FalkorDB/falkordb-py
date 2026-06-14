@@ -151,7 +151,6 @@ async def test_is_cluster_unix_socket_does_not_crash_on_path_kwarg():
     the fix it builds the sync client and the only failure is the expected
     connection error against the (absent) socket -- never a ``TypeError``.
     """
-    import redis
     from redis.asyncio import Redis as AsyncRedis
     from redis.asyncio.connection import UnixDomainSocketConnection
 
