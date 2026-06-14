@@ -141,6 +141,35 @@ async def test_from_url_unix_socket_with_password(mock_cluster):
 
 
 @pytest.mark.asyncio
+async def test_is_cluster_unix_socket_does_not_crash_on_path_kwarg():
+    """Is_Cluster must not crash on unix:// connections (#235).
+
+    The async pool stores the socket path under ``path``, but the synchronous
+    ``redis.Redis`` probe only accepts ``unix_socket_path``. Is_Cluster
+    previously forwarded ``path`` verbatim and crashed with
+    ``TypeError: ... unexpected keyword argument 'path'`` before any I/O. After
+    the fix it builds the sync client and the only failure is the expected
+    connection error against the (absent) socket -- never a ``TypeError``.
+    """
+    import redis
+    from redis.asyncio import Redis as AsyncRedis
+    from redis.asyncio.connection import UnixDomainSocketConnection
+
+    from falkordb.asyncio.cluster import Is_Cluster
+
+    conn = AsyncRedis.from_url(
+        "unix:///tmp/falkordb-missing-235.sock?db=0", decode_responses=True
+    )
+    assert conn.connection_pool.connection_class is UnixDomainSocketConnection
+
+    # the socket does not exist, so the probe must fail at connect time with a
+    # connection error, not at construction time with a TypeError on `path`.
+    with pytest.raises((redis.exceptions.ConnectionError, OSError)):
+        Is_Cluster(conn)
+    await conn.aclose()
+
+
+@pytest.mark.asyncio
 async def test_udf_load(async_client):
     """Test loading a UDF library asynchronously"""
     db = async_client
