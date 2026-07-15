@@ -73,6 +73,19 @@ async def test_config(async_client):
 
 
 @pytest.mark.asyncio
+async def test_select_graph_invalid_id(async_client):
+    db = async_client
+
+    # graph_id must be a string
+    with pytest.raises(TypeError, match="Expected a string parameter"):
+        db.select_graph(None)
+
+    # graph_id must be a non-empty string
+    with pytest.raises(TypeError, match="non-empty string"):
+        db.select_graph("")
+
+
+@pytest.mark.asyncio
 async def test_connect_via_url(async_client):
     db = async_client
 
