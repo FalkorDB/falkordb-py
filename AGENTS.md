@@ -64,6 +64,7 @@ falkordb/
   sentinel.py        # Redis Sentinel support
   _version.py        # Package version via importlib.metadata
   asyncio/           # Async mirror (see below)
+    sentinel.py      # Async Redis Sentinel support
   lite/              # Lightweight variant
 tests/
   test_*.py          # Sync tests
@@ -86,6 +87,7 @@ When modifying sync code, always check if the async counterpart needs the same c
 - `FalkorDB` wraps a `redis.Redis` (or `redis.asyncio.Redis`) connection
 - `Graph` receives the client and delegates commands via `client.execute_command()`
 - Graph commands are plain Redis commands: `GRAPH.QUERY`, `GRAPH.RO_QUERY`, `GRAPH.DELETE`, `GRAPH.EXPLAIN`, `GRAPH.PROFILE`, `GRAPH.COPY`, `GRAPH.LIST`, `GRAPH.CONFIG`
+- Client initialization supports explicit `topology_mode` (`auto`, `standalone`, `cluster`, `sentinel`) for deterministic connection behavior in HA and test environments
 
 ### Graph Model
 - `Node`, `Edge`, `Path` are lightweight data classes returned inside `QueryResult`
