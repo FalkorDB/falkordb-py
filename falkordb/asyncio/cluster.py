@@ -16,6 +16,12 @@ def Is_Cluster(conn: redis.Redis):
     # this propery is not kept in the connection_kwargs
     kwargs["ssl"] = pool.connection_class is redis.SSLConnection
 
+    # The async Unix-domain-socket pool stores the socket path under "path",
+    # but the synchronous redis.Redis constructor expects "unix_socket_path".
+    # Translate the key so the sync probe can be built for unix:// connections.
+    if pool.connection_class is redis.UnixDomainSocketConnection:
+        kwargs["unix_socket_path"] = kwargs.pop("path")
+
     # Create a synchronous Redis client with the same parameters
     # as the connection pool just to keep Is_Cluster synchronous
     info = sync_redis.Redis(**kwargs).info(section="server")
