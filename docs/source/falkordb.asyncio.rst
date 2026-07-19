@@ -4,6 +4,14 @@ falkordb.asyncio package
 Submodules
 ----------
 
+falkordb.asyncio.cluster module
+--------------------------------
+
+.. automodule:: falkordb.asyncio.cluster
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 falkordb.asyncio.falkordb module
 --------------------------------
 

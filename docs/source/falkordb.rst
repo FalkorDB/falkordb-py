@@ -12,6 +12,14 @@ Subpackages
 Submodules
 ----------
 
+falkordb.cluster module
+------------------------
+
+.. automodule:: falkordb.cluster
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 falkordb.edge module
 --------------------
 
@@ -88,6 +96,14 @@ falkordb.query\_result module
 -----------------------------
 
 .. automodule:: falkordb.query_result
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+falkordb.sentinel module
+-------------------------
+
+.. automodule:: falkordb.sentinel
    :members:
    :undoc-members:
    :show-inheritance:
