@@ -11,6 +11,30 @@ def client(request):
     return FalkorDB(host="localhost", port=6379)
 
 
+@pytest.mark.parametrize(
+    ("kwargs", "expected_version"),
+    [({}, "package-version"), ({"lib_version": "custom-version"}, "custom-version")],
+)
+def test_driver_info_version(kwargs, expected_version):
+    with (
+        patch("falkordb.falkordb.redis.Redis") as mock_redis,
+        patch("falkordb.falkordb.Is_Sentinel", return_value=False),
+        patch("falkordb.falkordb.Is_Cluster", return_value=False),
+        patch(
+            "falkordb.falkordb.get_package_version",
+            return_value="package-version",
+        ) as mock_get_package_version,
+    ):
+        FalkorDB(**kwargs)
+
+    driver_info = mock_redis.call_args.kwargs["driver_info"]
+    assert driver_info.lib_version == expected_version
+    if kwargs:
+        mock_get_package_version.assert_not_called()
+    else:
+        mock_get_package_version.assert_called_once_with()
+
+
 def test_config(client):
     db = client
     config_name = "RESULTSET_SIZE"
