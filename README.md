@@ -18,6 +18,11 @@ see [docs](http://falkordb-py.readthedocs.io/)
 pip install FalkorDB
 ```
 
+Embedded mode (local in-process server via optional binaries):
+```sh
+pip install "FalkorDB[lite]"
+```
+
 ## Usage
 
 ### Run FalkorDB instance
@@ -51,6 +56,11 @@ copy_graph = g.copy('social_copy')
 
 # Delete the Graph
 g.delete()
+
+# Embedded FalkorDB (no external server)
+with FalkorDB(embedded=True, db_path="/tmp/social.rdb") as embedded_db:
+    eg = embedded_db.select_graph("embedded_social")
+    eg.query('CREATE (:Person {name: "Alice"})')
 ```
 
 ### Asynchronous Example
@@ -92,6 +102,11 @@ async def main():
     
     # Close the connection when done
     await pool.aclose()
+
+    # Embedded mode (same API)
+    async with FalkorDB(embedded=True) as embedded_db:
+        embedded_graph = embedded_db.select_graph("embedded_social")
+        await embedded_graph.query('CREATE (:Person {name: "Bob"})')
 
 # Run the async example
 if __name__ == "__main__":
