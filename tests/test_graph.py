@@ -179,6 +179,48 @@ def test_param_invalid_keys_rejected(client):
         graph.query("RETURN $p", {"p": {"back`tick": 1}})
 
 
+def test_param_control_characters(client):
+    """Regression test for issue #201.
+
+    The CYPHER params header is a single line, so a newline, carriage return
+    or tab in a parameter value must be escaped rather than written verbatim.
+    Escaping must also be reversible: a value holding a literal backslash-n
+    has to stay a backslash-n and not come back as a newline.
+    """
+    graph = client
+
+    values = [
+        "line1\nline2",
+        "line1\r\nline2",
+        "col1\tcol2",
+        "trailing\n",
+        "\n",
+        'mixed "quote"\n\tand \\backslash\r\n',
+        "a\\nb",
+        "a\\tb",
+    ]
+    for value in values:
+        header = graph._build_params_header({"param": value})
+        assert "\n" not in header, f"raw newline in header for {value!r}"
+        assert "\r" not in header, f"raw carriage return in header for {value!r}"
+        assert "\t" not in header, f"raw tab in header for {value!r}"
+        result = graph.query("RETURN $param", {"param": value})
+        assert [[value]] == result.result_set, f"failed for {value!r}"
+
+    # Nested maps and lists must be escaped at every level.
+    nested = {"docs": [{"title": "a\tb", "body": "line1\nline2"}, {"body": "\r\n"}]}
+    header = graph._build_params_header({"nested": nested})
+    assert "\n" not in header and "\r" not in header and "\t" not in header
+    result = graph.query("RETURN $nested", {"nested": nested})
+    assert [[nested]] == result.result_set
+
+    # Multiline text stored as a node property and read back.
+    body = "line1\nline2\tend\r\n"
+    graph.query("CREATE (:Doc {body: $body})", {"body": body})
+    result = graph.query("MATCH (d:Doc) RETURN d.body")
+    assert [[body]] == result.result_set
+
+
 def test_map(client):
     g = client
 

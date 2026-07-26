@@ -210,6 +210,52 @@ async def test_param_invalid_keys_rejected():
 
 
 @pytest.mark.asyncio
+async def test_param_control_characters():
+    """Regression test for issue #201 — async mirror.
+
+    The params header must stay on one line, and escaping must be reversible
+    (a literal backslash-n stays a backslash-n).
+    """
+    pool = BlockingConnectionPool(
+        max_connections=16, timeout=None, decode_responses=True
+    )
+    db = FalkorDB(connection_pool=pool)
+    graph = db.select_graph("async_graph")
+    await graph.query("MATCH (d:AsyncDoc) DELETE d")
+
+    values = [
+        "line1\nline2",
+        "line1\r\nline2",
+        "col1\tcol2",
+        "trailing\n",
+        "\n",
+        'mixed "quote"\n\tand \\backslash\r\n',
+        "a\\nb",
+        "a\\tb",
+    ]
+    for value in values:
+        header = graph._build_params_header({"param": value})
+        assert "\n" not in header, f"raw newline in header for {value!r}"
+        assert "\r" not in header, f"raw carriage return in header for {value!r}"
+        assert "\t" not in header, f"raw tab in header for {value!r}"
+        result = await graph.query("RETURN $param", {"param": value})
+        assert [[value]] == result.result_set, f"failed for {value!r}"
+
+    nested = {"docs": [{"title": "a\tb", "body": "line1\nline2"}, {"body": "\r\n"}]}
+    header = graph._build_params_header({"nested": nested})
+    assert "\n" not in header and "\r" not in header and "\t" not in header
+    result = await graph.query("RETURN $nested", {"nested": nested})
+    assert [[nested]] == result.result_set
+
+    body = "line1\nline2\tend\r\n"
+    await graph.query("CREATE (:AsyncDoc {body: $body})", {"body": body})
+    result = await graph.query("MATCH (d:AsyncDoc) RETURN d.body")
+    assert [[body]] == result.result_set
+
+    await pool.aclose()
+
+
+@pytest.mark.asyncio
 async def test_map():
     pool = BlockingConnectionPool(
         max_connections=16, timeout=None, decode_responses=True
