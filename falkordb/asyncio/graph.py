@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, cast
 
 from falkordb.exceptions import SchemaVersionMismatchException
 from falkordb.execution_plan import ExecutionPlan
@@ -88,7 +88,7 @@ class AsyncGraph(Graph):
         except SchemaVersionMismatchException as e:
             # client view over the graph schema is out of sync
             # set client version and refresh local schema
-            self.schema.refresh(e.version)
+            await cast(GraphSchema, self.schema).refresh(e.version)
             raise e
 
     async def query(  # type: ignore[override]

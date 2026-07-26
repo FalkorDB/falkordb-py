@@ -8,24 +8,17 @@ def Is_Sentinel(conn):
 
 
 # create a sentinel connection from a Redis connection
-def Sentinel_Conn(conn, ssl):
-    # collect masters
-    masters = conn.sentinel_masters()
-
-    # abort if multiple masters are detected
-    if len(masters) != 1:
-        raise Exception("Multiple masters, require service name")
-
-    # monitored service name
-    service_name = list(masters.keys())[0]
+def Sentinel_Conn(conn, ssl, service_name=None, sentinel_nodes=None):
+    # use the same connection arguments e.g. username and password
+    connection_kwargs = conn.connection_pool.connection_kwargs.copy()
 
     # list of sentinels connection information
-    sentinels_conns = []
-
-    # current sentinel
-    host = conn.connection_pool.connection_kwargs["host"]
-    port = conn.connection_pool.connection_kwargs["port"]
-    sentinels_conns.append((host, port))
+    sentinels_conns = list(sentinel_nodes or [])
+    if len(sentinels_conns) == 0:
+        # current sentinel
+        host = connection_kwargs.get("host")
+        port = connection_kwargs.get("port")
+        sentinels_conns.append((host, port))
 
     # additional sentinels
     # sentinels = conn.sentinel_sentinels(service_name)
@@ -33,9 +26,14 @@ def Sentinel_Conn(conn, ssl):
     #    ip = sentinel['ip']
     #    port = sentinel['port']
     #    sentinels_conns.append((host, port))
-
-    # use the same connection arguments e.g. username and password
-    connection_kwargs = conn.connection_pool.connection_kwargs
+    if service_name is None:
+        # collect masters
+        masters = conn.sentinel_masters()
+        # abort if multiple masters are detected
+        if len(masters) != 1:
+            raise Exception("Multiple masters, require service name")
+        # monitored service name
+        service_name = list(masters.keys())[0]
 
     # construct sentinel arguments
     sentinel_kwargs = {}
@@ -45,6 +43,9 @@ def Sentinel_Conn(conn, ssl):
         sentinel_kwargs["password"] = connection_kwargs["password"]
     if ssl:
         sentinel_kwargs["ssl"] = True
+    connection_kwargs.pop("host", None)
+    connection_kwargs.pop("port", None)
+    connection_kwargs.pop("connection_pool", None)
 
     return (
         Sentinel(sentinels_conns, sentinel_kwargs=sentinel_kwargs, **connection_kwargs),

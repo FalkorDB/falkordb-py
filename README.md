@@ -97,3 +97,31 @@ async def main():
 if __name__ == "__main__":
     asyncio.run(main())
 ```
+
+### Topology mode selection
+
+By default, the client uses `topology_mode="auto"` to detect standalone, cluster, or sentinel deployments.
+You can force the mode explicitly when you want deterministic initialization behavior.
+
+```python
+from falkordb import FalkorDB
+
+# force standalone behavior (skip auto probing)
+db = FalkorDB(host="localhost", port=6379, topology_mode="standalone")
+
+# force cluster behavior
+cluster_db = FalkorDB(
+    host="localhost",
+    port=6379,
+    topology_mode="cluster",
+    startup_nodes=None,
+)
+
+# force sentinel behavior (recommended to provide a service name)
+sentinel_db = FalkorDB(
+    host="localhost",
+    port=26379,
+    topology_mode="sentinel",
+    sentinel_service_name="mymaster",
+)
+```
