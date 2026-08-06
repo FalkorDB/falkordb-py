@@ -491,10 +491,10 @@ def test_execution_plan(client):
     )
 
     expected = (
-        "Results\n    Project\n        "
-        "Conditional Traverse | (t)->(r:Rider)\n"
-        "            Filter\n"
-        "                Node By Label Scan | (t:Team)"
+        "Project\n    "
+        "Conditional Traverse | (t)<-(r:Rider)\n"
+        "        Filter\n"
+        "            Node By Label Scan | (t:Team)"
     )
     assert str(result) == expected
 
@@ -526,39 +526,36 @@ def test_explain(client):
         {"name": "Yamaha"},
     )
     expected = """\
-Results
 Distinct
-    Join
+    Union
         Project
-            Conditional Traverse | (t)->(r:Rider)
+            Conditional Traverse | (t)<-(r:Rider)
                 Filter
                     Node By Label Scan | (t:Team)
         Project
-            Conditional Traverse | (t)->(r:Rider)
+            Conditional Traverse | (t)<-(r:Rider)
                 Filter
                     Node By Label Scan | (t:Team)"""
     assert str(result).replace(" ", "").replace("\n", "") == expected.replace(
         " ", ""
     ).replace("\n", "")
 
-    expected = Operation("Results").append_child(
-        Operation("Distinct").append_child(
-            Operation("Join")
-            .append_child(
-                Operation("Project").append_child(
-                    Operation("Conditional Traverse", "(t)->(r:Rider)").append_child(
-                        Operation("Filter").append_child(
-                            Operation("Node By Label Scan", "(t:Team)")
-                        )
+    expected = Operation("Distinct").append_child(
+        Operation("Union")
+        .append_child(
+            Operation("Project").append_child(
+                Operation("Conditional Traverse", "(t)<-(r:Rider)").append_child(
+                    Operation("Filter").append_child(
+                        Operation("Node By Label Scan", "(t:Team)")
                     )
                 )
             )
-            .append_child(
-                Operation("Project").append_child(
-                    Operation("Conditional Traverse", "(t)->(r:Rider)").append_child(
-                        Operation("Filter").append_child(
-                            Operation("Node By Label Scan", "(t:Team)")
-                        )
+        )
+        .append_child(
+            Operation("Project").append_child(
+                Operation("Conditional Traverse", "(t)<-(r:Rider)").append_child(
+                    Operation("Filter").append_child(
+                        Operation("Node By Label Scan", "(t:Team)")
                     )
                 )
             )
@@ -569,7 +566,6 @@ Distinct
 
     result = g.explain("MATCH (r:Rider), (t:Team) RETURN r.name, t.name")
     expected = """\
-Results
 Project
     Cartesian Product
         Node By Label Scan | (r:Rider)
@@ -578,12 +574,10 @@ Project
         " ", ""
     ).replace("\n", "")
 
-    expected = Operation("Results").append_child(
-        Operation("Project").append_child(
-            Operation("Cartesian Product")
-            .append_child(Operation("Node By Label Scan"))
-            .append_child(Operation("Node By Label Scan"))
-        )
+    expected = Operation("Project").append_child(
+        Operation("Cartesian Product")
+        .append_child(Operation("Node By Label Scan"))
+        .append_child(Operation("Node By Label Scan"))
     )
 
     assert result.structured_plan == expected
