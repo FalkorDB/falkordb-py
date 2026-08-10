@@ -409,7 +409,7 @@ async def test_slowlog():
 
     await g.delete()
 
-    long_query = "UNWIND range (0, 200000) AS x RETURN max(x)"
+    long_query = "UNWIND range (0, 1000000) AS x RETURN max(x)"
     await g.query(long_query)
 
     results = await g.slowlog()

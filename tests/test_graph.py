@@ -320,7 +320,7 @@ def test_cached_execution(client):
 
 def test_slowlog(client):
     g = client
-    long_query = "UNWIND range (0, 200000) AS x RETURN max(x)"
+    long_query = "UNWIND range (0, 1000000) AS x RETURN max(x)"
     g.query(long_query)
 
     results = g.slowlog()
