@@ -84,9 +84,9 @@ jobs:
           fail_ci_if_error: false
           token: ${{ secrets.CODECOV_TOKEN }}    
 
-  # A cron job has nobody watching it: GitHub only emails the user who last
-  # touched the cron line, so a silent daily failure is the default outcome.
-  # Failures therefore open a tracking issue (or comment on the open one).
+  # A cron job has nobody watching it: GitHub only emails whoever last touched
+  # the cron line, so a failing daily run would otherwise go unnoticed. Post it
+  # to Google Chat instead.
   report-scheduled-failure:
     name: Report scheduled failure
     needs: [falkordb-version, test]
@@ -94,13 +94,31 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       issues: write
+    env:
+      GOOGLE_CHAT_WEBHOOK_URL: ${{ secrets.GOOGLE_CHAT_WEBHOOK_URL }}
+      REPO: ${{ github.repository }}
+      WORKFLOW: ${{ github.workflow }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
     steps:
-      - name: Open or update the tracking issue
+      - name: Notify Google Chat
+        if: ${{ env.GOOGLE_CHAT_WEBHOOK_URL != '' }}
+        run: |
+          text=$(printf '%s\n' \
+            "*$REPO* — the daily \`$WORKFLOW\` run against \`falkordb/falkordb:edge\` failed." \
+            "<$RUN_URL|View the run>" \
+            "" \
+            "\`edge\` is an unreleased FalkorDB build, so released users are unaffected: this is an early warning that the next FalkorDB release breaks this client.")
+          jq -n --arg text "$text" '{text: $text}' > payload.json
+          curl -sS --fail-with-body -X POST -H 'Content-Type: application/json' \
+            -d @payload.json "$GOOGLE_CHAT_WEBHOOK_URL"
+
+      # Fallback while the webhook secret is not configured, so the signal is
+      # never lost. Opens one issue and comments on it on subsequent failures.
+      - name: Open or update a tracking issue
+        if: ${{ env.GOOGLE_CHAT_WEBHOOK_URL == '' }}
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          WORKFLOW: ${{ github.workflow }}
           TITLE: "CI is failing against falkordb/falkordb:edge"
         run: |
           body=$(printf '%s\n' \
@@ -108,7 +126,7 @@ jobs:
             "" \
             "$RUN_URL" \
             "" \
-            "\`edge\` is an unreleased FalkorDB build, so this does not affect users on \`latest\`: it is an early warning that something in the next FalkorDB release breaks this client.")
+            "Set the \`GOOGLE_CHAT_WEBHOOK_URL\` secret to receive this in Google Chat instead.")
           number=$(gh issue list --state open --search "$TITLE in:title" --json number,title \
             --jq "map(select(.title == \"$TITLE\")) | .[0].number // empty")
           if [ -n "$number" ]; then
