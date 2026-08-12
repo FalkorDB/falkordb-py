@@ -1,10 +1,13 @@
-from typing import Any, Dict, List, Optional
+import contextlib
+from typing import Any
+
+from redis import ResponseError  # type: ignore[import-not-found]
 
 from falkordb.exceptions import SchemaVersionMismatchException
 from falkordb.execution_plan import ExecutionPlan
 from falkordb.graph import Graph
 
-from .graph_schema import GraphSchema
+from .graph_schema import GraphSchema as AsyncGraphSchema
 from .query_result import QueryResult
 
 # procedures
@@ -26,6 +29,9 @@ class AsyncGraph(Graph):
     Graph, collection of nodes and edges.
     """
 
+    # the async schema is a distinct class from the sync one it shadows
+    schema: AsyncGraphSchema  # type: ignore[assignment]
+
     def __init__(self, client, name: str):
         """
         Create a new graph.
@@ -37,13 +43,13 @@ class AsyncGraph(Graph):
         """
 
         super().__init__(client, name)
-        self.schema = GraphSchema(self)  # type: ignore[assignment]
+        self.schema = AsyncGraphSchema(self)
 
     async def _query(  # type: ignore[override]
         self,
         q: str,
-        params: Optional[Dict[str, object]] = None,
-        timeout: Optional[int] = None,
+        params: dict[str, object] | None = None,
+        timeout: int | None = None,
         read_only: bool = False,
     ) -> QueryResult:
         """
@@ -71,7 +77,7 @@ class AsyncGraph(Graph):
         # ask for compact result-set format
         # specify known graph version
         cmd = RO_QUERY_CMD if read_only else QUERY_CMD
-        command: List[Any] = [cmd, self.name, query, "--compact"]
+        command: list[Any] = [cmd, self.name, query, "--compact"]
 
         # include timeout is specified
         if isinstance(timeout, int):
@@ -88,14 +94,14 @@ class AsyncGraph(Graph):
         except SchemaVersionMismatchException as e:
             # client view over the graph schema is out of sync
             # set client version and refresh local schema
-            self.schema.refresh(e.version)
+            await self.schema.refresh(e.version)
             raise e
 
     async def query(  # type: ignore[override]
         self,
         q: str,
-        params: Optional[Dict[str, object]] = None,
-        timeout: Optional[int] = None,
+        params: dict[str, object] | None = None,
+        timeout: int | None = None,
     ) -> QueryResult:
         """
         Executes a query asynchronously against the graph.
@@ -116,8 +122,8 @@ class AsyncGraph(Graph):
     async def ro_query(  # type: ignore[override]
         self,
         q: str,
-        params: Optional[Dict[str, object]] = None,
-        timeout: Optional[int] = None,
+        params: dict[str, object] | None = None,
+        timeout: int | None = None,
     ) -> QueryResult:
         """
         Executes a read-only query against the graph.
@@ -238,8 +244,8 @@ class AsyncGraph(Graph):
         self,
         procedure: str,
         read_only: bool = True,
-        args: Optional[List] = None,
-        emit: Optional[List[str]] = None,
+        args: list | None = None,
+        emit: list[str] | None = None,
     ) -> QueryResult:
         """
         Call a procedure.
@@ -255,9 +261,8 @@ class AsyncGraph(Graph):
 
         """
 
-        # make sure strings arguments are quoted
-        args = args or []
-        # args = [quote_string(arg) for arg in args]
+        # copy the caller's list, the placeholders below must not leak back out
+        args = list(args or [])
 
         params = None
         if len(args) > 0:
@@ -598,10 +603,10 @@ class AsyncGraph(Graph):
         """
 
         # create required range indices
-        try:
+        # an already-existing index is reported as a ResponseError and is fine
+        # to ignore, connection/auth errors must not be swallowed
+        with contextlib.suppress(ResponseError):
             await self.create_node_range_index(label, *properties)
-        except Exception:
-            pass
 
         # create constraint
         return await self._create_constraint("UNIQUE", "NODE", label, *properties)
@@ -624,10 +629,10 @@ class AsyncGraph(Graph):
         """
 
         # create required range indices
-        try:
+        # an already-existing index is reported as a ResponseError and is fine
+        # to ignore, connection/auth errors must not be swallowed
+        with contextlib.suppress(ResponseError):
             await self.create_edge_range_index(relation, *properties)
-        except Exception:
-            pass
 
         return await self._create_constraint(
             "UNIQUE", "RELATIONSHIP", relation, *properties
@@ -745,7 +750,7 @@ class AsyncGraph(Graph):
             "MANDATORY", "RELATIONSHIP", relation, *properties
         )
 
-    async def list_constraints(self) -> List[Dict[str, object]]:  # type: ignore[override]
+    async def list_constraints(self) -> list[dict[str, object]]:  # type: ignore[override]
         """
         Lists graph's constraints
 
@@ -757,15 +762,13 @@ class AsyncGraph(Graph):
 
         result = (await self.call_procedure(GRAPH_LIST_CONSTRAINTS)).result_set
 
-        constraints = []
-        for row in result:
-            constraints.append(
-                {
-                    "type": row[0],
-                    "label": row[1],
-                    "properties": row[2],
-                    "entitytype": row[3],
-                    "status": row[4],
-                }
-            )
-        return constraints
+        return [
+            {
+                "type": row[0],
+                "label": row[1],
+                "properties": row[2],
+                "entitytype": row[3],
+                "status": row[4],
+            }
+            for row in result
+        ]

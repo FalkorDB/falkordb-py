@@ -1,4 +1,7 @@
-from typing import Any, Dict, List, Optional
+import contextlib
+from typing import Any
+
+from redis import ResponseError  # type: ignore[import-not-found]
 
 from .exceptions import SchemaVersionMismatchException
 from .execution_plan import ExecutionPlan
@@ -55,8 +58,8 @@ class Graph:
     def _query(
         self,
         q: str,
-        params: Optional[Dict[str, object]] = None,
-        timeout: Optional[int] = None,
+        params: dict[str, object] | None = None,
+        timeout: int | None = None,
         read_only: bool = False,
     ) -> QueryResult:
         """
@@ -84,7 +87,7 @@ class Graph:
         # ask for compact result-set format
         # specify known graph version
         cmd = RO_QUERY_CMD if read_only else QUERY_CMD
-        command: List[Any] = [cmd, self.name, query, "--compact"]
+        command: list[Any] = [cmd, self.name, query, "--compact"]
 
         # include timeout is specified
         if isinstance(timeout, int):
@@ -105,8 +108,8 @@ class Graph:
     def query(
         self,
         q: str,
-        params: Optional[Dict[str, object]] = None,
-        timeout: Optional[int] = None,
+        params: dict[str, object] | None = None,
+        timeout: int | None = None,
     ) -> QueryResult:
         """
         Executes a query against the graph.
@@ -127,8 +130,8 @@ class Graph:
     def ro_query(
         self,
         q: str,
-        params: Optional[Dict[str, object]] = None,
-        timeout: Optional[int] = None,
+        params: dict[str, object] | None = None,
+        timeout: int | None = None,
     ) -> QueryResult:
         """
         Executes a read-only query against the graph.
@@ -244,7 +247,7 @@ class Graph:
         plan = self.execute_command(EXPLAIN_CMD, self._name, query)
         return ExecutionPlan(plan)
 
-    def _build_params_header(self, params: Optional[dict]) -> str:
+    def _build_params_header(self, params: dict | None) -> str:
         """
         Build parameters header.
 
@@ -280,8 +283,8 @@ class Graph:
         self,
         procedure: str,
         read_only: bool = True,
-        args: Optional[List] = None,
-        emit: Optional[List[str]] = None,
+        args: list | None = None,
+        emit: list[str] | None = None,
     ) -> QueryResult:
         """
         Call a procedure.
@@ -297,9 +300,8 @@ class Graph:
 
         """
 
-        # make sure strings arguments are quoted
-        args = args or []
-        # args = [quote_string(arg) for arg in args]
+        # copy the caller's list, the placeholders below must not leak back out
+        args = list(args or [])
 
         params = None
         if len(args) > 0:
@@ -628,10 +630,10 @@ class Graph:
         """
 
         # create required range indices
-        try:
+        # an already-existing index is reported as a ResponseError and is fine
+        # to ignore, connection/auth errors must not be swallowed
+        with contextlib.suppress(ResponseError):
             self.create_node_range_index(label, *properties)
-        except Exception:
-            pass
 
         # create constraint
         return self._create_constraint("UNIQUE", "NODE", label, *properties)
@@ -654,10 +656,10 @@ class Graph:
         """
 
         # create required range indices
-        try:
+        # an already-existing index is reported as a ResponseError and is fine
+        # to ignore, connection/auth errors must not be swallowed
+        with contextlib.suppress(ResponseError):
             self.create_edge_range_index(relation, *properties)
-        except Exception:
-            pass
 
         return self._create_constraint("UNIQUE", "RELATIONSHIP", relation, *properties)
 
@@ -769,7 +771,7 @@ class Graph:
         """
         return self._drop_constraint("MANDATORY", "RELATIONSHIP", relation, *properties)
 
-    def list_constraints(self) -> List[Dict[str, object]]:
+    def list_constraints(self) -> list[dict[str, object]]:
         """
         Lists graph's constraints
 
@@ -781,15 +783,13 @@ class Graph:
 
         result = self.call_procedure(GRAPH_LIST_CONSTRAINTS).result_set
 
-        constraints = []
-        for row in result:
-            constraints.append(
-                {
-                    "type": row[0],
-                    "label": row[1],
-                    "properties": row[2],
-                    "entitytype": row[3],
-                    "status": row[4],
-                }
-            )
-        return constraints
+        return [
+            {
+                "type": row[0],
+                "label": row[1],
+                "properties": row[2],
+                "entitytype": row[3],
+                "status": row[4],
+            }
+            for row in result
+        ]

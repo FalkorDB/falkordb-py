@@ -47,17 +47,19 @@ def test_nodes_and_edges():
     assert node_2 == p.get_node(1)
     assert node_1 == p.first_node()
     assert node_2 == p.last_node()
-    assert 2 == p.node_count()
+    assert p.node_count() == 2
 
     assert edges == p.edges()
-    assert 1 == p.edge_count()
+    assert p.edge_count() == 1
     assert edge_1 == p.get_edge(0)
 
     assert p.get_node(-1) is None
     assert p.get_edge(49) is None
 
     path_str = str(p)
-    assert path_str == "<(1)<-[]-(2)>"
+    # edge_1 starts at node_1, which is where the traversal starts, so the
+    # edge is rendered pointing forward
+    assert path_str == "<(1)-[]->(2)>"
 
 
 def test_compare():

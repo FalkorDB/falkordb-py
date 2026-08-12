@@ -1,5 +1,3 @@
-from typing import Optional, Union
-
 from .helpers import quote_string
 from .node import Node
 
@@ -11,11 +9,11 @@ class Edge:
 
     def __init__(
         self,
-        src_node: Union[Node, int],
+        src_node: Node | int,
         relation: str,
-        dest_node: Union[Node, int],
-        edge_id: Optional[int] = None,
-        alias: Optional[str] = "",
+        dest_node: Node | int,
+        edge_id: int | None = None,
+        alias: str | None = "",
         properties=None,
     ):
         """
@@ -70,10 +68,7 @@ class Edge:
             str: A string representation of the edge.
         """
         # Source node
-        if isinstance(self.src_node, Node):
-            res = f"({self.src_node.alias})"
-        else:
-            res = "()"
+        res = f"({self.src_node.alias})" if isinstance(self.src_node, Node) else "()"
 
         # Edge
         res += f"-[{self.alias}"
@@ -94,6 +89,19 @@ class Edge:
             res += "()"
 
         return res
+
+    def __repr__(self) -> str:
+        """
+        Get an unambiguous representation of the edge.
+
+        Returns:
+            str: A representation useful in tracebacks and debuggers.
+        """
+        return (
+            f"Edge(id={self.id!r}, alias={self.alias!r}, "
+            f"relation={self.relation!r}, src_node={self.src_node!r}, "
+            f"dest_node={self.dest_node!r}, properties={self.properties!r})"
+        )
 
     def __eq__(self, rhs) -> bool:
         """
@@ -129,7 +137,17 @@ class Edge:
             return False
 
         # Compare properties
-        if self.properties != rhs.properties:
-            return False
+        return self.properties == rhs.properties
 
-        return True
+    def __hash__(self) -> int:
+        """
+        Hash the edge so it can be used in sets and as a dict key.
+
+        Only the edge id and relationship type take part, properties are
+        mutable and equality tolerates a differing id, so the hash is
+        deliberately coarse.
+
+        Returns:
+            int: The edge hash.
+        """
+        return hash((self.id, self.relation))
