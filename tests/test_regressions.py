@@ -9,9 +9,11 @@ from redis import ResponseError
 
 from falkordb import Edge, Node, Path
 from falkordb.asyncio.graph import AsyncGraph
+from falkordb.asyncio.query_result import QueryResult as AsyncQueryResult
 from falkordb.exceptions import SchemaVersionMismatchException
 from falkordb.execution_plan import ExecutionPlan, Operation
 from falkordb.graph import Graph
+from falkordb.query_result import QueryResult
 
 
 class SyncStubClient:
@@ -175,3 +177,101 @@ def test_cluster_conn_does_not_mutate_pool_kwargs():
 
     # the pool used to be emptied, leaving later connections unauthenticated
     assert dict(pool.connection_kwargs) == before
+
+
+def _stats_result(*stats):
+    """Build a QueryResult from a statistics-only response."""
+    return QueryResult(None, [list(stats)])
+
+
+def test_count_statistics_are_ints():
+    """Statistics annotated -> int used to return float.
+
+    __get_statistics parses every value with float(), so metrics documented and
+    annotated as counts came back as e.g. 1.0 rather than 1.
+    """
+    result = _stats_result(
+        "Nodes created: 3",
+        "Nodes deleted: 1",
+        "Labels added: 2",
+        "Labels removed: 1",
+        "Properties set: 5",
+        "Properties removed: 4",
+        "Relationships created: 6",
+        "Relationships deleted: 2",
+        "Indices created: 1",
+        "Indices deleted: 1",
+    )
+
+    counts = {
+        "nodes_created": 3,
+        "nodes_deleted": 1,
+        "labels_added": 2,
+        "labels_removed": 1,
+        "properties_set": 5,
+        "properties_removed": 4,
+        "relationships_created": 6,
+        "relationships_deleted": 2,
+        "indices_created": 1,
+        "indices_deleted": 1,
+    }
+
+    for name, expected in counts.items():
+        value = getattr(result, name)
+        assert value == expected, name
+        assert isinstance(value, int), f"{name} returned {type(value).__name__}"
+        assert not isinstance(value, float), name
+
+
+def test_run_time_ms_stays_a_float():
+    """Execution time is genuinely fractional and must not be truncated."""
+    result = _stats_result("internal execution time: 1.75")
+
+    assert isinstance(result.run_time_ms, float)
+    assert result.run_time_ms == 1.75
+
+
+def test_missing_statistic_is_zero():
+    result = _stats_result("Nodes created: 1")
+
+    assert result.nodes_created == 1
+    assert result.nodes_deleted == 0
+    assert isinstance(result.nodes_deleted, int)
+
+
+def test_query_result_is_iterable_and_sized():
+    """QueryResult had no __iter__/__len__, so results could not be iterated."""
+    result = _stats_result("Nodes created: 0")
+    result._result_set = [["a", 1], ["b", 2]]
+
+    assert len(result) == 2
+    assert list(result) == [["a", 1], ["b", 2]]
+    assert [row[0] for row in result] == ["a", "b"]
+
+
+async def _async_stats_result(*stats):
+    """Build an async QueryResult from a statistics-only response."""
+    result = AsyncQueryResult(None)
+    await result.parse([list(stats)])
+    return result
+
+
+def test_async_count_statistics_are_ints():
+    """The async result set must report counts as ints, like the sync one."""
+    result = asyncio.run(
+        _async_stats_result(
+            "Nodes created: 3",
+            "Relationships created: 6",
+            "Indices created: 1",
+            "internal execution time: 1.75",
+        )
+    )
+
+    assert result.nodes_created == 3
+    assert isinstance(result.nodes_created, int)
+    assert result.relationships_created == 6
+    assert isinstance(result.relationships_created, int)
+    assert result.indices_created == 1
+    assert isinstance(result.indices_created, int)
+    assert result.run_time_ms == 1.75
+    assert isinstance(result.run_time_ms, float)
