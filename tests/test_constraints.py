@@ -42,4 +42,4 @@ def test_create_existing_constraint():
         g.create_node_unique_constraint("Person", "name")
         assert False
     except Exception as e:
-        assert "Constraint already exists" == str(e)
+        assert str(e) == "Constraint already exists"

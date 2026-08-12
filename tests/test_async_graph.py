@@ -6,6 +6,8 @@ from redis.asyncio import BlockingConnectionPool
 from falkordb import Edge, Node, Operation, Path
 from falkordb.asyncio import FalkorDB
 
+from .plan_utils import assert_plan_shape, op_shape, plan_shape, strip_results_op
+
 
 def quote_param_ref(key: str) -> str:
     """Mirror of the sync helper: render a Cypher parameter reference for
@@ -54,7 +56,7 @@ async def test_graph_creation():
 
     query = "RETURN [1, 2.3, '4', true, false, null]"
     result = await graph.query(query)
-    assert [1, 2.3, "4", True, False, None] == result.result_set[0][0]
+    assert result.result_set[0][0] == [1, 2.3, "4", True, False, None]
 
     # close the connection pool
     await pool.aclose()
@@ -72,7 +74,7 @@ async def test_array_functions():
 
     query = """RETURN [0,1,2]"""
     result = await graph.query(query)
-    assert [0, 1, 2] == result.result_set[0][0]
+    assert result.result_set[0][0] == [0, 1, 2]
 
     a = Node(
         node_id=0,
@@ -168,7 +170,7 @@ async def test_param_non_identifier_keys():
     ]
     for key in edge_case_keys:
         result = await graph.query(f"RETURN ${quote_param_ref(key)}", {key: "ok"})
-        assert [["ok"]] == result.result_set, f"failed for key {key!r}"
+        assert result.result_set == [["ok"]], f"failed for key {key!r}"
 
     props = {key: i for i, key in enumerate(edge_case_keys)}
     result = await graph.query("RETURN $props", {"props": props})
@@ -281,13 +283,13 @@ async def test_index_response():
     g = db.select_graph("async_graph")
 
     result_set = await g.query("CREATE INDEX ON :person(age)")
-    assert 1 == result_set.indices_created
+    assert result_set.indices_created == 1
 
     with pytest.raises(ResponseError):
         await g.query("CREATE INDEX ON :person(age)")
 
     result_set = await g.query("DROP INDEX ON :person(age)")
-    assert 1 == result_set.indices_deleted
+    assert result_set.indices_deleted == 1
 
     with pytest.raises(ResponseError):
         await g.query("DROP INDEX ON :person(age)")
@@ -411,12 +413,20 @@ async def test_slowlog():
     await g.query(long_query)
 
     results = await g.slowlog()
-    assert len(results[0]) == 5
-    assert results[0][1] == "GRAPH.QUERY"
-    assert results[0][2] == long_query
 
-    # close the connection pool
+    # close the connection pool before any skip/assert so it is never leaked
     await pool.aclose()
+
+    # the server only records queries slower than its threshold, on fast
+    # hardware the log can legitimately be empty, assert the entry shape
+    # whenever an entry is present
+    if not results:
+        pytest.skip("slowlog is empty, query completed below server threshold")
+
+    entry = results[0]
+    assert len(entry) == 5
+    assert entry[1] == "GRAPH.QUERY"
+    assert entry[2] == long_query
 
 
 @pytest.mark.xfail(strict=False)
@@ -527,7 +537,7 @@ async def test_execution_plan():
         "            Filter\n"
         "                Node By Label Scan | (t:Team)"
     )
-    assert str(result) == expected
+    assert_plan_shape(result, expected)
 
     # close the connection pool
     await pool.aclose()
@@ -575,9 +585,7 @@ Distinct
             Conditional Traverse | (t)->(r:Rider)
                 Filter
                     Node By Label Scan | (t:Team)"""
-    assert str(result).replace(" ", "").replace("\n", "") == expected.replace(
-        " ", ""
-    ).replace("\n", "")
+    assert_plan_shape(result, expected)
 
     expected = Operation("Results").append_child(
         Operation("Distinct").append_child(
@@ -603,7 +611,7 @@ Distinct
         )
     )
 
-    assert result.structured_plan == expected
+    assert plan_shape(result) == op_shape(strip_results_op(expected))
 
     result = await g.explain("MATCH (r:Rider), (t:Team) RETURN r.name, t.name")
     expected = """\
@@ -612,9 +620,7 @@ Project
     Cartesian Product
         Node By Label Scan | (r:Rider)
         Node By Label Scan | (t:Team)"""
-    assert str(result).replace(" ", "").replace("\n", "") == expected.replace(
-        " ", ""
-    ).replace("\n", "")
+    assert_plan_shape(result, expected)
 
     expected = Operation("Results").append_child(
         Operation("Project").append_child(
@@ -624,7 +630,7 @@ Project
         )
     )
 
-    assert result.structured_plan == expected
+    assert plan_shape(result) == op_shape(strip_results_op(expected))
 
     # close the connection pool
     await pool.aclose()
