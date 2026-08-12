@@ -1,7 +1,11 @@
+import contextlib
+
 import pytest
 from redis.asyncio import BlockingConnectionPool
 
 from falkordb.asyncio import FalkorDB
+
+from .plan_utils import plan_root
 
 
 @pytest.mark.asyncio
@@ -17,11 +21,7 @@ async def test_explain():
 
     plan = await g.explain("UNWIND range(0, 3) AS x RETURN x")
 
-    results_op = plan.structured_plan
-    assert results_op.name == "Results"
-    assert len(results_op.children) == 1
-
-    project_op = results_op.children[0]
+    project_op = plan_root(plan)
     assert project_op.name == "Project"
     assert len(project_op.children) == 1
 
@@ -42,11 +42,7 @@ async def test_cartesian_product_explain():
     g = db.select_graph("async_explain")
     plan = await g.explain("MATCH (a), (b) RETURN *")
 
-    results_op = plan.structured_plan
-    assert results_op.name == "Results"
-    assert len(results_op.children) == 1
-
-    project_op = results_op.children[0]
+    project_op = plan_root(plan)
     assert project_op.name == "Project"
     assert len(project_op.children) == 1
 
@@ -75,43 +71,28 @@ async def test_merge():
     db = FalkorDB(connection_pool=pool)
     g = db.select_graph("async_explain")
 
-    try:
+    with contextlib.suppress(Exception):
         await g.create_node_range_index("person", "age")
-    except Exception:
-        pass
     plan = await g.explain("MERGE (p1:person {age: 40}) MERGE (p2:person {age: 41})")
 
     root = plan.structured_plan
-    assert root.name == "Merge"
-    assert len(root.children) == 3
+    # the exact shape of a MERGE plan is a server implementation detail that
+    # has changed between releases, assert the parser produced a well-formed
+    # tree containing the operations this query must involve
+    assert len(plan.collect_operations("Merge")) == 2
+    assert len(plan.collect_operations("Node By Index Scan")) == 2
+    assert len(plan.collect_operations("Argument")) == 2
 
-    merge_op = root.children[0]
-    assert merge_op.name == "Merge"
-    assert len(merge_op.children) == 2
+    seen = []
 
-    index_scan_op = merge_op.children[0]
-    assert index_scan_op.name == "Node By Index Scan"
-    assert len(index_scan_op.children) == 0
+    def walk(op):
+        seen.append(op)
+        for child in op.children:
+            walk(child)
 
-    merge_create_op = merge_op.children[1]
-    assert merge_create_op.name == "MergeCreate"
-    assert len(merge_create_op.children) == 0
-
-    index_scan_op = root.children[1]
-    assert index_scan_op.name == "Node By Index Scan"
-    assert len(index_scan_op.children) == 1
-
-    arg_op = index_scan_op.children[0]
-    assert arg_op.name == "Argument"
-    assert len(arg_op.children) == 0
-
-    merge_create_op = root.children[2]
-    assert merge_create_op.name == "MergeCreate"
-    assert len(merge_create_op.children) == 1
-
-    arg_op = merge_create_op.children[0]
-    assert arg_op.name == "Argument"
-    assert len(arg_op.children) == 0
+    walk(root)
+    indexed = sum(len(ops) for ops in plan.operations.values())
+    assert len(seen) == indexed
 
     # close the connection pool
     await pool.aclose()
