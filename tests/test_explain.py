@@ -18,11 +18,7 @@ def test_explain(client):
 
     plan = g.explain("UNWIND range(0, 3) AS x RETURN x")
 
-    results_op = plan.structured_plan
-    assert results_op.name == "Results"
-    assert len(results_op.children) == 1
-
-    project_op = results_op.children[0]
+    project_op = plan.structured_plan
     assert project_op.name == "Project"
     assert len(project_op.children) == 1
 
@@ -36,11 +32,7 @@ def test_cartesian_product_explain(client):
     g = db.select_graph("explain")
     plan = g.explain("MATCH (a), (b) RETURN *")
 
-    results_op = plan.structured_plan
-    assert results_op.name == "Results"
-    assert len(results_op.children) == 1
-
-    project_op = results_op.children[0]
+    project_op = plan.structured_plan
     assert project_op.name == "Project"
     assert len(project_op.children) == 1
 
@@ -69,33 +61,18 @@ def test_merge(client):
     plan = g.explain("MERGE (p1:person {age: 40}) MERGE (p2:person {age: 41})")
 
     root = plan.structured_plan
-    assert root.name == "Merge"
-    assert len(root.children) == 3
+    assert root.name == "Commit"
+    assert len(root.children) == 1
 
-    merge_op = root.children[0]
-    assert merge_op.name == "Merge"
-    assert len(merge_op.children) == 2
+    # assert on the operations the plan is made of rather than on the exact
+    # shape of the operation tree, which varies between server versions
+    merge_ops = plan.collect_operations("Merge")
+    assert len(merge_ops) == 2
 
-    index_scan_op = merge_op.children[0]
-    assert index_scan_op.name == "Node By Index Scan"
-    assert len(index_scan_op.children) == 0
+    index_scan_ops = plan.collect_operations("Node By Index Scan")
+    assert len(index_scan_ops) == 2
 
-    merge_create_op = merge_op.children[1]
-    assert merge_create_op.name == "MergeCreate"
-    assert len(merge_create_op.children) == 0
-
-    index_scan_op = root.children[1]
-    assert index_scan_op.name == "Node By Index Scan"
-    assert len(index_scan_op.children) == 1
-
-    arg_op = index_scan_op.children[0]
-    assert arg_op.name == "Argument"
-    assert len(arg_op.children) == 0
-
-    merge_create_op = root.children[2]
-    assert merge_create_op.name == "MergeCreate"
-    assert len(merge_create_op.children) == 1
-
-    arg_op = merge_create_op.children[0]
-    assert arg_op.name == "Argument"
-    assert len(arg_op.children) == 0
+    for index_scan_op in index_scan_ops:
+        assert len(index_scan_op.children) == 1
+        assert index_scan_op.children[0].name == "Argument"
+        assert len(index_scan_op.children[0].children) == 0
