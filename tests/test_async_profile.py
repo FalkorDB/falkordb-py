@@ -3,7 +3,7 @@ from redis.asyncio import BlockingConnectionPool
 
 from falkordb.asyncio import FalkorDB
 
-from .plan_helpers import assert_parsed_profile
+from .plan_helpers import assert_profile_shape
 
 
 @pytest.mark.asyncio
@@ -16,9 +16,14 @@ async def test_profile():
 
     plan = await g.profile("UNWIND range(0, 3) AS x RETURN x")
 
-    # which operations the query compiles into is up to the engine, the client
-    # is responsible for parsing the plan and its statistics
-    assert_parsed_profile(plan, min_operations=2, records_produced=4)
+    assert_profile_shape(
+        plan,
+        """
+        Project
+            Unwind
+        """,
+        records_produced=4,
+    )
 
     # close the connection pool
     await pool.aclose()
@@ -34,7 +39,16 @@ async def test_cartesian_product_profile():
 
     plan = await g.profile("MATCH (a), (b) RETURN *")
 
-    assert_parsed_profile(plan, min_operations=4, expect_args=True, records_produced=0)
+    assert_profile_shape(
+        plan,
+        """
+        Project
+            Cartesian Product
+                All Node Scan | (a)
+                All Node Scan | (b)
+        """,
+        records_produced=0,
+    )
 
     # close the connection pool
     await pool.aclose()

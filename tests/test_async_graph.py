@@ -6,7 +6,7 @@ from redis.asyncio import BlockingConnectionPool
 from falkordb import Edge, Node, Path
 from falkordb.asyncio import FalkorDB
 
-from .plan_helpers import assert_parsed_plan
+from .plan_helpers import assert_parsed_plan, assert_plan_shape
 
 
 def quote_param_ref(key: str) -> str:
@@ -523,9 +523,17 @@ async def test_execution_plan():
         {"name": "Yehuda"},
     )
 
-    # which operations the query compiles into is up to the engine, the client
-    # is responsible for parsing whatever plan comes back
-    assert_parsed_plan(result, min_operations=4, expect_args=True)
+    # the traverse renders its direction differently on each engine, so the
+    # operation names and their nesting are what is pinned here
+    assert_plan_shape(
+        result,
+        """
+        Project
+            Conditional Traverse
+                Filter
+                    Node By Label Scan | (t:Team)
+        """,
+    )
     assert str(result)
 
     # close the connection pool
@@ -562,10 +570,21 @@ async def test_explain():
            RETURN r.name, t.name""",
         {"name": "Yamaha"},
     )
+    # the two engines name the union operation differently — Rust calls it
+    # "Union", C calls it "Join" — so there is no single tree to assert here.
+    # Check the client parsed whatever came back.
     assert_parsed_plan(result, min_operations=7, expect_args=True)
 
     result = await g.explain("MATCH (r:Rider), (t:Team) RETURN r.name, t.name")
-    assert_parsed_plan(result, min_operations=4, expect_args=True)
+    assert_plan_shape(
+        result,
+        """
+        Project
+            Cartesian Product
+                Node By Label Scan | (r:Rider)
+                Node By Label Scan | (t:Team)
+        """,
+    )
 
     # close the connection pool
     await pool.aclose()
