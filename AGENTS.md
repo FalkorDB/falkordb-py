@@ -63,11 +63,12 @@ falkordb/
   cluster.py         # Redis Cluster support
   sentinel.py        # Redis Sentinel support
   _version.py        # Package version via importlib.metadata
+  py.typed           # PEP 561 marker — ships inline type information
   asyncio/           # Async mirror (see below)
-  lite/              # Lightweight variant
 tests/
   test_*.py          # Sync tests
   test_async_*.py    # Async tests (mirror sync tests)
+  plan_utils.py      # Helpers for version-agnostic execution-plan assertions
 ```
 
 ## Architecture Patterns
@@ -76,11 +77,15 @@ tests/
 Every sync class in `falkordb/` has an async counterpart in `falkordb/asyncio/`:
 | Sync | Async |
 |------|-------|
-| `falkordb.py` → `FalkorDB` | `asyncio/falkordb.py` → `AsyncFalkorDB` |
+| `falkordb.py` → `FalkorDB` | `asyncio/falkordb.py` → `FalkorDB` (imported as `AsyncFalkorDB`) |
 | `graph.py` → `Graph` | `asyncio/graph.py` → `AsyncGraph` |
 | `query_result.py` → `QueryResult` | `asyncio/query_result.py` → `AsyncQueryResult` |
 
 When modifying sync code, always check if the async counterpart needs the same change.
+
+Known parity gaps (not yet implemented on the async side): `sentinel.py` has no
+async counterpart, and `asyncio/falkordb.py` accepts fewer constructor
+parameters than the sync client.
 
 ### Redis Integration
 - `FalkorDB` wraps a `redis.Redis` (or `redis.asyncio.Redis`) connection
