@@ -1,4 +1,4 @@
-from typing import List, Optional, Union
+import contextlib
 
 import redis  # type: ignore[import-not-found]
 from redis.driver_info import DriverInfo
@@ -58,7 +58,7 @@ class FalkorDB:
         ssl_ca_certs=None,
         ssl_ca_path=None,
         ssl_ca_data=None,
-        ssl_check_hostname=False,
+        ssl_check_hostname=True,
         ssl_password=None,
         ssl_validate_ocsp=False,
         ssl_validate_ocsp_stapled=False,
@@ -180,7 +180,12 @@ class FalkorDB:
         kwargs["decode_responses"] = True
         conn = redis.from_url(url, **kwargs)
 
-        return cls(connection_pool=conn.connection_pool)
+        # carry TLS through, otherwise a cluster/sentinel topology would be
+        # re-dialed in plaintext by Cluster_Conn/Sentinel_Conn
+        pool = conn.connection_pool
+        ssl = pool.connection_class is redis.SSLConnection
+
+        return cls(connection_pool=pool, ssl=ssl)
 
     def select_graph(self, graph_id: str) -> Graph:
         """
@@ -199,7 +204,7 @@ class FalkorDB:
 
         return Graph(self, graph_id)
 
-    def list_graphs(self) -> List[str]:
+    def list_graphs(self) -> list[str]:
         """
         Lists all graph names.
         See: https://docs.falkordb.com/commands/graph.list.html
@@ -211,7 +216,7 @@ class FalkorDB:
 
         return self.connection.execute_command(LIST_CMD)
 
-    def config_get(self, name: str) -> Union[int, str]:
+    def config_get(self, name: str) -> int | str:
         """
         Retrieve a DB level configuration.
         For a list of available configurations see: https://docs.falkordb.com/configuration.html#falkordb-configuration-parameters
@@ -247,11 +252,9 @@ class FalkorDB:
         Close the underlying connection(s).
         """
 
-        try:
+        # best-effort close, don't raise on Redis errors
+        with contextlib.suppress(RedisError):
             self.connection.close()
-        except RedisError:
-            # best-effort close — don't raise on Redis errors
-            pass
 
     def __enter__(self) -> "FalkorDB":
         """Return self to support usage in a with-statement."""
@@ -292,7 +295,7 @@ class FalkorDB:
         return resp
 
     # GRAPH.UDF LIST [LIBRARYNAME] [WITHCODE]
-    def udf_list(self, lib: Optional[str] = None, with_code: bool = False):
+    def udf_list(self, lib: str | None = None, with_code: bool = False):
         """
         List User Defined Function (UDF) libraries.
 

@@ -22,9 +22,19 @@ def Is_Cluster(conn: redis.Redis):
     if pool.connection_class is redis.UnixDomainSocketConnection:
         kwargs["unix_socket_path"] = kwargs.pop("path")
 
+    # These carry asyncio-specific objects (awaitable Retry/credential provider
+    # /connect hooks). Handing them to a synchronous client makes it return
+    # un-awaited coroutines, so drop them, this probe is a single INFO call.
+    for async_only in ("retry", "credential_provider", "redis_connect_func"):
+        kwargs.pop(async_only, None)
+
     # Create a synchronous Redis client with the same parameters
     # as the connection pool just to keep Is_Cluster synchronous
-    info = sync_redis.Redis(**kwargs).info(section="server")
+    probe = sync_redis.Redis(**kwargs)
+    try:
+        info = probe.info(section="server")
+    finally:
+        probe.close()
 
     return "redis_mode" in info and info["redis_mode"] == "cluster"
 
@@ -39,8 +49,11 @@ def Cluster_Conn(
     reinitialize_steps=5,
     read_from_replicas=False,
     address_remap=None,
+    load_balancing_strategy=None,
 ):
-    connection_kwargs = conn.connection_pool.connection_kwargs
+    # copy, popping from the live pool dict would strip host/port/credentials
+    # from a pool the caller may still be using
+    connection_kwargs = dict(conn.connection_pool.connection_kwargs)
     host = connection_kwargs.pop("host")
     port = connection_kwargs.pop("port")
     username = connection_kwargs.pop("username")
@@ -57,6 +70,17 @@ def Cluster_Conn(
             redis_exceptions.ConnectionError,
         ],
     )
+
+    # redis-py deprecated these and warns for every one it receives, only
+    # forward them when the caller actually diverged from the default
+    optional: dict = {}
+    if cluster_error_retry_attempts != 3:
+        optional["cluster_error_retry_attempts"] = cluster_error_retry_attempts
+    if read_from_replicas:
+        optional["read_from_replicas"] = read_from_replicas
+    if load_balancing_strategy is not None:
+        optional["load_balancing_strategy"] = load_balancing_strategy
+
     return RedisCluster(
         host=host,
         port=port,
@@ -68,8 +92,7 @@ def Cluster_Conn(
         retry_on_error=retry_on_error,
         require_full_coverage=require_full_coverage,
         reinitialize_steps=reinitialize_steps,
-        read_from_replicas=read_from_replicas,
         address_remap=address_remap,
         startup_nodes=startup_nodes,
-        cluster_error_retry_attempts=cluster_error_retry_attempts,
+        **optional,
     )
