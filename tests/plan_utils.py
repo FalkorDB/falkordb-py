@@ -146,3 +146,21 @@ def assert_plan_shape(plan: ExecutionPlan, expected: str) -> None:
         expected: The expected plan listing.
     """
     assert plan_shape(plan) == parse_plan_shape(expected)
+
+
+def count_scans(plan: ExecutionPlan) -> int:
+    """Count the scan operations in a plan, whatever kind they are.
+
+    Whether the planner emits a ``Node By Index Scan`` or falls back to a
+    ``Node By Label Scan`` depends on whether an index has finished building,
+    which is a server-side timing detail a test cannot control.
+
+    Args:
+        plan: The plan returned by the server.
+
+    Returns:
+        The number of operations whose name ends in ``Scan``.
+    """
+    return sum(
+        len(ops) for name, ops in plan.operations.items() if name.endswith("Scan")
+    )

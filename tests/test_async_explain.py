@@ -5,7 +5,7 @@ from redis.asyncio import BlockingConnectionPool
 
 from falkordb.asyncio import FalkorDB
 
-from .plan_utils import plan_root
+from .plan_utils import count_scans, plan_root
 
 
 @pytest.mark.asyncio
@@ -80,7 +80,7 @@ async def test_merge():
     # has changed between releases, assert the parser produced a well-formed
     # tree containing the operations this query must involve
     assert len(plan.collect_operations("Merge")) == 2
-    assert len(plan.collect_operations("Node By Index Scan")) == 2
+    assert count_scans(plan) == 2
     assert len(plan.collect_operations("Argument")) == 2
 
     seen = []

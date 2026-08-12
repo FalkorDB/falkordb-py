@@ -4,7 +4,7 @@ import pytest
 
 from falkordb import FalkorDB
 
-from .plan_utils import plan_root
+from .plan_utils import count_scans, plan_root
 
 
 @pytest.fixture
@@ -68,7 +68,7 @@ def test_merge(client):
     merges = plan.collect_operations("Merge")
     assert len(merges) == 2
 
-    assert len(plan.collect_operations("Node By Index Scan")) == 2
+    assert count_scans(plan) == 2
     assert len(plan.collect_operations("Argument")) == 2
 
     # every operation reachable from the root must have been indexed, i.e. the
