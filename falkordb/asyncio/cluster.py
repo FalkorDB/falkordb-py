@@ -22,6 +22,10 @@ def Is_Cluster(conn: redis.Redis):
     if pool.connection_class is redis.UnixDomainSocketConnection:
         kwargs["unix_socket_path"] = kwargs.pop("path")
 
+    # redis-py 8.x async pools include `himport_registry`, but the sync Redis
+    # constructor used by this probe doesn't accept it.
+    kwargs.pop("himport_registry", None)
+
     # Create a synchronous Redis client with the same parameters
     # as the connection pool just to keep Is_Cluster synchronous
     info = sync_redis.Redis(**kwargs).info(section="server")

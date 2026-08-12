@@ -191,6 +191,30 @@ async def test_is_cluster_unix_socket_does_not_crash_on_path_kwarg():
     await conn.aclose()
 
 
+def test_is_cluster_strips_async_only_himport_registry():
+    """Is_Cluster must drop async-only kwargs before sync probe creation."""
+    from falkordb.asyncio.cluster import Is_Cluster
+
+    class FakePool:
+        connection_kwargs = {
+            "host": "localhost",
+            "port": 6379,
+            "decode_responses": True,
+            "himport_registry": object(),
+        }
+        connection_class = object
+
+    class FakeConn:
+        connection_pool = FakePool()
+
+    with patch("falkordb.asyncio.cluster.sync_redis.Redis") as mock_sync_redis:
+        mock_sync_redis.return_value.info.return_value = {}
+        Is_Cluster(FakeConn())
+
+    called_kwargs = mock_sync_redis.call_args.kwargs
+    assert "himport_registry" not in called_kwargs
+
+
 @pytest.mark.asyncio
 async def test_udf_load(async_client):
     """Test loading a UDF library asynchronously"""
