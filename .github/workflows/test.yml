@@ -21,19 +21,16 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
+env:
+  # FalkorDB image tag under test: the released `latest` for pull requests,
+  # pushes and tags, `edge` for the scheduled daily run, or an explicit tag on
+  # manual dispatch.
+  FALKORDB_VERSION: ${{ github.event.inputs.falkordb_image_tag || (github.event_name == 'schedule' && 'edge' || 'latest') }}
+
 jobs:
   test:
     name: Test with Python ${{ matrix.python }}
     runs-on: ubuntu-latest
-
-    services:
-      falkordb:
-        # Docker Hub image: released `latest` for PRs/pushes/tags, `edge` for the
-        # scheduled daily run (or an explicit tag on manual dispatch).
-        image: falkordb/falkordb:${{ github.event.inputs.falkordb_image_tag || (github.event_name == 'schedule' && 'edge' || 'latest') }}
-        # Map port 6379 on the Docker host to port 6379 on the FalkorDB container
-        ports:
-          - 6379:6379
 
     strategy:
       matrix:
@@ -42,6 +39,20 @@ jobs:
 
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6
+
+      - name: Start FalkorDB
+        run: |
+          docker run -d --name falkordb -p 6379:6379 "falkordb/falkordb:$FALKORDB_VERSION"
+          for _ in $(seq 1 30); do
+            if docker exec falkordb redis-cli ping | grep -q PONG; then
+              echo "FalkorDB $FALKORDB_VERSION is ready"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "FalkorDB $FALKORDB_VERSION failed to become ready"
+          docker logs falkordb
+          exit 1
 
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
