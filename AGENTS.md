@@ -13,7 +13,7 @@ uv sync --group dev    # also install dev tools (ruff, mypy, types-redis)
 ## Testing
 Tests require a running FalkorDB instance on `localhost:6379`:
 ```bash
-docker run -p 6379:6379 -d falkordb/falkordb:edge
+docker run -p 6379:6379 -d falkordb/falkordb:latest
 ```
 Run all tests:
 ```bash
@@ -94,7 +94,7 @@ When modifying sync code, always check if the async counterpart needs the same c
 ## CI/CD
 - **`lint.yml`**: Runs ruff format, ruff check, and mypy on Python 3.14
 - **`spellcheck.yml`**: Runs pyspelling on all `*.md` files using aspell; custom wordlist at `.github/wordlist.txt`
-- **`test.yml`**: Runs pytest against a `falkordb/falkordb:edge` Docker service on Python 3.10–3.14; uploads coverage to Codecov
+- **`test.yml`**: Runs pytest against a `falkordb/falkordb:latest` Docker service on Python 3.10–3.14; uploads coverage to Codecov. Runs on pull requests, pushes to `main` and version tags. A daily scheduled run (02:00 UTC) repeats the suite against `falkordb/falkordb:edge` to catch regressions in upcoming FalkorDB releases; the image tag can also be set manually via `workflow_dispatch`
 
 ## Before Finishing a Task
 After completing any task, review whether your changes require updates to:

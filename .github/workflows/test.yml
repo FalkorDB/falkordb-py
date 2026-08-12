@@ -4,21 +4,52 @@ permissions:
 on:
   push:
     branches: [main]
+    tags: ["v*.*.*"]
   pull_request:
+  # Daily run against the `edge` image to catch breaking changes in upcoming
+  # FalkorDB releases before they reach a stable release.
+  schedule:
+    - cron: "0 2 * * *"
+  workflow_dispatch:
+    inputs:
+      falkordb_image_tag:
+        description: "FalkorDB Docker image tag to test against (defaults to latest)"
+        required: false
+        default: "latest"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
+  # Single source of truth for the FalkorDB image tag. It cannot be a plain
+  # `env:` variable because GitHub does not allow the `env` context in
+  # `jobs.<id>.services.<id>.image`, so it is resolved once here and consumed
+  # via `needs.falkordb-version.outputs.version`.
+  falkordb-version:
+    name: Resolve FalkorDB version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.resolve.outputs.version }}
+    steps:
+      - id: resolve
+        env:
+          # Released `latest` for pull requests, pushes and tags; `edge` for the
+          # scheduled daily run; an explicit tag on manual dispatch.
+          FALKORDB_VERSION: ${{ github.event.inputs.falkordb_image_tag || (github.event_name == 'schedule' && 'edge' || 'latest') }}
+        run: |
+          echo "Testing against falkordb/falkordb:$FALKORDB_VERSION"
+          echo "version=$FALKORDB_VERSION" >> "$GITHUB_OUTPUT"
+
   test:
     name: Test with Python ${{ matrix.python }}
     runs-on: ubuntu-latest
+    needs: falkordb-version
 
     services:
       falkordb:
-        # Docker Hub image
-        image: falkordb/falkordb:edge
+        # Docker Hub image, tag resolved by the `falkordb-version` job above.
+        image: falkordb/falkordb:${{ needs.falkordb-version.outputs.version }}
         # Map port 6379 on the Docker host to port 6379 on the FalkorDB container
         ports:
           - 6379:6379
@@ -52,3 +83,54 @@ jobs:
         with:
           fail_ci_if_error: false
           token: ${{ secrets.CODECOV_TOKEN }}    
+
+  # A cron job has nobody watching it: GitHub only emails whoever last touched
+  # the cron line, so a failing daily run would otherwise go unnoticed. Post it
+  # to Google Chat instead.
+  report-scheduled-failure:
+    name: Report scheduled failure
+    needs: [falkordb-version, test]
+    if: ${{ always() && github.event_name == 'schedule' && contains(needs.*.result, 'failure') }}
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    env:
+      GOOGLE_CHAT_WEBHOOK_URL: ${{ secrets.GOOGLE_CHAT_WEBHOOK_URL }}
+      REPO: ${{ github.repository }}
+      WORKFLOW: ${{ github.workflow }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      - name: Notify Google Chat
+        if: ${{ env.GOOGLE_CHAT_WEBHOOK_URL != '' }}
+        run: |
+          text=$(printf '%s\n' \
+            "*$REPO* — the daily \`$WORKFLOW\` run against \`falkordb/falkordb:edge\` failed." \
+            "<$RUN_URL|View the run>" \
+            "" \
+            "\`edge\` is an unreleased FalkorDB build, so released users are unaffected: this is an early warning that the next FalkorDB release breaks this client.")
+          jq -n --arg text "$text" '{text: $text}' > payload.json
+          curl -sS --fail-with-body -X POST -H 'Content-Type: application/json' \
+            -d @payload.json "$GOOGLE_CHAT_WEBHOOK_URL"
+
+      # Fallback while the webhook secret is not configured, so the signal is
+      # never lost. Opens one issue and comments on it on subsequent failures.
+      - name: Open or update a tracking issue
+        if: ${{ env.GOOGLE_CHAT_WEBHOOK_URL == '' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TITLE: "CI is failing against falkordb/falkordb:edge"
+        run: |
+          body=$(printf '%s\n' \
+            "The daily \`$WORKFLOW\` run against \`falkordb/falkordb:edge\` failed." \
+            "" \
+            "$RUN_URL" \
+            "" \
+            "Set the \`GOOGLE_CHAT_WEBHOOK_URL\` secret to receive this in Google Chat instead.")
+          number=$(gh issue list --state open --search "$TITLE in:title" --json number,title \
+            --jq "map(select(.title == \"$TITLE\")) | .[0].number // empty")
+          if [ -n "$number" ]; then
+            gh issue comment "$number" --body "$body"
+          else
+            gh issue create --title "$TITLE" --body "$body"
+          fi
