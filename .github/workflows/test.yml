@@ -4,7 +4,18 @@ permissions:
 on:
   push:
     branches: [main]
+    tags: ["v*.*.*"]
   pull_request:
+  # Daily run against the `edge` image to catch breaking changes in upcoming
+  # FalkorDB releases before they reach a stable release.
+  schedule:
+    - cron: "0 2 * * *"
+  workflow_dispatch:
+    inputs:
+      falkordb_image_tag:
+        description: "FalkorDB Docker image tag to test against (defaults to latest)"
+        required: false
+        default: ""
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -17,8 +28,9 @@ jobs:
 
     services:
       falkordb:
-        # Docker Hub image
-        image: falkordb/falkordb:edge
+        # Docker Hub image: released `latest` for PRs/pushes/tags, `edge` for the
+        # scheduled daily run (or an explicit tag on manual dispatch).
+        image: falkordb/falkordb:${{ github.event.inputs.falkordb_image_tag || (github.event_name == 'schedule' && 'edge' || 'latest') }}
         # Map port 6379 on the Docker host to port 6379 on the FalkorDB container
         ports:
           - 6379:6379
