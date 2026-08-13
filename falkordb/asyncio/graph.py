@@ -81,10 +81,9 @@ class AsyncGraph(Graph):
 
         # issue query
         try:
-            if not read_only:
-                self.schema._dirty_labels = True
-                self.schema._dirty_properties = True
-                self.schema._dirty_relations = True
+            self.schema._dirty_labels = True
+            self.schema._dirty_properties = True
+            self.schema._dirty_relations = True
             response = await self.execute_command(*command)
             query_result = QueryResult(self)
             await query_result.parse(response)

@@ -578,10 +578,10 @@ def test_schema_cache_on_external_delete(client):
 
     # Phase 4: Read using existing Graph object and verify compact format
     # returns correct properties
-    res_compact = g.query("MATCH (n:Item) RETURN n")
+    res_compact = g.ro_query("MATCH (n:Item) RETURN n")
     compact = res_compact.result_set[0][0].properties
 
-    res_map = g.query("MATCH (n:Item) RETURN properties(n)")
+    res_map = g.ro_query("MATCH (n:Item) RETURN properties(n)")
     correct = dict(res_map.result_set[0][0])
 
     assert (

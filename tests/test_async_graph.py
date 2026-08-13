@@ -628,10 +628,10 @@ async def test_async_schema_cache_on_external_delete():
 
     # Phase 4: Read using existing Graph object and verify compact format
     # returns correct properties
-    res_compact = await g.query("MATCH (n:Item) RETURN n")
+    res_compact = await g.ro_query("MATCH (n:Item) RETURN n")
     compact = res_compact.result_set[0][0].properties
 
-    res_map = await g.query("MATCH (n:Item) RETURN properties(n)")
+    res_map = await g.ro_query("MATCH (n:Item) RETURN properties(n)")
     correct = dict(res_map.result_set[0][0])
 
     assert (
