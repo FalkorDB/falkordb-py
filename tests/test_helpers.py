@@ -9,7 +9,7 @@ from enum import IntEnum
 
 import pytest
 
-from falkordb.helpers import quote_string, stringify_param_value
+from falkordb.helpers import quote_identifier, quote_string, stringify_param_value
 
 
 def test_quote_string():
@@ -192,3 +192,71 @@ def test_temporal_subclass_returning_non_string_is_quoted():
             return 12345
 
     assert stringify_param_value(OddDateTime(2024, 1, 1)) == '"12345"'
+
+
+def test_string_subclasses_cannot_disable_escaping():
+    """quote_string escapes by calling methods on the value itself.
+
+    isinstance() accepts subclasses, so overriding replace() would leave the
+    quotes and backslashes unescaped and let the value close its own string
+    literal. The value is normalized to an exact str first.
+    """
+
+    class EvilStr(str):
+        def replace(self, *args, **kwargs):
+            return self
+
+    assert quote_string(EvilStr('x" CREATE (:PWNED) //')) == '"x\\" CREATE (:PWNED) //"'
+
+
+def test_string_subclass_cannot_hide_a_nul_byte():
+    """The NUL guard is an __contains__ call, which a subclass can override.
+
+    A NUL byte reaching the query header terminates the FalkorDB process.
+    """
+
+    class NulStr(str):
+        def __contains__(self, item):
+            return False
+
+    with pytest.raises(ValueError, match="NUL byte"):
+        quote_string(NulStr("a\x00b"))
+
+
+def test_bytes_subclass_cannot_smuggle_an_unescaped_string():
+    class EvilBytes(bytes):
+        def decode(self, *args, **kwargs):
+            class EvilStr(str):
+                def replace(self, *a, **k):
+                    return self
+
+            return EvilStr('x" CREATE (:PWNED) //')
+
+    assert quote_string(EvilBytes(b"ok")) == '"ok"'
+
+
+def test_identifier_guards_cannot_be_bypassed_by_a_subclass():
+    """Identifiers are interpolated between backticks with no other quoting.
+
+    Both the str-subclass path and the str() fallback have to be normalized,
+    since str() returns whatever __str__ hands back, subclass included.
+    """
+
+    class Lying(str):
+        def __contains__(self, item):
+            return False
+
+    class StrKey(str):
+        def __str__(self):
+            return Lying("k` , n:PWNED {x:1}) //")
+
+    class ObjectKey:
+        def __str__(self):
+            return Lying("k` , n:PWNED {x:1}) //")
+
+    # the real string data is used, the lying __str__ is ignored
+    assert quote_identifier(StrKey("k")) == "k"
+    assert stringify_param_value({StrKey("k"): 1}) == "{`k`:1}"
+
+    with pytest.raises(ValueError, match="backtick"):
+        quote_identifier(ObjectKey())

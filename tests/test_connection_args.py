@@ -1,5 +1,6 @@
 """Connection-construction tests that do not need a live server."""
 
+import inspect
 import warnings
 from typing import ClassVar
 
@@ -124,6 +125,13 @@ class _ClosingProbe:
         self.closed = True
 
 
+# Is_Cluster filters the pool kwargs against the signature of whatever it
+# finds at sync_redis.Redis. A bare **kwargs stub accepts no named parameter,
+# so every kwarg would be filtered out and the assertions below would hold no
+# matter what Is_Cluster did. Borrow the real signature instead.
+_ClosingProbe.__init__.__signature__ = inspect.signature(redis.Redis.__init__)
+
+
 def test_async_is_cluster_closes_probe_on_failure(monkeypatch):
     _ClosingProbe.instances = []
     monkeypatch.setattr(async_cluster.sync_redis, "Redis", _ClosingProbe)
@@ -139,10 +147,18 @@ def test_async_is_cluster_closes_probe_on_failure(monkeypatch):
 
     probe = _ClosingProbe.instances[-1]
     assert probe.closed, "probe client leaked a connection"
-    # the caller's asyncio-specific machinery must not reach the sync probe
+
+    # the probe is synchronous and cannot drive asyncio-specific machinery
     assert "retry" not in probe.kwargs
-    assert "credential_provider" not in probe.kwargs
     assert "redis_connect_func" not in probe.kwargs
+
+    # it does still have to reach the server, so the connection details and
+    # the credentials must survive. username/password are None whenever a
+    # credential provider is in use, dropping it would leave the probe
+    # unauthenticated and Is_Cluster would fail for those callers
+    assert probe.kwargs["credential_provider"] == "creds"
+    assert probe.kwargs["host"] == "localhost"
+    assert probe.kwargs["port"] == 6379
 
 
 def test_async_is_cluster_detects_cluster_mode(monkeypatch):

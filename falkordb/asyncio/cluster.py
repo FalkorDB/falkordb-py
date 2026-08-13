@@ -23,11 +23,14 @@ def Is_Cluster(conn: redis.Redis):
     if pool.connection_class is redis.UnixDomainSocketConnection:
         kwargs["unix_socket_path"] = kwargs.pop("path")
 
-    # These carry asyncio-specific objects (awaitable Retry/credential provider
-    # /connect hooks). They are valid parameter *names* on the sync client, so
-    # the signature filter below keeps them, but handing it the asyncio objects
-    # makes it return un-awaited coroutines. This probe is a single INFO call.
-    for async_only in ("retry", "credential_provider", "redis_connect_func"):
+    # redis.asyncio.retry.Retry and the connect hook are asyncio-specific: they
+    # are valid parameter *names* on the sync client, so the signature filter
+    # below keeps them, but the sync client would call them and get back an
+    # un-awaited coroutine. credential_provider is deliberately NOT dropped --
+    # redis-py has a single CredentialProvider class whose get_credentials() is
+    # synchronous, and removing it would leave the probe unauthenticated
+    # because username/password are None whenever a provider is in use.
+    for async_only in ("retry", "redis_connect_func"):
         kwargs.pop(async_only, None)
 
     # Keep only the parameters the synchronous constructor actually accepts.

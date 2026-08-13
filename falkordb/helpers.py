@@ -26,8 +26,12 @@ def quote_string(v: Any) -> Any:
     """
 
     if isinstance(v, bytes):
-        v = v.decode()
-    elif not isinstance(v, str):
+        v = bytes.decode(v)
+    elif isinstance(v, str):
+        # base method, a str subclass can override replace() and __contains__
+        # and silently turn the NUL check and the escaping below into no-ops
+        v = str.__str__(v)
+    else:
         return v
 
     if "\x00" in v:
@@ -63,7 +67,14 @@ def quote_identifier(name: Any, kind: str = "Cypher map key") -> str:
             in identifiers, and a NUL byte in the header crashes the server.
     """
 
-    name_str = name.decode() if isinstance(name, bytes) else str(name)
+    if isinstance(name, bytes):
+        name_str = bytes.decode(name)
+    elif isinstance(name, str):
+        name_str = str.__str__(name)
+    else:
+        # str() returns whatever __str__ hands back, including a subclass that
+        # lies about containing a backtick, so normalize that result too
+        name_str = str.__str__(str(name))
 
     if name_str == "":
         raise ValueError(f"{kind} cannot be empty")
@@ -139,8 +150,8 @@ def stringify_param_value(value: Any) -> str:
             )
         # render the decimal itself rather than going through float(), which
         # would drop digits beyond a double's precision and turn a large but
-        # finite Decimal into inf. The server reports a value it cannot hold
-        # as an overflow, which is a better answer than silent rounding.
+        # finite Decimal into inf. A value the server cannot hold is rejected
+        # by the server rather than silently rounded here.
         return str(decimal_value)
 
     if isinstance(value, float):
