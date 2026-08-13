@@ -48,7 +48,7 @@ def Cluster_Conn(
     read_from_replicas=False,
     address_remap=None,
 ):
-    connection_kwargs = conn.connection_pool.connection_kwargs
+    connection_kwargs = conn.connection_pool.connection_kwargs.copy()
     host = connection_kwargs.pop("host")
     port = connection_kwargs.pop("port")
     username = connection_kwargs.pop("username")

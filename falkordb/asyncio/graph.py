@@ -88,7 +88,7 @@ class AsyncGraph(Graph):
         except SchemaVersionMismatchException as e:
             # client view over the graph schema is out of sync
             # set client version and refresh local schema
-            self.schema.refresh(e.version)
+            await self.schema.refresh(e.version)
             raise e
 
     async def query(  # type: ignore[override]
