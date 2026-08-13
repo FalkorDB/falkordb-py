@@ -1,13 +1,12 @@
-from typing import List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 import redis.asyncio as redis  # type: ignore[import-not-found]
+from redis.asyncio.cluster import RedisCluster  # type: ignore[import-not-found]
 from redis.driver_info import DriverInfo
 from redis.exceptions import RedisError
 
-from redis.asyncio.cluster import RedisCluster  # type: ignore[import-not-found]
-
 from .._version import get_package_version
-from .cluster import Cluster_Conn, Is_Cluster
+from .cluster import Cluster_Conn, Is_Cluster, parse_cluster_slots
 from .graph import AsyncGraph
 from .sentinel import Is_Sentinel, Sentinel_Conn
 
@@ -161,6 +160,25 @@ class FalkorDB:
             return Cluster_Conn(self.connection, ssl=False, read_from_replicas=True)
 
         return self.connection
+
+    async def get_cluster_shards(self) -> List[Dict[str, Any]]:
+        """
+        Deduces and returns FalkorDB Cluster shards asynchronously, mapping primary nodes to their replicas.
+        """
+        if Is_Cluster(self.connection):
+            raw_slots = await self.connection.execute_command("CLUSTER", "SLOTS")
+            return parse_cluster_slots(raw_slots)
+
+        kwargs = self.connection.connection_pool.connection_kwargs
+        host = kwargs.get("host", "localhost")
+        port = kwargs.get("port", 6379)
+        return [
+            {
+                "primary": {"id": "standalone", "host": host, "port": port, "endpoint": f"{host}:{port}"},
+                "replicas": [],
+                "slots": [(0, 16383)],
+            }
+        ]
 
     async def _disconnect_connection(self):
         """
