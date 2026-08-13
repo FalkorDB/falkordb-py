@@ -591,10 +591,18 @@ async def test_explain():
 
 
 @pytest.mark.asyncio
-async def test_async_schema_cache_on_external_delete(async_client):
-    g = async_client
-    gname = g.name
-    db = g.client
+async def test_async_schema_cache_on_external_delete():
+    pool = BlockingConnectionPool(
+        max_connections=16, timeout=None, decode_responses=True
+    )
+    db = FalkorDB(connection_pool=pool)
+    gname = "async_external_delete_schema_test"
+    g = db.select_graph(gname)
+
+    try:
+        await db.connection.execute_command("GRAPH.DELETE", gname)
+    except Exception:
+        pass
 
     # Phase 1: Build graph A with property order [id, name, color, size]
     await g.query(
@@ -638,3 +646,4 @@ async def test_async_schema_cache_on_external_delete(async_client):
     )
 
     await g_new.delete()
+    await pool.aclose()
