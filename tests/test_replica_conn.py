@@ -210,3 +210,48 @@ def test_async_existing_redis_cluster_get_replica_connection():
         mock_cluster_conn.assert_called_once_with(
             db._raw_conn, ssl=False, read_from_replicas=True
         )
+
+        # Second call returns cached _replica_connection
+        mock_cluster_conn.reset_mock()
+        assert db.get_replica_connection() is cluster_replica
+        mock_cluster_conn.assert_not_called()
+
+
+def test_sync_redis_cluster_read_from_replicas_true():
+    db = object.__new__(SyncFalkorDB)
+    db.sentinel = None
+    db.service_name = None
+    db._raw_conn = MagicMock()
+    db._ssl = False
+
+    cluster_replica = MagicMock(spec=["read_from_replicas"])
+    cluster_replica.read_from_replicas = True
+
+    db.connection = cluster_replica
+
+    with (
+        patch("falkordb.falkordb.Is_Cluster", return_value=True),
+        patch("falkordb.falkordb.isinstance", side_effect=lambda obj, cls: True),
+    ):
+        assert db.get_replica_connection() is cluster_replica
+
+
+def test_async_redis_cluster_read_from_replicas_true():
+    db = object.__new__(AsyncFalkorDB)
+    db.sentinel = None
+    db.service_name = None
+    db._raw_conn = MagicMock()
+    db._ssl = False
+
+    cluster_replica = MagicMock(spec=["read_from_replicas"])
+    cluster_replica.read_from_replicas = True
+
+    db.connection = cluster_replica
+
+    with (
+        patch("falkordb.asyncio.falkordb.Is_Cluster", return_value=True),
+        patch(
+            "falkordb.asyncio.falkordb.isinstance", side_effect=lambda obj, cls: True
+        ),
+    ):
+        assert db.get_replica_connection() is cluster_replica
