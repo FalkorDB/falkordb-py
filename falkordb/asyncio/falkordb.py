@@ -166,7 +166,10 @@ class FalkorDB:
         """
         Disconnects the underlying connection or pool to clear dirty socket state.
         """
-        await self.connection.aclose()
+        try:
+            await self.connection.aclose()
+        except (RedisError, OSError):
+            pass
 
     @classmethod
     def from_url(cls, url: str, **kwargs) -> "FalkorDB":
@@ -267,8 +270,8 @@ class FalkorDB:
 
         try:
             await self.connection.aclose()
-        except RedisError:
-            # best-effort close — don't raise on Redis errors
+        except (RedisError, OSError):
+            # best-effort close — don't raise on Redis or socket errors
             pass
 
     async def __aenter__(self) -> "FalkorDB":

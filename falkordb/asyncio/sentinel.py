@@ -7,19 +7,22 @@ from redis.asyncio.sentinel import Sentinel  # type: ignore[import-not-found]
 
 # detect if a connection is a sentinel
 def Is_Sentinel(conn: redis.Redis) -> bool:
-    pool = conn.connection_pool
-    kwargs = pool.connection_kwargs.copy()
+    try:
+        pool = conn.connection_pool
+        kwargs = pool.connection_kwargs.copy()
 
-    kwargs["ssl"] = pool.connection_class is redis.SSLConnection
+        kwargs["ssl"] = pool.connection_class is redis.SSLConnection
 
-    if pool.connection_class is redis.UnixDomainSocketConnection:
-        kwargs["unix_socket_path"] = kwargs.pop("path")
+        if pool.connection_class is redis.UnixDomainSocketConnection:
+            kwargs["unix_socket_path"] = kwargs.pop("path")
 
-    accepted = inspect.signature(sync_redis.Redis.__init__).parameters
-    kwargs = {k: v for k, v in kwargs.items() if k in accepted}
+        accepted = inspect.signature(sync_redis.Redis.__init__).parameters
+        kwargs = {k: v for k, v in kwargs.items() if k in accepted}
 
-    info = sync_redis.Redis(**kwargs).info(section="server")
-    return "redis_mode" in info and info["redis_mode"] == "sentinel"
+        info = sync_redis.Redis(**kwargs).info(section="server")
+        return "redis_mode" in info and info["redis_mode"] == "sentinel"
+    except Exception:
+        return False
 
 
 # create an async sentinel connection from a Redis connection

@@ -180,7 +180,10 @@ class FalkorDB:
         """
         Disconnects the underlying connection or pool to clear dirty socket state.
         """
-        self.connection.close()
+        try:
+            self.connection.close()
+        except (RedisError, OSError):
+            pass
 
     @classmethod
     def from_url(cls, url: str, **kwargs) -> "FalkorDB":
