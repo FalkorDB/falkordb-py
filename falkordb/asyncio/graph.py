@@ -37,7 +37,7 @@ class AsyncGraph(Graph):
         """
 
         super().__init__(client, name)
-        self.schema = GraphSchema(self)  # type: ignore[assignment]
+        self.schema: GraphSchema = GraphSchema(self)  # type: ignore[assignment]
 
     async def _query(  # type: ignore[override]
         self,

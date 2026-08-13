@@ -83,4 +83,3 @@ def test_cluster_conn_preserves_connection_kwargs():
     except Exception:
         pass
     assert async_conn.connection_pool.connection_kwargs == original_kwargs
-
