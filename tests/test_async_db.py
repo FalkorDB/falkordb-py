@@ -12,7 +12,7 @@ from falkordb.asyncio import FalkorDB
 async def async_client():
     """Fixture to provide an async FalkorDB client with connection pool."""
     pool = BlockingConnectionPool(
-        max_connections=16, timeout=None, decode_responses=True
+        max_connections=16, timeout=None, decode_responses=True, protocol=2
     )
     db = FalkorDB(connection_pool=pool)
     yield db
