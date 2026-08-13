@@ -85,52 +85,19 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}    
 
   # A cron job has nobody watching it: GitHub only emails whoever last touched
-  # the cron line, so a failing daily run would otherwise go unnoticed. Post it
-  # to Google Chat instead.
+  # the cron line, so a failing daily run would otherwise go unnoticed. The
+  # reporter is shared with the other FalkorDB clients, which all need the same
+  # alert; `permissions` has to stay here because a called workflow can only
+  # downgrade the caller's token.
   report-scheduled-failure:
     name: Report scheduled failure
     needs: [falkordb-version, test]
     if: ${{ always() && github.event_name == 'schedule' && contains(needs.*.result, 'failure') }}
-    runs-on: ubuntu-latest
     permissions:
       issues: write
-    env:
+    # Pinned, and only the one secret it declares is passed: a mutable ref
+    # plus `secrets: inherit` would let a later upstream change run with this
+    # repo's secrets. Dependabot keeps the pin current.
+    uses: FalkorDB/.github/.github/workflows/report-scheduled-failure.yml@126ec30105d98bdfb62b5631e92aa149fc0e5ad1 # 2026-08-13
+    secrets:
       DRIVERS_GOOGLE_CHAT_WEBHOOK_URL: ${{ secrets.DRIVERS_GOOGLE_CHAT_WEBHOOK_URL }}
-      REPO: ${{ github.repository }}
-      WORKFLOW: ${{ github.workflow }}
-      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-    steps:
-      - name: Notify Google Chat
-        if: ${{ env.DRIVERS_GOOGLE_CHAT_WEBHOOK_URL != '' }}
-        run: |
-          text=$(printf '%s\n' \
-            "*$REPO* — the daily \`$WORKFLOW\` run against \`falkordb/falkordb:edge\` failed." \
-            "<$RUN_URL|View the run>" \
-            "" \
-            "\`edge\` is an unreleased FalkorDB build, so released users are unaffected: this is an early warning that the next FalkorDB release breaks this client.")
-          jq -n --arg text "$text" '{text: $text}' > payload.json
-          curl -sS --fail-with-body -X POST -H 'Content-Type: application/json' \
-            -d @payload.json "$DRIVERS_GOOGLE_CHAT_WEBHOOK_URL"
-
-      # Fallback while the webhook secret is not configured, so the signal is
-      # never lost. Opens one issue and comments on it on subsequent failures.
-      - name: Open or update a tracking issue
-        if: ${{ env.DRIVERS_GOOGLE_CHAT_WEBHOOK_URL == '' }}
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-          TITLE: "CI is failing against falkordb/falkordb:edge"
-        run: |
-          body=$(printf '%s\n' \
-            "The daily \`$WORKFLOW\` run against \`falkordb/falkordb:edge\` failed." \
-            "" \
-            "$RUN_URL" \
-            "" \
-            "Set the \`DRIVERS_GOOGLE_CHAT_WEBHOOK_URL\` secret to receive this in Google Chat instead.")
-          number=$(gh issue list --state open --search "$TITLE in:title" --json number,title \
-            --jq "map(select(.title == \"$TITLE\")) | .[0].number // empty")
-          if [ -n "$number" ]; then
-            gh issue comment "$number" --body "$body"
-          else
-            gh issue create --title "$TITLE" --body "$body"
-          fi

@@ -26,7 +26,7 @@ def Cluster_Conn(
 ):
     # copy, popping from the live pool dict would strip host/port/credentials
     # from a pool the caller may still be using
-    connection_kwargs = dict(conn.connection_pool.connection_kwargs)
+    connection_kwargs = conn.connection_pool.connection_kwargs.copy()
     host = connection_kwargs.pop("host")
     port = connection_kwargs.pop("port")
     username = connection_kwargs.pop("username")
