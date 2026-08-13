@@ -37,7 +37,7 @@ class AsyncGraph(Graph):
         """
 
         super().__init__(client, name)
-        self.schema = GraphSchema(self)  # type: ignore[assignment]
+        self.schema: GraphSchema = GraphSchema(self)  # type: ignore[assignment]
 
     async def _query(  # type: ignore[override]
         self,
@@ -88,7 +88,7 @@ class AsyncGraph(Graph):
         except SchemaVersionMismatchException as e:
             # client view over the graph schema is out of sync
             # set client version and refresh local schema
-            self.schema.refresh(e.version)
+            await self.schema.refresh(e.version)
             raise e
 
     async def query(  # type: ignore[override]
