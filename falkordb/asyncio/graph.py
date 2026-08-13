@@ -304,21 +304,26 @@ class AsyncGraph(Graph):
         Returns:
             Any: The result of the index dropping query.
         """
+        # backtick the identifiers, they are query text and a label such as
+        # "L) ON (e.other) //" would otherwise redirect the statement
+        label = quote_identifier(label, "label")
+        attribute = quote_identifier(attribute, "attribute name")
+
         # set pattern
         if entity_type == "NODE":
-            pattern = f"(e:{label})"
+            pattern = f"(e:`{label}`)"
         elif entity_type == "EDGE":
-            pattern = f"()-[e:{label}]->()"
+            pattern = f"()-[e:`{label}`]->()"
         else:
             raise ValueError("Invalid entity type")
 
         # build drop index command
         if idx_type == "RANGE":
-            q = f"DROP INDEX FOR {pattern} ON (e.{attribute})"
+            q = f"DROP INDEX FOR {pattern} ON (e.`{attribute}`)"
         elif idx_type == "VECTOR":
-            q = f"DROP VECTOR INDEX FOR {pattern} ON (e.{attribute})"
+            q = f"DROP VECTOR INDEX FOR {pattern} ON (e.`{attribute}`)"
         elif idx_type == "FULLTEXT":
-            q = f"DROP FULLTEXT INDEX FOR {pattern} ON (e.{attribute})"
+            q = f"DROP FULLTEXT INDEX FOR {pattern} ON (e.`{attribute}`)"
         else:
             raise ValueError("Invalid index type")
 
@@ -431,10 +436,15 @@ class AsyncGraph(Graph):
         Returns:
             Any: The result of the index creation query.
         """
+        # backtick the identifiers, they are query text and a property such as
+        # "age, e.secret" would otherwise widen the index
+        label = quote_identifier(label, "label")
+        quoted_properties = [quote_identifier(p, "property name") for p in properties]
+
         if entity_type == "NODE":
-            pattern = f"(e:{label})"
+            pattern = f"(e:`{label}`)"
         elif entity_type == "EDGE":
-            pattern = f"()-[e:{label}]->()"
+            pattern = f"()-[e:`{label}`]->()"
         else:
             raise ValueError("Invalid entity type")
 
@@ -442,7 +452,7 @@ class AsyncGraph(Graph):
             idx_type = ""
 
         q = f"CREATE {idx_type} INDEX FOR {pattern} ON ("
-        q += ",".join(map("e.{0}".format, properties))
+        q += ",".join(f"e.`{p}`" for p in quoted_properties)
         q += ")"
 
         if options is not None:

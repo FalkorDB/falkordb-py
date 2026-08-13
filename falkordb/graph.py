@@ -49,19 +49,26 @@ def _validate_procedure_name(procedure: str) -> str:
         procedure: The procedure name to validate.
 
     Returns:
-        The procedure name unchanged.
+        The normalized procedure name. It must be this value that reaches the
+        query: validating the argument and interpolating the original object
+        would let a str subclass pass the check and then render something
+        else through __format__.
 
     Raises:
         ValueError: If it is not a plain dotted identifier.
     """
 
-    if not isinstance(procedure, str) or not _PROCEDURE_NAME.match(procedure):
+    if not isinstance(procedure, str):
+        raise ValueError(f"invalid procedure name: {procedure!r}. expected a str")
+
+    name = str.__str__(procedure)
+    if not _PROCEDURE_NAME.fullmatch(name):
         raise ValueError(
             f"invalid procedure name: {procedure!r}. expected a name such as "
             "'DB.LABELS', procedure names are not parameterized and so cannot "
             "contain arbitrary Cypher"
         )
-    return procedure
+    return name
 
 
 def _validate_yield(emit: list) -> list:
@@ -71,21 +78,28 @@ def _validate_yield(emit: list) -> list:
         emit: The names to yield.
 
     Returns:
-        The names unchanged.
+        The normalized names. As with procedure names, the checked value is
+        the one that has to reach the query.
 
     Raises:
         ValueError: If any entry is not an identifier, dotted name, aliased
             name or ``*``.
     """
 
+    names = []
     for name in emit:
-        if not isinstance(name, str) or not _YIELD_ITEM.match(name.strip()):
+        if not isinstance(name, str):
+            raise ValueError(f"invalid YIELD name: {name!r}. expected a str")
+
+        normalized = str.__str__(name).strip()
+        if not _YIELD_ITEM.fullmatch(normalized):
             raise ValueError(
                 f"invalid YIELD name: {name!r}. expected a name such as "
                 "'label' or 'label AS l', YIELD names are not parameterized "
                 "and so cannot contain arbitrary Cypher"
             )
-    return emit
+        names.append(normalized)
+    return names
 
 
 # procedures
@@ -407,21 +421,26 @@ class Graph:
         Returns:
             Any: The result of the index dropping query.
         """
+        # backtick the identifiers, they are query text and a label such as
+        # "L) ON (e.other) //" would otherwise redirect the statement
+        label = quote_identifier(label, "label")
+        attribute = quote_identifier(attribute, "attribute name")
+
         # set pattern
         if entity_type == "NODE":
-            pattern = f"(e:{label})"
+            pattern = f"(e:`{label}`)"
         elif entity_type == "EDGE":
-            pattern = f"()-[e:{label}]->()"
+            pattern = f"()-[e:`{label}`]->()"
         else:
             raise ValueError("Invalid entity type")
 
         # build drop index command
         if idx_type == "RANGE":
-            q = f"DROP INDEX FOR {pattern} ON (e.{attribute})"
+            q = f"DROP INDEX FOR {pattern} ON (e.`{attribute}`)"
         elif idx_type == "VECTOR":
-            q = f"DROP VECTOR INDEX FOR {pattern} ON (e.{attribute})"
+            q = f"DROP VECTOR INDEX FOR {pattern} ON (e.`{attribute}`)"
         elif idx_type == "FULLTEXT":
-            q = f"DROP FULLTEXT INDEX FOR {pattern} ON (e.{attribute})"
+            q = f"DROP FULLTEXT INDEX FOR {pattern} ON (e.`{attribute}`)"
         else:
             raise ValueError("Invalid index type")
 
@@ -534,10 +553,15 @@ class Graph:
         Returns:
             Any: The result of the index creation query.
         """
+        # backtick the identifiers, they are query text and a property such as
+        # "age, e.secret" would otherwise widen the index
+        label = quote_identifier(label, "label")
+        quoted_properties = [quote_identifier(p, "property name") for p in properties]
+
         if entity_type == "NODE":
-            pattern = f"(e:{label})"
+            pattern = f"(e:`{label}`)"
         elif entity_type == "EDGE":
-            pattern = f"()-[e:{label}]->()"
+            pattern = f"()-[e:`{label}`]->()"
         else:
             raise ValueError("Invalid entity type")
 
@@ -545,7 +569,7 @@ class Graph:
             idx_type = ""
 
         q = f"CREATE {idx_type} INDEX FOR {pattern} ON ("
-        q += ",".join(map("e.{0}".format, properties))
+        q += ",".join(f"e.`{p}`" for p in quoted_properties)
         q += ")"
 
         if options is not None:

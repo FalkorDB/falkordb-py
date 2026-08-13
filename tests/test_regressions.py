@@ -425,3 +425,61 @@ def test_index_option_string_cannot_escape_its_quotes():
     query = client.commands[0][2]
     # one option value, the quote is escaped rather than closing the literal
     assert '`similarityFunction`:"a\\" , foo:\\"b"' in query
+
+
+def test_procedure_name_subclass_cannot_change_what_is_emitted():
+    """The validated value must be the value that reaches the query.
+
+    Returning the caller's object and interpolating it means f-string
+    formatting calls __format__, which a str subclass controls, so the name
+    that was checked and the name that runs can differ.
+    """
+    client = SyncStubClient()
+    g = Graph(client, "g")
+
+    class EvilProc(str):
+        def __format__(self, spec):
+            return "db.labels() YIELD label WITH label CREATE (:PWNED) //"
+
+    g.call_procedure(EvilProc("db.labels"), read_only=False)
+    assert "CALL db.labels()" in client.commands[0][2]
+    assert "PWNED" not in client.commands[0][2]
+
+
+def test_yield_name_subclass_cannot_change_what_is_emitted():
+    """The names were validated after .strip(), which the caller controls."""
+    g = Graph(SyncStubClient(), "g")
+
+    class EvilYield(str):
+        def strip(self, *args):
+            return "label"
+
+    with pytest.raises(ValueError, match="invalid YIELD name"):
+        g.call_procedure(
+            "db.labels",
+            read_only=False,
+            emit=[EvilYield("label WITH label CREATE (:PWNED) //")],
+        )
+
+
+def test_index_identifiers_are_backticked():
+    """Labels and property names are query text, not parameters.
+
+    Without backticks a label could close the pattern and redirect the
+    statement, and a property could widen the index.
+    """
+    client = SyncStubClient()
+    g = Graph(client, "g")
+
+    g.create_node_range_index("Person", "age")
+    assert "CREATE  INDEX FOR (e:`Person`) ON (e.`age`)" in client.commands[0][2]
+
+    g.drop_node_range_index("Person", "age")
+    assert "DROP INDEX FOR (e:`Person`) ON (e.`age`)" in client.commands[1][2]
+
+    # a property that used to expand into two indexed properties
+    g.create_node_range_index("L", "age, e.secret")
+    assert "ON (e.`age, e.secret`)" in client.commands[2][2]
+
+    with pytest.raises(ValueError, match="backtick"):
+        g.create_node_range_index("L`", "age")
