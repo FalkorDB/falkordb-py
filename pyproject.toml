@@ -1,6 +1,6 @@
 [project]
 name = "FalkorDB"
-version = "1.7.0"
+version = "1.7.1"
 description = "Python client for interacting with FalkorDB database"
 authors = [
     {name = "FalkorDB inc", email = "info@falkordb.com"}
