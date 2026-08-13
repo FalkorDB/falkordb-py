@@ -1,3 +1,4 @@
+from contextlib import suppress
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
 
@@ -69,17 +70,14 @@ def test_cluster_conn_preserves_connection_kwargs():
     sync_conn = SimpleNamespace(
         connection_pool=SimpleNamespace(connection_kwargs=original_kwargs.copy())
     )
-    try:
+    # the constructor may fail to reach a cluster; only the kwargs matter here
+    with suppress(Exception):
         Sync_Cluster_Conn(sync_conn, ssl=False)
-    except Exception:
-        pass
     assert sync_conn.connection_pool.connection_kwargs == original_kwargs
 
     async_conn = SimpleNamespace(
         connection_pool=SimpleNamespace(connection_kwargs=original_kwargs.copy())
     )
-    try:
+    with suppress(Exception):
         Async_Cluster_Conn(async_conn, ssl=False)
-    except Exception:
-        pass
     assert async_conn.connection_pool.connection_kwargs == original_kwargs
