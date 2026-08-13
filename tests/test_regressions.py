@@ -360,3 +360,68 @@ def test_unrelated_response_error_is_not_ignored():
     """
     with pytest.raises(ResponseError, match="Unknown command"), ignore_existing_index():
         raise ResponseError("Unknown command 'GRAPH.INDEX'")
+
+
+def test_call_procedure_rejects_injected_procedure_name():
+    """The procedure name is query text, nothing downstream quotes it."""
+    g = Graph(SyncStubClient(), "g")
+
+    with pytest.raises(ValueError, match="invalid procedure name"):
+        g.call_procedure(
+            "db.labels() YIELD label WITH label CREATE (:PWNED) RETURN label //",
+            read_only=False,
+        )
+
+
+def test_call_procedure_rejects_injected_yield_name():
+    g = Graph(SyncStubClient(), "g")
+
+    with pytest.raises(ValueError, match="invalid YIELD name"):
+        g.call_procedure(
+            "db.labels",
+            read_only=False,
+            emit=["label WITH label CREATE (:PWNED) RETURN label //"],
+        )
+
+
+def test_call_procedure_still_accepts_ordinary_names():
+    client = SyncStubClient()
+    g = Graph(client, "g")
+
+    g.call_procedure("DB.LABELS", emit=["label"])
+    g.call_procedure("algo.pageRank", emit=["node AS n", "score"])
+    g.call_procedure("db.idx.fulltext.queryNodes", emit=["*"])
+
+    assert "CALL DB.LABELS()YIELD label" in client.commands[0][2]
+    assert "YIELD node AS n,score" in client.commands[1][2]
+
+
+def test_index_options_are_serialized_not_pasted():
+    """Index options reach the query as literals and need the same quoting.
+
+    The map used to be built with str() and unescaped single quotes, which is
+    the pattern the parameter serializer was hardened against.
+    """
+    client = SyncStubClient()
+    g = Graph(client, "g")
+
+    g.create_node_vector_index("Doc", "embedding", dim=4, similarity_function="cosine")
+    query = client.commands[0][2]
+    assert 'OPTIONS {`dimension`:4,`similarityFunction`:"cosine"}' in query
+
+    class Sneaky:
+        def __str__(self):
+            return "4, foo:1"
+
+    with pytest.raises(TypeError, match="unsupported Cypher parameter type"):
+        g.create_node_vector_index("L", "v", dim=Sneaky())
+
+
+def test_index_option_string_cannot_escape_its_quotes():
+    client = SyncStubClient()
+    g = Graph(client, "g")
+
+    g.create_node_vector_index("L", "v", dim=4, similarity_function='a" , foo:"b')
+    query = client.commands[0][2]
+    # one option value, the quote is escaped rather than closing the literal
+    assert '`similarityFunction`:"a\\" , foo:\\"b"' in query

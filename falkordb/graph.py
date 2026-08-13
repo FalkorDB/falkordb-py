@@ -1,4 +1,5 @@
 import contextlib
+import re
 from collections.abc import Iterator
 from typing import Any
 
@@ -26,6 +27,65 @@ def ignore_existing_index() -> Iterator[None]:
     except ResponseError as e:
         if "already indexed" not in str(e):
             raise
+
+
+# a dotted name such as DB.LABELS or algo.pageRank
+_PROCEDURE_NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$")
+
+# a yielded name, optionally aliased: "label", "n.prop", "label AS l", "*"
+_YIELD_ITEM = re.compile(
+    r"^(\*|[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*"
+    r"(\s+[Aa][Ss]\s+[A-Za-z_][A-Za-z0-9_]*)?)$"
+)
+
+
+def _validate_procedure_name(procedure: str) -> str:
+    """Check a procedure name before it is spliced into query text.
+
+    Procedure names are part of the query itself, not parameters, so nothing
+    downstream quotes them.
+
+    Args:
+        procedure: The procedure name to validate.
+
+    Returns:
+        The procedure name unchanged.
+
+    Raises:
+        ValueError: If it is not a plain dotted identifier.
+    """
+
+    if not isinstance(procedure, str) or not _PROCEDURE_NAME.match(procedure):
+        raise ValueError(
+            f"invalid procedure name: {procedure!r}. expected a name such as "
+            "'DB.LABELS', procedure names are not parameterized and so cannot "
+            "contain arbitrary Cypher"
+        )
+    return procedure
+
+
+def _validate_yield(emit: list) -> list:
+    """Check the names in a YIELD clause before they are spliced into a query.
+
+    Args:
+        emit: The names to yield.
+
+    Returns:
+        The names unchanged.
+
+    Raises:
+        ValueError: If any entry is not an identifier, dotted name, aliased
+            name or ``*``.
+    """
+
+    for name in emit:
+        if not isinstance(name, str) or not _YIELD_ITEM.match(name.strip()):
+            raise ValueError(
+                f"invalid YIELD name: {name!r}. expected a name such as "
+                "'label' or 'label AS l', YIELD names are not parameterized "
+                "and so cannot contain arbitrary Cypher"
+            )
+    return emit
 
 
 # procedures
@@ -324,10 +384,10 @@ class Graph:
                 params[param_name] = arg
                 args[i] = "$" + param_name
 
-        q = f"CALL {procedure}({','.join(args)})"
+        q = f"CALL {_validate_procedure_name(procedure)}({','.join(args)})"
 
         if emit is not None and len(emit) > 0:
-            q += f"YIELD {','.join(emit)}"
+            q += f"YIELD {','.join(_validate_yield(emit))}"
 
         return self._query(q, params=params, read_only=read_only)
 
@@ -489,15 +549,14 @@ class Graph:
         q += ")"
 
         if options is not None:
-            # convert options to a Cypher map
-            options_map = "{"
+            # convert options to a Cypher map. The values reach the query as
+            # literals, so they get the same treatment as query parameters
+            # rather than being pasted in with str()
+            parts = []
             for key, value in options.items():
-                if isinstance(value, str):
-                    options_map += key + ":'" + value + "',"
-                else:
-                    options_map += key + ":" + str(value) + ","
-            options_map = options_map[:-1] + "}"
-            q += f" OPTIONS {options_map}"
+                key_str = quote_identifier(key, "index option name")
+                parts.append(f"`{key_str}`:{stringify_param_value(value)}")
+            q += " OPTIONS {" + ",".join(parts) + "}"
 
         return self.query(q)
 

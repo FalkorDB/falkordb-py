@@ -2,7 +2,13 @@ from typing import Any
 
 from falkordb.exceptions import SchemaVersionMismatchException
 from falkordb.execution_plan import ExecutionPlan
-from falkordb.graph import Graph, ignore_existing_index
+from falkordb.graph import (
+    Graph,
+    _validate_procedure_name,
+    _validate_yield,
+    ignore_existing_index,
+)
+from falkordb.helpers import quote_identifier, stringify_param_value
 
 from .graph_schema import GraphSchema as AsyncGraphSchema
 from .query_result import QueryResult
@@ -271,10 +277,10 @@ class AsyncGraph(Graph):
                 params[param_name] = arg
                 args[i] = "$" + param_name
 
-        q = f"CALL {procedure}({','.join(args)})"
+        q = f"CALL {_validate_procedure_name(procedure)}({','.join(args)})"
 
         if emit is not None and len(emit) > 0:
-            q += f"YIELD {','.join(emit)}"
+            q += f"YIELD {','.join(_validate_yield(emit))}"
 
         return await self._query(q, params=params, read_only=read_only)
 
@@ -440,15 +446,14 @@ class AsyncGraph(Graph):
         q += ")"
 
         if options is not None:
-            # convert options to a Cypher map
-            options_map = "{"
+            # convert options to a Cypher map. The values reach the query as
+            # literals, so they get the same treatment as query parameters
+            # rather than being pasted in with str()
+            parts = []
             for key, value in options.items():
-                if isinstance(value, str):
-                    options_map += key + ":'" + value + "',"
-                else:
-                    options_map += key + ":" + str(value) + ","
-            options_map = options_map[:-1] + "}"
-            q += f" OPTIONS {options_map}"
+                key_str = quote_identifier(key, "index option name")
+                parts.append(f"`{key_str}`:{stringify_param_value(value)}")
+            q += " OPTIONS {" + ",".join(parts) + "}"
 
         return await self.query(q)
 
