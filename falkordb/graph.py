@@ -94,6 +94,9 @@ class Graph:
 
         # issue query
         try:
+            self.schema._dirty_labels = True
+            self.schema._dirty_properties = True
+            self.schema._dirty_relations = True
             response = self.execute_command(*command)
             return QueryResult(self, response)
         except SchemaVersionMismatchException as e:

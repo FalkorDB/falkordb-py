@@ -588,3 +588,53 @@ async def test_explain():
 
     # close the connection pool
     await pool.aclose()
+
+
+@pytest.mark.asyncio
+async def test_async_schema_cache_on_external_delete(async_client):
+    g = async_client
+    gname = g.name
+    db = g.client
+
+    # Phase 1: Build graph A with property order [id, name, color, size]
+    await g.query(
+        "CREATE (n:Item) SET n.id='i1', n.name='Widget', n.color='red', n.size=10"
+    )
+    res = await g.query("MATCH (n:Item) RETURN n")
+    assert res.result_set[0][0].properties == {
+        "id": "i1",
+        "name": "Widget",
+        "color": "red",
+        "size": 10,
+    }
+
+    # Phase 2: External delete (raw GRAPH.DELETE, bypassing Graph.delete())
+    await db.connection.execute_command("GRAPH.DELETE", gname)
+
+    # Phase 3: Recreate graph B under same name with different
+    # property registration order
+    g_new = db.select_graph(gname)
+    await g_new.query(
+        "CREATE (n:Item) SET n.id='i2', n.size=20, n.color='blue', n.name='Gadget'"
+    )
+
+    # Phase 4: Read using existing Graph object and verify compact format
+    # returns correct properties
+    res_compact = await g.query("MATCH (n:Item) RETURN n")
+    compact = res_compact.result_set[0][0].properties
+
+    res_map = await g.query("MATCH (n:Item) RETURN properties(n)")
+    correct = dict(res_map.result_set[0][0])
+
+    assert (
+        compact
+        == correct
+        == {
+            "id": "i2",
+            "size": 20,
+            "color": "blue",
+            "name": "Gadget",
+        }
+    )
+
+    await g_new.delete()
