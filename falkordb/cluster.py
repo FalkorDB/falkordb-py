@@ -23,7 +23,7 @@ def Cluster_Conn(
     url=None,
     address_remap=None,
 ):
-    connection_kwargs = conn.connection_pool.connection_kwargs
+    connection_kwargs = conn.connection_pool.connection_kwargs.copy()
     host = connection_kwargs.pop("host")
     port = connection_kwargs.pop("port")
     username = connection_kwargs.pop("username")
