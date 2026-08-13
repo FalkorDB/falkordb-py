@@ -1,3 +1,4 @@
+import inspect
 import socket
 
 import redis as sync_redis  # type: ignore[import-not-found]
@@ -23,10 +24,18 @@ def Is_Cluster(conn: redis.Redis):
         kwargs["unix_socket_path"] = kwargs.pop("path")
 
     # These carry asyncio-specific objects (awaitable Retry/credential provider
-    # /connect hooks). Handing them to a synchronous client makes it return
-    # un-awaited coroutines, so drop them, this probe is a single INFO call.
+    # /connect hooks). They are valid parameter *names* on the sync client, so
+    # the signature filter below keeps them, but handing it the asyncio objects
+    # makes it return un-awaited coroutines. This probe is a single INFO call.
     for async_only in ("retry", "credential_provider", "redis_connect_func"):
         kwargs.pop(async_only, None)
+
+    # Keep only the parameters the synchronous constructor actually accepts.
+    # redis-py stores internal state in ``connection_kwargs`` that is not part
+    # of the ``Redis.__init__`` signature — redis 8.1.0 added ``himport_registry``
+    # there — and forwarding those raises TypeError before any I/O happens.
+    accepted = inspect.signature(sync_redis.Redis.__init__).parameters
+    kwargs = {k: v for k, v in kwargs.items() if k in accepted}
 
     # Create a synchronous Redis client with the same parameters
     # as the connection pool just to keep Is_Cluster synchronous

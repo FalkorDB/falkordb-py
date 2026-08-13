@@ -329,11 +329,15 @@ class ExecutionPlan:
                 self.operations[child.name].append(child)
 
                 if current:
-                    current = stack.pop()
-                    current.append_child(child)
+                    # attach the sibling to the parent and keep the parent on
+                    # the stack, so any further sibling is attached to it too
+                    parent = stack.pop()
+                    parent.append_child(child)
+                    stack.append(parent)
+                else:
+                    stack.append(child)
                 current = child
                 i += 1
-                stack.append(child)
             elif op_level == level + 1:
                 # if the operation is child of the current operation
                 # add it as child and set as current operation
