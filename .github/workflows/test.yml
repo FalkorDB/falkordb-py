@@ -95,13 +95,13 @@ jobs:
     permissions:
       issues: write
     env:
-      GOOGLE_CHAT_WEBHOOK_URL: ${{ secrets.GOOGLE_CHAT_WEBHOOK_URL }}
+      DRIVERS_GOOGLE_CHAT_WEBHOOK_URL: ${{ secrets.DRIVERS_GOOGLE_CHAT_WEBHOOK_URL }}
       REPO: ${{ github.repository }}
       WORKFLOW: ${{ github.workflow }}
       RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
     steps:
       - name: Notify Google Chat
-        if: ${{ env.GOOGLE_CHAT_WEBHOOK_URL != '' }}
+        if: ${{ env.DRIVERS_GOOGLE_CHAT_WEBHOOK_URL != '' }}
         run: |
           text=$(printf '%s\n' \
             "*$REPO* — the daily \`$WORKFLOW\` run against \`falkordb/falkordb:edge\` failed." \
@@ -110,12 +110,12 @@ jobs:
             "\`edge\` is an unreleased FalkorDB build, so released users are unaffected: this is an early warning that the next FalkorDB release breaks this client.")
           jq -n --arg text "$text" '{text: $text}' > payload.json
           curl -sS --fail-with-body -X POST -H 'Content-Type: application/json' \
-            -d @payload.json "$GOOGLE_CHAT_WEBHOOK_URL"
+            -d @payload.json "$DRIVERS_GOOGLE_CHAT_WEBHOOK_URL"
 
       # Fallback while the webhook secret is not configured, so the signal is
       # never lost. Opens one issue and comments on it on subsequent failures.
       - name: Open or update a tracking issue
-        if: ${{ env.GOOGLE_CHAT_WEBHOOK_URL == '' }}
+        if: ${{ env.DRIVERS_GOOGLE_CHAT_WEBHOOK_URL == '' }}
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
@@ -126,7 +126,7 @@ jobs:
             "" \
             "$RUN_URL" \
             "" \
-            "Set the \`GOOGLE_CHAT_WEBHOOK_URL\` secret to receive this in Google Chat instead.")
+            "Set the \`DRIVERS_GOOGLE_CHAT_WEBHOOK_URL\` secret to receive this in Google Chat instead.")
           number=$(gh issue list --state open --search "$TITLE in:title" --json number,title \
             --jq "map(select(.title == \"$TITLE\")) | .[0].number // empty")
           if [ -n "$number" ]; then
