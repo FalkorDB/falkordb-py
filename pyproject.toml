@@ -1,6 +1,6 @@
 [project]
 name = "FalkorDB"
-version = "1.7.0"
+version = "1.7.1"
 description = "Python client for interacting with FalkorDB database"
 authors = [
     {name = "FalkorDB inc", email = "info@falkordb.com"}
@@ -28,8 +28,8 @@ classifiers = [
 dependencies = [
     # Bounded to the versions this client is tested against. Raise the upper
     # bounds once a newer release has been verified against the test suite.
-    # Lower bound is 7.2: falkordb imports redis.driver_info, added in 7.2.
-    "redis>=7.2,<8.2",
+    # redis is pinned to the 8.x major line only.
+    "redis>=8.0.0,<9",
     "python-dateutil>=2.9.0,<3",
 ]
 
