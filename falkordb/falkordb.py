@@ -1,6 +1,7 @@
 from typing import List, Optional, Union
 
 import redis  # type: ignore[import-not-found]
+from redis.cluster import RedisCluster  # type: ignore[import-not-found]
 from redis.driver_info import DriverInfo
 from redis.exceptions import RedisError
 
@@ -129,9 +130,15 @@ class FalkorDB:
             protocol=protocol,
         )
 
+        self.sentinel = None
+        self.service_name = None
+
         if Is_Sentinel(conn):
             self.sentinel, self.service_name = Sentinel_Conn(conn, ssl)
-            conn = self.sentinel.master_for(self.service_name, ssl=ssl)
+            if read_from_replicas:
+                conn = self.sentinel.slave_for(self.service_name, ssl=ssl)
+            else:
+                conn = self.sentinel.master_for(self.service_name, ssl=ssl)
 
         if Is_Cluster(conn):
             conn = Cluster_Conn(
@@ -150,6 +157,30 @@ class FalkorDB:
         self.connection = conn
         self.flushdb = conn.flushdb
         self.execute_command = conn.execute_command
+
+    def get_replica_connection(self) -> Union[redis.Redis, RedisCluster]:
+        """
+        Returns a connection instance configured to read from replicas.
+
+        In Sentinel mode: Returns a connection to a Sentinel slave/replica.
+        In Cluster mode: Returns a cluster connection with read_from_replicas=True.
+        In Standalone mode: Returns the underlying connection.
+        """
+        if self.sentinel is not None:
+            return self.sentinel.slave_for(self.service_name)
+
+        if Is_Cluster(self.connection):
+            if isinstance(self.connection, RedisCluster):
+                return self.connection
+            return Cluster_Conn(self.connection, ssl=False, read_from_replicas=True)
+
+        return self.connection
+
+    def _disconnect_connection(self):
+        """
+        Disconnects the underlying connection or pool to clear dirty socket state.
+        """
+        self.connection.close()
 
     @classmethod
     def from_url(cls, url: str, **kwargs) -> "FalkorDB":

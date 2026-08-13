@@ -94,6 +94,16 @@ class AsyncGraph(Graph):
             # set client version and refresh local schema
             await self.schema.refresh(e.version)
             raise e
+        except Exception as e:
+            if "timed out" in str(e).lower() or "timeout" in str(e).lower():
+                await self._disconnect_connection()
+            raise e
+
+    async def _disconnect_connection(self):
+        """
+        Disconnects the underlying client connection to purge dirty socket state after a timeout.
+        """
+        await self.client._disconnect_connection()
 
     async def query(  # type: ignore[override]
         self,
