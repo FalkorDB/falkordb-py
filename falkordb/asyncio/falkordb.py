@@ -76,6 +76,7 @@ class FalkorDB:
         reinitialize_steps=5,
         read_from_replicas=False,
         address_remap=None,
+        load_balancing_strategy=None,
     ):
 
         conn = redis.Redis(
@@ -119,12 +120,15 @@ class FalkorDB:
             conn = Cluster_Conn(
                 conn,
                 ssl,
-                cluster_error_retry_attempts,
-                startup_nodes,
-                require_full_coverage,
-                reinitialize_steps,
-                read_from_replicas,
-                address_remap,
+                # keyword arguments, the sync and async helpers do not take the
+                # same positional order
+                cluster_error_retry_attempts=cluster_error_retry_attempts,
+                startup_nodes=startup_nodes,
+                require_full_coverage=require_full_coverage,
+                reinitialize_steps=reinitialize_steps,
+                read_from_replicas=read_from_replicas,
+                address_remap=address_remap,
+                load_balancing_strategy=load_balancing_strategy,
             )
 
         self.connection = conn

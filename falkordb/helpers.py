@@ -42,6 +42,44 @@ def quote_string(v: Any) -> Any:
     return f'"{v}"'
 
 
+def quote_identifier(name: Any, kind: str = "Cypher map key") -> str:
+    """
+    Normalize and validate a name used as a Cypher identifier.
+
+    Identifiers are interpolated into the query header inside backticks, so
+    they bypass the quoting applied to values and must be validated
+    separately.
+
+    Args:
+        name: The identifier to normalize. ``bytes`` are decoded.
+        kind: How to describe the identifier in error messages.
+
+    Returns:
+        The normalized identifier, without the surrounding backticks.
+
+    Raises:
+        ValueError: If the identifier is empty, contains a backtick, or
+            contains a NUL byte. FalkorDB does not support escaped backticks
+            in identifiers, and a NUL byte in the header crashes the server.
+    """
+
+    name_str = name.decode() if isinstance(name, bytes) else str(name)
+
+    if name_str == "":
+        raise ValueError(f"{kind} cannot be empty")
+
+    if "`" in name_str:
+        raise ValueError(
+            f"{kind} cannot contain a backtick: {name_str!r} "
+            "(FalkorDB does not support escaped backticks in identifiers)"
+        )
+
+    if "\x00" in name_str:
+        raise ValueError(f"{kind} cannot contain a NUL byte: {name_str!r}")
+
+    return name_str
+
+
 def stringify_param_value(value: Any) -> str:
     """
     turn a parameter value into a string suitable for the params header of
@@ -104,15 +142,7 @@ def stringify_param_value(value: Any) -> str:
     if isinstance(value, dict):
         parts = []
         for k, v in value.items():
-            key_str = k.decode() if isinstance(k, bytes) else str(k)
-            if key_str == "":
-                raise ValueError("Cypher map key cannot be empty")
-            if "`" in key_str:
-                raise ValueError(
-                    "Cypher map key cannot contain a backtick: "
-                    f"{key_str!r} (FalkorDB does not support escaped "
-                    "backticks in identifiers)"
-                )
+            key_str = quote_identifier(k)
             parts.append(f"`{key_str}`:{stringify_param_value(v)}")
         return "{" + ",".join(parts) + "}"
 

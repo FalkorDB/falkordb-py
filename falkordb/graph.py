@@ -6,7 +6,7 @@ from redis import ResponseError  # type: ignore[import-not-found]
 from .exceptions import SchemaVersionMismatchException
 from .execution_plan import ExecutionPlan
 from .graph_schema import GraphSchema
-from .helpers import stringify_param_value
+from .helpers import quote_identifier, stringify_param_value
 from .query_result import QueryResult
 
 # procedures
@@ -266,15 +266,7 @@ class Graph:
         # header starts with "CYPHER"
         params_header = "CYPHER "
         for key, value in params.items():
-            key_str = key.decode() if isinstance(key, bytes) else str(key)
-            if key_str == "":
-                raise ValueError("Cypher parameter name cannot be empty")
-            if "`" in key_str:
-                raise ValueError(
-                    "Cypher parameter name cannot contain a backtick: "
-                    f"{key_str!r} (FalkorDB does not support escaped "
-                    "backticks in identifiers)"
-                )
+            key_str = quote_identifier(key, "Cypher parameter name")
             params_header += f"`{key_str}`={stringify_param_value(value)} "
         return params_header
 

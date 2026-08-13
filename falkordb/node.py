@@ -122,10 +122,12 @@ class Node:
         """
         Hash the node so it can be used in sets and as a dict key.
 
-        Only the node id and labels take part, properties are mutable and
-        equality tolerates a differing id, so the hash is deliberately coarse.
+        Only the labels take part. ``__eq__`` treats a node with an unset id as
+        equal to an otherwise identical node with one, so the id cannot be
+        hashed without breaking the rule that equal objects hash equally.
+        Properties are mutable and may hold unhashable values.
 
         Returns:
             int: The node hash.
         """
-        return hash((self.id, tuple(self.labels) if self.labels else None))
+        return hash(tuple(self.labels) if self.labels else None)

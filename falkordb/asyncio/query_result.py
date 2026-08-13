@@ -84,9 +84,29 @@ class ResultSetScalarTypes(Enum):
     VALUE_DURATION = 16
 
 
-async def __parse_unknown(value, graph):
+def __warn_unknown_scalar(detail: str) -> None:
     """
-    Parse a value of unknown type.
+    Warn that a scalar could not be parsed.
+
+    The value itself is deliberately left out. Warnings go to stderr by
+    default, which production deployments commonly ship to a log aggregator,
+    so echoing it there would disclose query data.
+
+    Args:
+        detail: How to identify the offending scalar type.
+    """
+    warnings.warn(
+        f"Unknown scalar type returned by the server ({detail}), value ignored. "
+        "This usually means the server is newer than the client, consider "
+        "upgrading the falkordb package.",
+        RuntimeWarning,
+        stacklevel=3,
+    )
+
+
+async def __parse_unknown(value, graph) -> None:
+    """
+    Parse a value the server tagged as an unknown type.
 
     Args:
         value: The value to parse.
@@ -95,13 +115,8 @@ async def __parse_unknown(value, graph):
     Returns:
         None
     """
-    warnings.warn(
-        f"Unknown scalar type returned by the server, value ignored: {value!r}. "
-        "This usually means the server is newer than the client, consider "
-        "upgrading the falkordb package.",
-        RuntimeWarning,
-        stacklevel=2,
-    )
+    __warn_unknown_scalar("type id 0")
+    return None
 
 
 async def __parse_null(value, graph) -> None:
@@ -354,15 +369,13 @@ async def parse_scalar(value, graph):
     """
     scalar_type = int(value[0])
     value = value[1]
-    # a newer server may introduce scalar types this client does not know about
-    parser = (
-        PARSE_SCALAR_TYPES[scalar_type]
-        if 0 <= scalar_type < len(PARSE_SCALAR_TYPES)
-        else __parse_unknown
-    )
-    scalar = await parser(value, graph)
 
-    return scalar
+    if 0 <= scalar_type < len(PARSE_SCALAR_TYPES):
+        return await PARSE_SCALAR_TYPES[scalar_type](value, graph)
+
+    # a newer server may introduce scalar types this client does not know about
+    __warn_unknown_scalar(f"type id {scalar_type}")
+    return None
 
 
 PARSE_SCALAR_TYPES = [

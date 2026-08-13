@@ -117,8 +117,17 @@ class Edge:
         if not isinstance(rhs, Edge):
             return False
 
-        # Quick positive check, if both IDs are set
-        if self.id is not None and rhs.id is not None and self.id == rhs.id:
+        # Quick positive check, if both IDs are set.
+        # The relation is checked too: two edges carrying the same id but a
+        # different relationship type do not describe the same edge, and
+        # returning True for them would leave __eq__ with no invariant for
+        # __hash__ to be built on.
+        if (
+            self.id is not None
+            and rhs.id is not None
+            and self.id == rhs.id
+            and self.relation == rhs.relation
+        ):
             return True
 
         # Source and destination nodes should match
@@ -143,11 +152,12 @@ class Edge:
         """
         Hash the edge so it can be used in sets and as a dict key.
 
-        Only the edge id and relationship type take part, properties are
-        mutable and equality tolerates a differing id, so the hash is
-        deliberately coarse.
+        Only the relationship type takes part. ``__eq__`` treats an edge with
+        an unset id as equal to an otherwise identical edge with one, so the id
+        cannot be hashed without breaking the rule that equal objects hash
+        equally. Properties are mutable and may hold unhashable values.
 
         Returns:
             int: The edge hash.
         """
-        return hash((self.id, self.relation))
+        return hash(self.relation)

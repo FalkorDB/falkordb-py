@@ -79,9 +79,24 @@ def test_parse_scalar_tolerates_unknown_type():
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
         # a newer server may return a scalar type this client does not know
-        assert parse_scalar([99, "x"], None) is None
+        assert parse_scalar([99, "secret-value"], None) is None
 
     assert any("Unknown scalar type" in str(w.message) for w in caught)
+    # warnings reach stderr, and stderr is commonly shipped to a log
+    # aggregator, so the value itself must not appear in the message
+    assert not any("secret-value" in str(w.message) for w in caught)
+    assert any("type id 99" in str(w.message) for w in caught)
+
+
+def test_async_parse_scalar_tolerates_unknown_type():
+    from falkordb.asyncio.query_result import parse_scalar
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        assert asyncio.run(parse_scalar([99, "secret-value"], None)) is None
+
+    assert any("Unknown scalar type" in str(w.message) for w in caught)
+    assert not any("secret-value" in str(w.message) for w in caught)
 
 
 def test_parse_scalar_known_type_still_works():
@@ -275,3 +290,57 @@ def test_async_count_statistics_are_ints():
     assert isinstance(result.indices_created, int)
     assert result.run_time_ms == 1.75
     assert isinstance(result.run_time_ms, float)
+
+
+def test_node_hash_matches_equality():
+    """Equal objects must hash equally, or sets and dicts miss them.
+
+    Node.__eq__ treats a node with an unset id as equal to an otherwise
+    identical node that has one, so the id cannot take part in the hash.
+    """
+    with_id = Node(node_id=1, alias="a", labels="A")
+    without_id = Node(alias="a", labels="A")
+
+    assert with_id == without_id
+    assert hash(with_id) == hash(without_id)
+    assert len({with_id, without_id}) == 1
+    assert {with_id: "v"}[without_id] == "v"
+
+
+def test_edge_hash_matches_equality():
+    """The same contract, for edges."""
+    src = Node(node_id=1, labels="P")
+    dest = Node(node_id=2, labels="P")
+
+    with_id = Edge(src, "KNOWS", dest, edge_id=7)
+    without_id = Edge(src, "KNOWS", dest)
+
+    assert with_id == without_id
+    assert hash(with_id) == hash(without_id)
+    assert len({with_id, without_id}) == 1
+    assert {with_id: "v"}[without_id] == "v"
+
+
+def test_edges_sharing_an_id_but_not_a_relation_differ():
+    """A shared id alone must not make two edges equal.
+
+    Equality short-circuits on a matching id, so without also comparing the
+    relation there would be no invariant left for __hash__ to use.
+    """
+    src = Node(node_id=1, labels="P")
+    dest = Node(node_id=2, labels="P")
+
+    assert Edge(src, "KNOWS", dest, edge_id=7) != Edge(src, "LIKES", dest, edge_id=7)
+    assert Edge(src, "KNOWS", dest, edge_id=7) == Edge(src, "KNOWS", dest, edge_id=7)
+
+
+def test_path_hash_matches_equality():
+    """Path hashing inherits the contract from the models it contains."""
+    src = Node(node_id=1, labels="P")
+    dest = Node(node_id=2, labels="P")
+    left = Path([src, dest], [Edge(src, "KNOWS", dest, edge_id=7)])
+    right = Path([src, dest], [Edge(src, "KNOWS", dest)])
+
+    assert left == right
+    assert hash(left) == hash(right)
+    assert len({left, right}) == 1
