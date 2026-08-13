@@ -1,10 +1,12 @@
 aspell
-Async
 async
+Async
+backtick
+backticked
 Codecov
 Cypher
-FalkorDB
 falkordb
+FalkorDB
 faq
 Formatter
 hostname

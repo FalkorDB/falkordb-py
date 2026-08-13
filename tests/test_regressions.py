@@ -483,3 +483,23 @@ def test_index_identifiers_are_backticked():
 
     with pytest.raises(ValueError, match="backtick"):
         g.create_node_range_index("L`", "age")
+
+
+def test_index_identifiers_accept_names_the_parser_could_not_take_raw():
+    """Backticking widens what is accepted as well as making it safe.
+
+    A non-BMP label used to reach the parser bare and terminate the server
+    process, and spaces or a leading digit were parse errors.
+    """
+    client = SyncStubClient()
+    g = Graph(client, "g")
+
+    for label in ("\U0001f600", "My Label", "1st", "Caf\u00e9"):
+        g.create_node_range_index(label, "p")
+
+    assert [
+        f"(e:`{label}`)" in cmd[2]
+        for label, cmd in zip(
+            ("\U0001f600", "My Label", "1st", "Caf\u00e9"), client.commands, strict=True
+        )
+    ] == [True] * 4

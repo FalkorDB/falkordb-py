@@ -124,6 +124,13 @@ the procedure and `YIELD` names given to `call_procedure`, and index option
 names — are validated instead, and raise `ValueError` if they are not plain
 identifiers.
 
+Labels, relationship types and property names passed to the index methods are
+quoted, so names containing spaces, punctuation or non-ASCII characters are now
+accepted where they previously failed to parse. A name containing a backtick
+raises `ValueError`, since FalkorDB has no way to escape one. If you previously
+worked around the parser by passing an already-backticked name such as
+``"`My Label`"``, pass `"My Label"` instead.
+
 ### Connection Management
 
 Both clients are context managers and release their connection pool on exit:
