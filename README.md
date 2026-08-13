@@ -119,6 +119,11 @@ Supported parameter types: `str`, `bytes`, `bool`, `int`, `float`, `Decimal`,
 `None`, `list`, `tuple`, `dict`, `datetime`, `date` and `time`. Any other type
 raises `TypeError` instead of being coerced with `str()`.
 
+Names that cannot be parameterized because they are part of the query itself —
+the procedure and `YIELD` names given to `call_procedure`, and index option
+names — are validated instead, and raise `ValueError` if they are not plain
+identifiers.
+
 ### Connection Management
 
 Both clients are context managers and release their connection pool on exit:
