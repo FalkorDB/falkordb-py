@@ -95,5 +95,9 @@ jobs:
     if: ${{ always() && github.event_name == 'schedule' && contains(needs.*.result, 'failure') }}
     permissions:
       issues: write
-    uses: FalkorDB/.github/.github/workflows/report-scheduled-failure.yml@main
-    secrets: inherit
+    # Pinned, and only the one secret it declares is passed: a mutable ref
+    # plus `secrets: inherit` would let a later upstream change run with this
+    # repo's secrets. Dependabot keeps the pin current.
+    uses: FalkorDB/.github/.github/workflows/report-scheduled-failure.yml@12e1ec11c97c5a19f3d228224cacc50fe0ea6e9d # 2026-08-13
+    secrets:
+      DRIVERS_GOOGLE_CHAT_WEBHOOK_URL: ${{ secrets.DRIVERS_GOOGLE_CHAT_WEBHOOK_URL }}
