@@ -112,11 +112,7 @@ class GraphSchema:
 
         if self._dirty_labels or not self.labels or idx >= len(self.labels):
             self.refresh_labels()
-        try:
-            return self.labels[idx]
-        except IndexError:
-            self.refresh_labels()
-            return self.labels[idx]
+        return self.labels[idx]
 
     def get_relation(self, idx: int) -> str:
         """
@@ -136,11 +132,7 @@ class GraphSchema:
             or idx >= len(self.relationships)
         ):
             self.refresh_relations()
-        try:
-            return self.relationships[idx]
-        except IndexError:
-            self.refresh_relations()
-            return self.relationships[idx]
+        return self.relationships[idx]
 
     def get_property(self, idx: int) -> str:
         """
@@ -156,8 +148,4 @@ class GraphSchema:
 
         if self._dirty_properties or not self.properties or idx >= len(self.properties):
             self.refresh_properties()
-        try:
-            return self.properties[idx]
-        except IndexError:
-            self.refresh_properties()
-            return self.properties[idx]
+        return self.properties[idx]

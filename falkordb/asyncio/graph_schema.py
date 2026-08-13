@@ -112,11 +112,7 @@ class GraphSchema:
 
         if self._dirty_labels or not self.labels or idx >= len(self.labels):
             await self.refresh_labels()
-        try:
-            return self.labels[idx]
-        except IndexError:
-            await self.refresh_labels()
-            return self.labels[idx]
+        return self.labels[idx]
 
     async def get_relation(self, idx: int) -> str:
         """
@@ -136,11 +132,7 @@ class GraphSchema:
             or idx >= len(self.relationships)
         ):
             await self.refresh_relations()
-        try:
-            return self.relationships[idx]
-        except IndexError:
-            await self.refresh_relations()
-            return self.relationships[idx]
+        return self.relationships[idx]
 
     async def get_property(self, idx: int) -> str:
         """
@@ -156,8 +148,4 @@ class GraphSchema:
 
         if self._dirty_properties or not self.properties or idx >= len(self.properties):
             await self.refresh_properties()
-        try:
-            return self.properties[idx]
-        except IndexError:
-            await self.refresh_properties()
-            return self.properties[idx]
+        return self.properties[idx]
