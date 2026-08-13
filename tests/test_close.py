@@ -53,3 +53,34 @@ async def test_async_aclose_and_context_manager():
         assert d is db
 
     mock_conn.aclose.assert_awaited_once()
+
+
+def test_cluster_conn_preserves_connection_kwargs():
+    from falkordb.asyncio.cluster import Cluster_Conn as Async_Cluster_Conn
+    from falkordb.cluster import Cluster_Conn as Sync_Cluster_Conn
+
+    original_kwargs = {
+        "host": "127.0.0.1",
+        "port": 6379,
+        "username": "user",
+        "password": "pass",
+    }
+
+    sync_conn = SimpleNamespace(
+        connection_pool=SimpleNamespace(connection_kwargs=original_kwargs.copy())
+    )
+    try:
+        Sync_Cluster_Conn(sync_conn, ssl=False)
+    except Exception:
+        pass
+    assert sync_conn.connection_pool.connection_kwargs == original_kwargs
+
+    async_conn = SimpleNamespace(
+        connection_pool=SimpleNamespace(connection_kwargs=original_kwargs.copy())
+    )
+    try:
+        Async_Cluster_Conn(async_conn, ssl=False)
+    except Exception:
+        pass
+    assert async_conn.connection_pool.connection_kwargs == original_kwargs
+
