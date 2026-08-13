@@ -5,6 +5,7 @@ These are pure functions, no server is required.
 
 from datetime import date, datetime, time
 from decimal import Decimal
+from enum import IntEnum
 
 import pytest
 
@@ -133,3 +134,61 @@ def test_injection_attempt_nested_in_collection():
 
     with pytest.raises(TypeError):
         stringify_param_value({"k": Sneaky()})
+
+
+def test_numeric_subclasses_cannot_inject_cypher():
+    """repr()/str() of a subclass is attacker-controlled.
+
+    The strict type whitelist is not enough on its own: isinstance() accepts
+    subclasses, so a subclass overriding __repr__ or __str__ would have its
+    output spliced straight into the query. Every numeric branch normalizes
+    to the exact base type first.
+    """
+
+    class EvilInt(int):
+        def __repr__(self):
+            return "1 CREATE (:PWNED) //"
+
+    class EvilFloat(float):
+        def __repr__(self):
+            return "1.0 CREATE (:PWNED) //"
+
+    class EvilDecimal(Decimal):
+        def __str__(self):
+            return "1 CREATE (:PWNED) //"
+
+    assert stringify_param_value(EvilInt(1)) == "1"
+    assert stringify_param_value(EvilFloat(1.0)) == "1.0"
+    assert stringify_param_value(EvilDecimal("1")) == "1"
+
+
+def test_int_enum_renders_as_its_value():
+    """IntEnum is an int subclass whose repr() is "<Color.RED: 1>".
+
+    Passing one used to produce a query the server could not parse.
+    """
+
+    class Color(IntEnum):
+        RED = 1
+
+    assert stringify_param_value(Color.RED) == "1"
+    assert stringify_param_value([Color.RED]) == "[1]"
+
+
+def test_decimal_subclass_cannot_lie_about_being_finite():
+    class LyingDecimal(Decimal):
+        def is_finite(self):
+            return True
+
+    with pytest.raises(ValueError, match="Cypher literal representation"):
+        stringify_param_value(LyingDecimal("NaN"))
+
+
+def test_temporal_subclass_returning_non_string_is_quoted():
+    """quote_string passes non-textual values through unquoted."""
+
+    class OddDateTime(datetime):
+        def isoformat(self, *args, **kwargs):
+            return 12345
+
+    assert stringify_param_value(OddDateTime(2024, 1, 1)) == '"12345"'

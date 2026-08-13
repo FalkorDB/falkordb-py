@@ -122,10 +122,17 @@ def stringify_param_value(value: Any) -> str:
         return "true" if value else "false"
 
     if isinstance(value, int):
-        return repr(value)
+        # normalize, repr() of an int subclass is not necessarily a numeric
+        # literal: an IntEnum renders as "<Color.RED: 1>" and a hand-written
+        # __repr__ can return arbitrary Cypher, which would be spliced
+        # straight into the query
+        return repr(int(value))
 
     if isinstance(value, Decimal):
-        if not value.is_finite():
+        # normalize for the same reason, a subclass can override __str__
+        # and is_finite
+        decimal_value = Decimal(value)
+        if not decimal_value.is_finite():
             raise ValueError(
                 f"{value!r} is not a valid Cypher parameter: NaN and Infinity "
                 "have no Cypher literal representation"
@@ -134,18 +141,21 @@ def stringify_param_value(value: Any) -> str:
         # would drop digits beyond a double's precision and turn a large but
         # finite Decimal into inf. The server reports a value it cannot hold
         # as an overflow, which is a better answer than silent rounding.
-        return str(value)
+        return str(decimal_value)
 
     if isinstance(value, float):
-        if not math.isfinite(value):
+        float_value = float(value)
+        if not math.isfinite(float_value):
             raise ValueError(
                 f"{value!r} is not a valid Cypher parameter: NaN and Infinity "
                 "have no Cypher literal representation"
             )
-        return repr(value)
+        return repr(float_value)
 
     if isinstance(value, (datetime, date, time)):
-        return quote_string(value.isoformat())
+        # str(), a subclass could return a non-string from isoformat() and
+        # quote_string passes non-textual values through unquoted
+        return quote_string(str(value.isoformat()))
 
     if isinstance(value, (list, tuple)):
         return f"[{','.join(map(stringify_param_value, value))}]"
