@@ -68,7 +68,7 @@ falkordb/
 tests/
   test_*.py          # Sync tests
   test_async_*.py    # Async tests (mirror sync tests)
-  plan_utils.py      # Helpers for version-agnostic execution-plan assertions
+  plan_helpers.py    # Helpers for version-agnostic execution-plan assertions
 ```
 
 ## Architecture Patterns

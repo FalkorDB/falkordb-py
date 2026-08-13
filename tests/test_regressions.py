@@ -12,7 +12,7 @@ from falkordb.asyncio.graph import AsyncGraph
 from falkordb.asyncio.query_result import QueryResult as AsyncQueryResult
 from falkordb.exceptions import SchemaVersionMismatchException
 from falkordb.execution_plan import ExecutionPlan, Operation
-from falkordb.graph import Graph
+from falkordb.graph import Graph, ignore_existing_index
 from falkordb.query_result import QueryResult
 
 
@@ -344,3 +344,19 @@ def test_path_hash_matches_equality():
     assert left == right
     assert hash(left) == hash(right)
     assert len({left, right}) == 1
+
+
+def test_existing_index_error_is_ignored():
+    """A unique constraint tolerates the range index it needs already existing."""
+    with ignore_existing_index():
+        raise ResponseError("Attribute 'age' is already indexed")
+
+
+def test_unrelated_response_error_is_not_ignored():
+    """Only the already-indexed case may be swallowed.
+
+    Suppressing every ResponseError would let a rejected label or an
+    unsupported command masquerade as an index that was already in place.
+    """
+    with pytest.raises(ResponseError, match="Unknown command"), ignore_existing_index():
+        raise ResponseError("Unknown command 'GRAPH.INDEX'")

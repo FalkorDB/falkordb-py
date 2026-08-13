@@ -1,4 +1,5 @@
 import contextlib
+from collections.abc import Iterator
 from typing import Any
 
 from redis import ResponseError  # type: ignore[import-not-found]
@@ -8,6 +9,24 @@ from .execution_plan import ExecutionPlan
 from .graph_schema import GraphSchema
 from .helpers import quote_identifier, stringify_param_value
 from .query_result import QueryResult
+
+
+@contextlib.contextmanager
+def ignore_existing_index() -> Iterator[None]:
+    """Ignore the error raised when a range index is already present.
+
+    A unique constraint needs a range index over the same properties, so the
+    client creates one up front and treats "already there" as success. Any
+    other ``ResponseError`` -- an unsupported command or a rejected label, say
+    -- is re-raised rather than being mistaken for an existing index.
+    """
+
+    try:
+        yield
+    except ResponseError as e:
+        if "already indexed" not in str(e):
+            raise
+
 
 # procedures
 GRAPH_INDEXES = "DB.INDEXES"
@@ -622,9 +641,7 @@ class Graph:
         """
 
         # create required range indices
-        # an already-existing index is reported as a ResponseError and is fine
-        # to ignore, connection/auth errors must not be swallowed
-        with contextlib.suppress(ResponseError):
+        with ignore_existing_index():
             self.create_node_range_index(label, *properties)
 
         # create constraint
@@ -648,9 +665,7 @@ class Graph:
         """
 
         # create required range indices
-        # an already-existing index is reported as a ResponseError and is fine
-        # to ignore, connection/auth errors must not be swallowed
-        with contextlib.suppress(ResponseError):
+        with ignore_existing_index():
             self.create_edge_range_index(relation, *properties)
 
         return self._create_constraint("UNIQUE", "RELATIONSHIP", relation, *properties)

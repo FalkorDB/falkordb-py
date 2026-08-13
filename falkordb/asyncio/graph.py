@@ -1,11 +1,8 @@
-import contextlib
 from typing import Any
-
-from redis import ResponseError  # type: ignore[import-not-found]
 
 from falkordb.exceptions import SchemaVersionMismatchException
 from falkordb.execution_plan import ExecutionPlan
-from falkordb.graph import Graph
+from falkordb.graph import Graph, ignore_existing_index
 
 from .graph_schema import GraphSchema as AsyncGraphSchema
 from .query_result import QueryResult
@@ -603,9 +600,7 @@ class AsyncGraph(Graph):
         """
 
         # create required range indices
-        # an already-existing index is reported as a ResponseError and is fine
-        # to ignore, connection/auth errors must not be swallowed
-        with contextlib.suppress(ResponseError):
+        with ignore_existing_index():
             await self.create_node_range_index(label, *properties)
 
         # create constraint
@@ -629,9 +624,7 @@ class AsyncGraph(Graph):
         """
 
         # create required range indices
-        # an already-existing index is reported as a ResponseError and is fine
-        # to ignore, connection/auth errors must not be swallowed
-        with contextlib.suppress(ResponseError):
+        with ignore_existing_index():
             await self.create_edge_range_index(relation, *properties)
 
         return await self._create_constraint(

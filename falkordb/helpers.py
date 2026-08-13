@@ -124,14 +124,25 @@ def stringify_param_value(value: Any) -> str:
     if isinstance(value, int):
         return repr(value)
 
-    if isinstance(value, (float, Decimal)):
-        as_float = float(value)
-        if not math.isfinite(as_float):
+    if isinstance(value, Decimal):
+        if not value.is_finite():
             raise ValueError(
                 f"{value!r} is not a valid Cypher parameter: NaN and Infinity "
                 "have no Cypher literal representation"
             )
-        return repr(as_float)
+        # render the decimal itself rather than going through float(), which
+        # would drop digits beyond a double's precision and turn a large but
+        # finite Decimal into inf. The server reports a value it cannot hold
+        # as an overflow, which is a better answer than silent rounding.
+        return str(value)
+
+    if isinstance(value, float):
+        if not math.isfinite(value):
+            raise ValueError(
+                f"{value!r} is not a valid Cypher parameter: NaN and Infinity "
+                "have no Cypher literal representation"
+            )
+        return repr(value)
 
     if isinstance(value, (datetime, date, time)):
         return quote_string(value.isoformat())

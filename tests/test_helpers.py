@@ -83,6 +83,30 @@ def test_non_finite_floats_rejected():
             stringify_param_value(value)
 
 
+def test_non_finite_decimals_rejected():
+    for value in (Decimal("NaN"), Decimal("Infinity"), Decimal("-Infinity")):
+        with pytest.raises(ValueError, match="Cypher literal representation"):
+            stringify_param_value(value)
+
+
+def test_decimal_keeps_its_own_precision():
+    # going through float() would silently round these to a double
+    assert (
+        stringify_param_value(Decimal("1.2345678901234567890123"))
+        == "1.2345678901234567890123"
+    )
+    assert (
+        stringify_param_value(Decimal("123456789012345678901234567890"))
+        == "123456789012345678901234567890"
+    )
+
+
+def test_large_finite_decimal_is_not_rejected():
+    # float(Decimal("1E+400")) overflows to inf, the Decimal itself is finite
+    # and the server is the one that decides whether it can hold the value
+    assert stringify_param_value(Decimal("1E+400")) == "1E+400"
+
+
 def test_unsupported_types_rejected():
     # falling back to str() would let arbitrary Cypher be injected
     class Sneaky:
