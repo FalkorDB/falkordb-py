@@ -3,6 +3,8 @@ from redis.asyncio import BlockingConnectionPool
 
 from falkordb.asyncio import FalkorDB
 
+from .plan_helpers import assert_parsed_plan, assert_plan_shape
+
 
 @pytest.mark.asyncio
 async def test_explain():
@@ -17,17 +19,13 @@ async def test_explain():
 
     plan = await g.explain("UNWIND range(0, 3) AS x RETURN x")
 
-    results_op = plan.structured_plan
-    assert results_op.name == "Results"
-    assert len(results_op.children) == 1
-
-    project_op = results_op.children[0]
-    assert project_op.name == "Project"
-    assert len(project_op.children) == 1
-
-    unwind_op = project_op.children[0]
-    assert unwind_op.name == "Unwind"
-    assert len(unwind_op.children) == 0
+    assert_plan_shape(
+        plan,
+        """
+        Project
+            Unwind
+        """,
+    )
 
     # close the connection pool
     await pool.aclose()
@@ -42,26 +40,43 @@ async def test_cartesian_product_explain():
     g = db.select_graph("async_explain")
     plan = await g.explain("MATCH (a), (b) RETURN *")
 
-    results_op = plan.structured_plan
-    assert results_op.name == "Results"
-    assert len(results_op.children) == 1
+    assert_plan_shape(
+        plan,
+        """
+        Project
+            Cartesian Product
+                All Node Scan | (a)
+                All Node Scan | (b)
+        """,
+    )
 
-    project_op = results_op.children[0]
-    assert project_op.name == "Project"
-    assert len(project_op.children) == 1
+    # close the connection pool
+    await pool.aclose()
 
-    cp_op = project_op.children[0]
-    assert cp_op.name == "Cartesian Product"
-    assert len(cp_op.children) == 2
 
-    scan_a_op = cp_op.children[0]
-    scan_b_op = cp_op.children[1]
+@pytest.mark.asyncio
+async def test_cartesian_product_explain_three_way():
+    pool = BlockingConnectionPool(
+        max_connections=16, timeout=None, decode_responses=True
+    )
+    db = FalkorDB(connection_pool=pool)
+    g = db.select_graph("async_explain")
+    plan = await g.explain("MATCH (a), (b), (c) RETURN *")
 
-    assert scan_a_op.name == "All Node Scan"
-    assert len(scan_a_op.children) == 0
-
-    assert scan_b_op.name == "All Node Scan"
-    assert len(scan_b_op.children) == 0
+    # three operations share a nesting level here, which is what the parser
+    # used to get wrong: it attached the third scan to the second instead of
+    # to the cartesian product. The engines scan the three in whichever order
+    # they like, so the arguments are left out.
+    assert_plan_shape(
+        plan,
+        """
+        Project
+            Cartesian Product
+                All Node Scan
+                All Node Scan
+                All Node Scan
+        """,
+    )
 
     # close the connection pool
     await pool.aclose()
@@ -81,37 +96,10 @@ async def test_merge():
         pass
     plan = await g.explain("MERGE (p1:person {age: 40}) MERGE (p2:person {age: 41})")
 
-    root = plan.structured_plan
-    assert root.name == "Merge"
-    assert len(root.children) == 3
-
-    merge_op = root.children[0]
-    assert merge_op.name == "Merge"
-    assert len(merge_op.children) == 2
-
-    index_scan_op = merge_op.children[0]
-    assert index_scan_op.name == "Node By Index Scan"
-    assert len(index_scan_op.children) == 0
-
-    merge_create_op = merge_op.children[1]
-    assert merge_create_op.name == "MergeCreate"
-    assert len(merge_create_op.children) == 0
-
-    index_scan_op = root.children[1]
-    assert index_scan_op.name == "Node By Index Scan"
-    assert len(index_scan_op.children) == 1
-
-    arg_op = index_scan_op.children[0]
-    assert arg_op.name == "Argument"
-    assert len(arg_op.children) == 0
-
-    merge_create_op = root.children[2]
-    assert merge_create_op.name == "MergeCreate"
-    assert len(merge_create_op.children) == 1
-
-    arg_op = merge_create_op.children[0]
-    assert arg_op.name == "Argument"
-    assert len(arg_op.children) == 0
+    # the two engines compile MERGE differently — Rust matches through an
+    # "Include Pending" operation, C emits a "MergeCreate" — so there is no
+    # single tree to assert. Check the client parsed whatever came back.
+    assert_parsed_plan(plan, min_operations=4, expect_args=True)
 
     # close the connection pool
     await pool.aclose()

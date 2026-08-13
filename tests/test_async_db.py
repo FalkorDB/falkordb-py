@@ -1,3 +1,4 @@
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
@@ -350,3 +351,38 @@ async def test_udf_flush(async_client):
     # Verify all UDFs are removed
     udfs = await db.udf_list()
     assert udfs == []
+
+
+def test_is_cluster_filters_unknown_connection_kwargs():
+    """``Is_Cluster`` must not forward pool kwargs that ``redis.Redis`` rejects.
+
+    redis-py keeps internal state in ``connection_kwargs`` that is not part of
+    the ``Redis.__init__`` signature — 8.1.0 added ``himport_registry`` and
+    several ``maint_notifications_*`` entries — and forwarding them raises
+    ``TypeError`` before any command is sent. ``Is_Cluster`` runs during
+    connection setup, so that breaks every async query.
+
+    The real ``Redis.__init__`` is exercised here (only ``info()`` is stubbed),
+    since rejecting the kwargs is precisely what used to fail.
+    """
+    from redis.asyncio import ConnectionPool
+
+    from falkordb.asyncio.cluster import Is_Cluster
+
+    pool = ConnectionPool(host="localhost", port=6379, decode_responses=True)
+    # Pin the behaviour on redis versions that don't inject anything yet.
+    pool.connection_kwargs["himport_registry"] = object()
+
+    conn = SimpleNamespace(connection_pool=pool)
+
+    with patch(
+        "falkordb.asyncio.cluster.sync_redis.Redis.info",
+        return_value={"redis_mode": "standalone"},
+    ):
+        assert Is_Cluster(conn) is False
+
+    with patch(
+        "falkordb.asyncio.cluster.sync_redis.Redis.info",
+        return_value={"redis_mode": "cluster"},
+    ):
+        assert Is_Cluster(conn) is True
