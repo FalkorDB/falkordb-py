@@ -21,6 +21,13 @@ def Is_Sentinel(conn: redis.Redis) -> bool:
 
         info = sync_redis.Redis(**kwargs).info(section="server")
         return "redis_mode" in info and info["redis_mode"] == "sentinel"
+    except (
+        ConnectionError,
+        ConnectionRefusedError,
+        OSError,
+        sync_redis.exceptions.ConnectionError,
+    ):
+        raise
     except Exception:
         return False
 

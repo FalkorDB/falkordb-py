@@ -1,3 +1,4 @@
+import redis.exceptions as redis_exceptions
 from redis.sentinel import Sentinel  # type: ignore[import-not-found]
 
 
@@ -6,6 +7,13 @@ def Is_Sentinel(conn):
     try:
         info = conn.info(section="server")
         return "redis_mode" in info and info["redis_mode"] == "sentinel"
+    except (
+        ConnectionError,
+        ConnectionRefusedError,
+        OSError,
+        redis_exceptions.ConnectionError,
+    ):
+        raise
     except Exception:
         return False
 

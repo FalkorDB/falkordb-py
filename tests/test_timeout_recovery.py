@@ -1,9 +1,10 @@
 from unittest.mock import AsyncMock, MagicMock
+
 import pytest
 from redis.exceptions import ResponseError
 
-from falkordb.falkordb import FalkorDB as SyncFalkorDB
 from falkordb.asyncio.falkordb import FalkorDB as AsyncFalkorDB
+from falkordb.falkordb import FalkorDB as SyncFalkorDB
 
 
 def test_sync_query_timeout_disconnects_unhealthy_connection():

@@ -130,8 +130,9 @@ class FalkorDB:
             protocol=protocol,
         )
 
-        self.sentinel = None
-        self.service_name = None
+        self._raw_conn = conn
+        self._ssl = ssl
+        self._replica_connection = None
 
         if Is_Sentinel(conn):
             self.sentinel, self.service_name = Sentinel_Conn(conn, ssl)
@@ -171,14 +172,21 @@ class FalkorDB:
 
         if Is_Cluster(self.connection):
             if isinstance(self.connection, RedisCluster):
-                return self.connection
+                if getattr(self.connection, "read_from_replicas", False):
+                    return self.connection
+                if self._replica_connection is None:
+                    self._replica_connection = Cluster_Conn(
+                        self._raw_conn, ssl=self._ssl, read_from_replicas=True
+                    )
+                return self._replica_connection
             return Cluster_Conn(self.connection, ssl=False, read_from_replicas=True)
 
         return self.connection
 
     def get_cluster_shards(self) -> List[Dict[str, Any]]:
         """
-        Deduces and returns FalkorDB Cluster shards, mapping primary nodes to their replicas.
+        Deduces and returns FalkorDB Cluster shards,
+        mapping primary nodes to their replicas.
         """
         if Is_Cluster(self.connection):
             raw_slots = self.connection.execute_command("CLUSTER", "SLOTS")
@@ -189,7 +197,12 @@ class FalkorDB:
         port = kwargs.get("port", 6379)
         return [
             {
-                "primary": {"id": "standalone", "host": host, "port": port, "endpoint": f"{host}:{port}"},
+                "primary": {
+                    "id": "standalone",
+                    "host": host,
+                    "port": port,
+                    "endpoint": f"{host}:{port}",
+                },
                 "replicas": [],
                 "slots": [(0, 16383)],
             }

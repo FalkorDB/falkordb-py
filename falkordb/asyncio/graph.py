@@ -101,7 +101,8 @@ class AsyncGraph(Graph):
 
     async def _disconnect_connection(self):
         """
-        Disconnects the underlying client connection to purge dirty socket state after a timeout.
+        Disconnects the underlying client connection
+        to purge dirty socket state after a timeout.
         """
         await self.client._disconnect_connection()
 

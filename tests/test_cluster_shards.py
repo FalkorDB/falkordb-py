@@ -1,15 +1,26 @@
 from unittest.mock import MagicMock, patch
+
 import pytest
 
-from falkordb.falkordb import FalkorDB as SyncFalkorDB
 from falkordb.asyncio.falkordb import FalkorDB as AsyncFalkorDB
 from falkordb.cluster import parse_cluster_slots
+from falkordb.falkordb import FalkorDB as SyncFalkorDB
 
 
 def test_parse_cluster_slots():
     raw_slots = [
-        [0, 5460, [b"127.0.0.1", 6379, b"node_primary_1"], [b"127.0.0.1", 6380, b"node_replica_1"]],
-        [5461, 10922, [b"127.0.0.1", 6381, b"node_primary_2"], [b"127.0.0.1", 6382, b"node_replica_2"]],
+        [
+            0,
+            5460,
+            [b"127.0.0.1", 6379, b"node_primary_1"],
+            [b"127.0.0.1", 6380, b"node_replica_1"],
+        ],
+        [
+            5461,
+            10922,
+            [b"127.0.0.1", 6381, b"node_primary_2"],
+            [b"127.0.0.1", 6382, b"node_replica_2"],
+        ],
     ]
     shards = parse_cluster_slots(raw_slots)
     assert len(shards) == 2

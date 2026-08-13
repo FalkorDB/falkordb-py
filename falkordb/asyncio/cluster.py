@@ -35,6 +35,13 @@ def Is_Cluster(conn: redis.Redis):
         info = sync_redis.Redis(**kwargs).info(section="server")
 
         return "redis_mode" in info and info["redis_mode"] == "cluster"
+    except (
+        ConnectionError,
+        ConnectionRefusedError,
+        OSError,
+        sync_redis.exceptions.ConnectionError,
+    ):
+        raise
     except Exception:
         return False
 
@@ -71,12 +78,14 @@ def parse_cluster_slots(raw_slots):
                 r_host = _str_val(r_info[0])
                 r_port = int(r_info[1])
                 r_id = _str_val(r_info[2]) if len(r_info) > 2 else f"{r_host}:{r_port}"
-                replicas.append({
-                    "id": r_id,
-                    "host": r_host,
-                    "port": r_port,
-                    "endpoint": f"{r_host}:{r_port}",
-                })
+                replicas.append(
+                    {
+                        "id": r_id,
+                        "host": r_host,
+                        "port": r_port,
+                        "endpoint": f"{r_host}:{r_port}",
+                    }
+                )
 
             shards_map[primary_key] = {
                 "primary": {
