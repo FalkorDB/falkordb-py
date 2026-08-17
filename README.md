@@ -105,3 +105,60 @@ async def main():
 if __name__ == "__main__":
     asyncio.run(main())
 ```
+
+### Query Parameters
+
+Always pass user-supplied values as parameters rather than building query
+strings — parameters are serialized safely and cannot inject Cypher.
+
+```python
+g.query("MATCH (p:Person) WHERE p.name = $name RETURN p", {"name": name})
+```
+
+Supported parameter types: `str`, `bytes`, `bool`, `int`, `float`, `Decimal`,
+`None`, `list`, `tuple`, `dict`, `datetime`, `date` and `time`. Any other type
+raises `TypeError` instead of being coerced with `str()`.
+
+Names that cannot be parameterized because they are part of the query itself —
+the procedure and `YIELD` names given to `call_procedure`, and index option
+names — are validated instead, and raise `ValueError` if they are not plain
+identifiers.
+
+Labels, relationship types and property names passed to the index methods are
+quoted, so names containing spaces, punctuation or non-ASCII characters are now
+accepted where they previously failed to parse. A name containing a backtick
+raises `ValueError`, since FalkorDB has no way to escape one. If you previously
+worked around the parser by passing an already-backticked name such as
+``"`My Label`"``, pass `"My Label"` instead.
+
+### Connection Management
+
+Both clients are context managers and release their connection pool on exit:
+
+```python
+with FalkorDB(host="localhost", port=6379) as db:
+    g = db.select_graph("social")
+    g.query("MATCH (n) RETURN count(n)")
+```
+
+The async client (`from falkordb.asyncio import FalkorDB`) supports the async
+form:
+
+```python
+async with FalkorDB(host="localhost", port=6379) as db:
+    g = db.select_graph("social")
+    await g.query("MATCH (n) RETURN count(n)")
+```
+
+You can also call `db.close()` (or `await db.aclose()`) explicitly.
+
+### TLS
+
+```python
+db = FalkorDB(host="my-instance.falkordb.cloud", port=6379, password="...", ssl=True)
+```
+
+TLS connections verify the server certificate and hostname by default. Set
+`ssl_check_hostname=False` only when connecting to an instance whose
+certificate does not match its hostname.
+

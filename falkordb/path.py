@@ -1,5 +1,3 @@
-from typing import List, Optional
-
 from .edge import Edge
 from .node import Node
 
@@ -8,21 +6,20 @@ class Path:
     """
     Path Class for representing a path in a graph.
 
-    This class defines a path consisting of nodes and edges.
-    It provides methods for managing and manipulating the path.
+    This class defines a path consisting of nodes and edges. A path is normally
+    obtained from a query result rather than built by hand.
 
     Example:
-        node1 = Node()
-        node2 = Node()
-        edge1 = Edge(node1, "R", node2)
+        node1 = Node(node_id=1)
+        node2 = Node(node_id=2)
+        edge1 = Edge(node1, "R", node2, edge_id=0)
 
-        path = Path.new_empty_path()
-        path.add_node(node1).add_edge(edge1).add_node(node2)
+        path = Path([node1, node2], [edge1])
         print(path)
-        # Output: <(node1)-(edge1)->(node2)>
+        # Output: <(1)-[0]->(2)>
     """
 
-    def __init__(self, nodes: List[Node], edges: List[Edge]):
+    def __init__(self, nodes: list[Node], edges: list[Edge]):
         if not (isinstance(nodes, list) and isinstance(edges, list)):
             raise TypeError("nodes and edges must be list")
 
@@ -30,7 +27,7 @@ class Path:
         self._edges = edges
         self.append_type = Node
 
-    def nodes(self) -> List[Node]:
+    def nodes(self) -> list[Node]:
         """
         Returns the list of nodes in the path.
 
@@ -39,7 +36,7 @@ class Path:
         """
         return self._nodes
 
-    def edges(self) -> List[Edge]:
+    def edges(self) -> list[Edge]:
         """
         Returns the list of edges in the path.
 
@@ -48,7 +45,7 @@ class Path:
         """
         return self._edges
 
-    def get_node(self, index) -> Optional[Node]:
+    def get_node(self, index) -> Node | None:
         """
         Returns the node at the specified index in the path.
 
@@ -63,7 +60,7 @@ class Path:
 
         return None
 
-    def get_edge(self, index) -> Optional[Edge]:
+    def get_edge(self, index) -> Edge | None:
         """
         Returns the edge at the specified index in the path.
 
@@ -78,7 +75,7 @@ class Path:
 
         return None
 
-    def first_node(self) -> Optional[Node]:
+    def first_node(self) -> Node | None:
         """
         Returns the first node in the path.
 
@@ -87,7 +84,7 @@ class Path:
         """
         return self._nodes[0] if self.node_count() > 0 else None
 
-    def last_node(self) -> Optional[Node]:
+    def last_node(self) -> Node | None:
         """
         Returns the last node in the path.
 
@@ -130,6 +127,24 @@ class Path:
 
         return self.nodes() == other.nodes() and self.edges() == other.edges()
 
+    def __hash__(self) -> int:
+        """
+        Hash the path so it can be used in sets and as a dict key.
+
+        Returns:
+            int: The path hash.
+        """
+        return hash((tuple(self._nodes), tuple(self._edges)))
+
+    def __repr__(self) -> str:
+        """
+        Get an unambiguous representation of the path.
+
+        Returns:
+            str: A representation useful in tracebacks and debuggers.
+        """
+        return f"Path(nodes={self._nodes!r}, edges={self._edges!r})"
+
     def __str__(self) -> str:
         """
         Returns a string representation of the path, including nodes and edges.
@@ -137,6 +152,9 @@ class Path:
         Returns:
             str: String representation of the path.
         """
+        if self.node_count() == 0:
+            return "<>"
+
         res = "<"
         edge_count = self.edge_count()
         for i in range(0, edge_count):
@@ -145,9 +163,13 @@ class Path:
             res += "(" + str(node_id) + ")"
             edge = self._edges[i]
             edge_id_str = str(int(edge.id)) if edge.id is not None else ""
+            # src_node may be a Node or a raw node id depending on how the
+            # path was built, normalize before comparing
+            src = edge.src_node
+            src_id = src.id if isinstance(src, Node) else src
             res += (
                 "-[" + edge_id_str + "]->"
-                if edge.src_node == node_id
+                if src_id == node_id
                 else "<-[" + edge_id_str + "]-"
             )
         last_node = self._nodes[edge_count]

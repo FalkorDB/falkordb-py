@@ -34,13 +34,13 @@ def test_stringify():
     edge_with_relation = Edge(
         john, "visited", japan, properties={"purpose": "pleasure"}
     )
-    assert '(a)-[:visited{purpose:"pleasure"}]->(b)' == str(edge_with_relation)
+    assert str(edge_with_relation) == '(a)-[:visited{purpose:"pleasure"}]->(b)'
 
     edge_no_relation_no_props = Edge(japan, "", john)
-    assert "(b)-[]->(a)" == str(edge_no_relation_no_props)
+    assert str(edge_no_relation_no_props) == "(b)-[]->(a)"
 
     edge_only_props = Edge(john, "", japan, properties={"a": "b", "c": 3})
-    assert '(a)-[{a:"b",c:3}]->(b)' == str(edge_only_props)
+    assert str(edge_only_props) == '(a)-[{a:"b",c:3}]->(b)'
 
 
 def test_comparision():
