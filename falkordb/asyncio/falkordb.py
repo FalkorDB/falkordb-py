@@ -1,12 +1,14 @@
-from typing import List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 import redis.asyncio as redis  # type: ignore[import-not-found]
+from redis.asyncio.cluster import RedisCluster  # type: ignore[import-not-found]
 from redis.driver_info import DriverInfo
 from redis.exceptions import RedisError
 
 from .._version import get_package_version
-from .cluster import Cluster_Conn, Is_Cluster
+from .cluster import Cluster_Conn, Is_Cluster, parse_cluster_slots
 from .graph import AsyncGraph
+from .sentinel import Is_Sentinel, Sentinel_Conn
 
 # config command
 UDF_CMD = "GRAPH.UDF"
@@ -115,6 +117,17 @@ class FalkorDB:
             protocol=protocol,
         )
 
+        self._raw_conn = conn
+        self._ssl = ssl
+        self._replica_connection = None
+
+        if Is_Sentinel(conn):
+            self.sentinel, self.service_name = Sentinel_Conn(conn, ssl)
+            if read_from_replicas:
+                conn = self.sentinel.slave_for(self.service_name, ssl=ssl)
+            else:
+                conn = self.sentinel.master_for(self.service_name, ssl=ssl)
+
         if Is_Cluster(conn):
             conn = Cluster_Conn(
                 conn,
@@ -130,6 +143,64 @@ class FalkorDB:
         self.connection = conn
         self.flushdb = conn.flushdb
         self.execute_command = conn.execute_command
+
+    def get_replica_connection(self) -> Union[redis.Redis, RedisCluster]:
+        """
+        Returns a connection instance configured to read from replicas.
+
+        In Sentinel mode: Returns a connection to a Sentinel slave/replica.
+        In Cluster mode: Returns a cluster connection with read_from_replicas=True.
+        In Standalone mode: Returns the underlying connection.
+        """
+        if self.sentinel is not None:
+            return self.sentinel.slave_for(self.service_name)
+
+        if Is_Cluster(self.connection):
+            if isinstance(self.connection, RedisCluster):
+                if getattr(self.connection, "read_from_replicas", False):
+                    return self.connection
+                if self._replica_connection is None:
+                    self._replica_connection = Cluster_Conn(
+                        self._raw_conn, ssl=self._ssl, read_from_replicas=True
+                    )
+                return self._replica_connection
+            return Cluster_Conn(self.connection, ssl=False, read_from_replicas=True)
+
+        return self.connection
+
+    async def get_cluster_shards(self) -> List[Dict[str, Any]]:
+        """
+        Deduces and returns FalkorDB Cluster shards asynchronously,
+        mapping primary nodes to their replicas.
+        """
+        if Is_Cluster(self.connection):
+            raw_slots = await self.connection.execute_command("CLUSTER", "SLOTS")
+            return parse_cluster_slots(raw_slots)
+
+        kwargs = self.connection.connection_pool.connection_kwargs
+        host = kwargs.get("host", "localhost")
+        port = kwargs.get("port", 6379)
+        return [
+            {
+                "primary": {
+                    "id": "standalone",
+                    "host": host,
+                    "port": port,
+                    "endpoint": f"{host}:{port}",
+                },
+                "replicas": [],
+                "slots": [(0, 16383)],
+            }
+        ]
+
+    async def _disconnect_connection(self):
+        """
+        Disconnects the underlying connection or pool to clear dirty socket state.
+        """
+        try:
+            await self.connection.aclose()
+        except (RedisError, OSError):
+            pass
 
     @classmethod
     def from_url(cls, url: str, **kwargs) -> "FalkorDB":
@@ -230,8 +301,8 @@ class FalkorDB:
 
         try:
             await self.connection.aclose()
-        except RedisError:
-            # best-effort close — don't raise on Redis errors
+        except (RedisError, OSError):
+            # best-effort close — don't raise on Redis or socket errors
             pass
 
     async def __aenter__(self) -> "FalkorDB":

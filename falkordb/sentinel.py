@@ -1,10 +1,21 @@
+import redis.exceptions as redis_exceptions
 from redis.sentinel import Sentinel  # type: ignore[import-not-found]
 
 
 # detect if a connection is a sentinel
 def Is_Sentinel(conn):
-    info = conn.info(section="server")
-    return "redis_mode" in info and info["redis_mode"] == "sentinel"
+    try:
+        info = conn.info(section="server")
+        return "redis_mode" in info and info["redis_mode"] == "sentinel"
+    except (
+        ConnectionError,
+        ConnectionRefusedError,
+        OSError,
+        redis_exceptions.ConnectionError,
+    ):
+        raise
+    except Exception:
+        return False
 
 
 # create a sentinel connection from a Redis connection
