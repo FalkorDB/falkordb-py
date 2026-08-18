@@ -46,6 +46,10 @@ jobs:
     runs-on: ubuntu-latest
     needs: falkordb-version
 
+    # Without this the job inherits the 6 hour default, so a hung suite holds a
+    # runner all morning and then reports `cancelled` rather than failing.
+    timeout-minutes: 30
+
     services:
       falkordb:
         # Docker Hub image, tag resolved by the `falkordb-version` job above.
@@ -92,7 +96,10 @@ jobs:
   report-scheduled-failure:
     name: Report scheduled failure
     needs: [falkordb-version, test]
-    if: ${{ always() && github.event_name == 'schedule' && contains(needs.*.result, 'failure') }}
+    # `cancelled` as well as `failure`: a job stopped by its own timeout, or one
+    # that ran into GitHub's six hour ceiling, reports `cancelled`, and a nightly
+    # that hangs is exactly the case this alert exists for.
+    if: ${{ always() && github.event_name == 'schedule' && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')) }}
     permissions:
       issues: write
     # Pinned, and only the one secret it declares is passed: a mutable ref
