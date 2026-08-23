@@ -11,6 +11,46 @@ def client(request):
     return FalkorDB(host="localhost", port=6379)
 
 
+def test_list_graphs_with_pattern():
+    with (
+        patch("falkordb.falkordb.redis.Redis") as mock_redis,
+        patch("falkordb.falkordb.Is_Sentinel", return_value=False),
+        patch("falkordb.falkordb.Is_Cluster", return_value=False),
+    ):
+        db = FalkorDB()
+
+        mock_redis.return_value.execute_command.return_value = [
+            "alpha1",
+            "alpha2",
+        ]
+
+        result = db.list_graphs("alpha*")
+
+    assert result == ["alpha1", "alpha2"]
+    mock_redis.return_value.execute_command.assert_called_once_with(
+        "GRAPH.LIST", "alpha*"
+    )
+
+
+def test_list_graphs_without_pattern():
+    with (
+        patch("falkordb.falkordb.redis.Redis") as mock_redis,
+        patch("falkordb.falkordb.Is_Sentinel", return_value=False),
+        patch("falkordb.falkordb.Is_Cluster", return_value=False),
+    ):
+        db = FalkorDB()
+
+        mock_redis.return_value.execute_command.return_value = [
+            "alpha1",
+            "beta1",
+        ]
+
+        result = db.list_graphs()
+
+    assert result == ["alpha1", "beta1"]
+    mock_redis.return_value.execute_command.assert_called_once_with("GRAPH.LIST")
+
+
 @pytest.mark.parametrize(
     ("kwargs", "expected_version"),
     [({}, "package-version"), ({"lib_version": "custom-version"}, "custom-version")],
