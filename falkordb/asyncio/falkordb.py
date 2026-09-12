@@ -1,4 +1,4 @@
-from typing import List, Optional, Union
+import contextlib
 
 import redis.asyncio as redis  # type: ignore[import-not-found]
 from redis.driver_info import DriverInfo
@@ -57,7 +57,7 @@ class FalkorDB:
         ssl_cert_reqs="required",
         ssl_ca_certs=None,
         ssl_ca_data=None,
-        ssl_check_hostname=False,
+        ssl_check_hostname=True,
         max_connections=None,
         single_connection_client=False,
         health_check_interval=0,
@@ -76,6 +76,7 @@ class FalkorDB:
         reinitialize_steps=5,
         read_from_replicas=False,
         address_remap=None,
+        load_balancing_strategy=None,
     ):
 
         conn = redis.Redis(
@@ -119,12 +120,15 @@ class FalkorDB:
             conn = Cluster_Conn(
                 conn,
                 ssl,
-                cluster_error_retry_attempts,
-                startup_nodes,
-                require_full_coverage,
-                reinitialize_steps,
-                read_from_replicas,
-                address_remap,
+                # keyword arguments, the sync and async helpers do not take the
+                # same positional order
+                cluster_error_retry_attempts=cluster_error_retry_attempts,
+                startup_nodes=startup_nodes,
+                require_full_coverage=require_full_coverage,
+                reinitialize_steps=reinitialize_steps,
+                read_from_replicas=read_from_replicas,
+                address_remap=address_remap,
+                load_balancing_strategy=load_balancing_strategy,
             )
 
         self.connection = conn
@@ -160,7 +164,12 @@ class FalkorDB:
         kwargs["decode_responses"] = True
         conn = redis.from_url(url, **kwargs)
 
-        return cls(connection_pool=conn.connection_pool)
+        # carry TLS through, otherwise a cluster topology would be
+        # re-dialed in plaintext by Cluster_Conn
+        pool = conn.connection_pool
+        ssl = pool.connection_class is redis.SSLConnection
+
+        return cls(connection_pool=pool, ssl=ssl)
 
     def select_graph(self, graph_id: str) -> AsyncGraph:
         """
@@ -179,7 +188,7 @@ class FalkorDB:
 
         return AsyncGraph(self, graph_id)
 
-    async def list_graphs(self) -> List[str]:
+    async def list_graphs(self) -> list[str]:
         """
         Lists all graph names.
         See: https://docs.falkordb.com/commands/graph.list.html
@@ -191,7 +200,7 @@ class FalkorDB:
 
         return await self.connection.execute_command(LIST_CMD)
 
-    async def config_get(self, name: str) -> Union[int, str]:
+    async def config_get(self, name: str) -> int | str:
         """
         Retrieve a DB level configuration.
         For a list of available configurations see: https://docs.falkordb.com/configuration.html#falkordb-configuration-parameters
@@ -228,11 +237,9 @@ class FalkorDB:
         Close the underlying connection(s).
         """
 
-        try:
+        # best-effort close, don't raise on Redis errors
+        with contextlib.suppress(RedisError):
             await self.connection.aclose()
-        except RedisError:
-            # best-effort close — don't raise on Redis errors
-            pass
 
     async def __aenter__(self) -> "FalkorDB":
         """Return self to support async with-statement usage."""
@@ -274,7 +281,7 @@ class FalkorDB:
         return resp
 
     # GRAPH.UDF LIST [LIBRARYNAME] [WITHCODE]
-    async def udf_list(self, lib: Optional[str] = None, with_code: bool = False):
+    async def udf_list(self, lib: str | None = None, with_code: bool = False):
         """
         List User Defined Function (UDF) libraries.
 

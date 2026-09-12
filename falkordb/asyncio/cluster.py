@@ -23,6 +23,16 @@ def Is_Cluster(conn: redis.Redis):
     if pool.connection_class is redis.UnixDomainSocketConnection:
         kwargs["unix_socket_path"] = kwargs.pop("path")
 
+    # redis.asyncio.retry.Retry and the connect hook are asyncio-specific: they
+    # are valid parameter *names* on the sync client, so the signature filter
+    # below keeps them, but the sync client would call them and get back an
+    # un-awaited coroutine. credential_provider is deliberately NOT dropped --
+    # redis-py has a single CredentialProvider class whose get_credentials() is
+    # synchronous, and removing it would leave the probe unauthenticated
+    # because username/password are None whenever a provider is in use.
+    for async_only in ("retry", "redis_connect_func"):
+        kwargs.pop(async_only, None)
+
     # Keep only the parameters the synchronous constructor actually accepts.
     # redis-py stores internal state in ``connection_kwargs`` that is not part
     # of the ``Redis.__init__`` signature — redis 8.1.0 added ``himport_registry``
@@ -32,7 +42,11 @@ def Is_Cluster(conn: redis.Redis):
 
     # Create a synchronous Redis client with the same parameters
     # as the connection pool just to keep Is_Cluster synchronous
-    info = sync_redis.Redis(**kwargs).info(section="server")
+    probe = sync_redis.Redis(**kwargs)
+    try:
+        info = probe.info(section="server")
+    finally:
+        probe.close()
 
     return "redis_mode" in info and info["redis_mode"] == "cluster"
 
@@ -47,7 +61,10 @@ def Cluster_Conn(
     reinitialize_steps=5,
     read_from_replicas=False,
     address_remap=None,
+    load_balancing_strategy=None,
 ):
+    # copy, popping from the live pool dict would strip host/port/credentials
+    # from a pool the caller may still be using
     connection_kwargs = conn.connection_pool.connection_kwargs.copy()
     host = connection_kwargs.pop("host")
     port = connection_kwargs.pop("port")
@@ -65,6 +82,17 @@ def Cluster_Conn(
             redis_exceptions.ConnectionError,
         ],
     )
+
+    # redis-py deprecated these and warns for every one it receives, only
+    # forward them when the caller actually diverged from the default
+    optional: dict = {}
+    if cluster_error_retry_attempts != 3:
+        optional["cluster_error_retry_attempts"] = cluster_error_retry_attempts
+    if read_from_replicas:
+        optional["read_from_replicas"] = read_from_replicas
+    if load_balancing_strategy is not None:
+        optional["load_balancing_strategy"] = load_balancing_strategy
+
     return RedisCluster(
         host=host,
         port=port,
@@ -76,8 +104,7 @@ def Cluster_Conn(
         retry_on_error=retry_on_error,
         require_full_coverage=require_full_coverage,
         reinitialize_steps=reinitialize_steps,
-        read_from_replicas=read_from_replicas,
         address_remap=address_remap,
         startup_nodes=startup_nodes,
-        cluster_error_retry_attempts=cluster_error_retry_attempts,
+        **optional,
     )

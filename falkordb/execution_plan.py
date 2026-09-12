@@ -1,5 +1,4 @@
 import re
-from typing import List, Optional
 
 
 class ProfileStats:
@@ -38,8 +37,8 @@ class Operation:
     def __init__(
         self,
         name: str,
-        args: Optional[str] = None,
-        profile_stats: Optional[ProfileStats] = None,
+        args: str | None = None,
+        profile_stats: ProfileStats | None = None,
     ):
         """
         Creates a new Operation instance.
@@ -52,7 +51,7 @@ class Operation:
         """
         self.name = name
         self.args = args
-        self.children: List[Operation] = []
+        self.children: list[Operation] = []
         self.profile_stats = profile_stats
 
     @property
@@ -60,7 +59,11 @@ class Operation:
         """
         returns operation's execution time in ms
         """
-        assert self.profile_stats is not None
+        if self.profile_stats is None:
+            raise ValueError(
+                "operation has no profile statistics, execution_time is only "
+                "available for plans produced by Graph.profile()"
+            )
         return self.profile_stats.execution_time
 
     @property
@@ -68,7 +71,11 @@ class Operation:
         """
         returns number of records produced by operation.
         """
-        assert self.profile_stats is not None
+        if self.profile_stats is None:
+            raise ValueError(
+                "operation has no profile statistics, records_produced is only "
+                "available for plans produced by Graph.profile()"
+            )
         return self.profile_stats.records_produced
 
     def append_child(self, child):
@@ -111,6 +118,24 @@ class Operation:
 
         return self.name == o.name and self.args == o.args
 
+    def __hash__(self) -> int:
+        """
+        Hash the operation so it can be used in sets and as a dict key.
+
+        Returns:
+            int: The operation hash.
+        """
+        return hash((self.name, self.args))
+
+    def __repr__(self) -> str:
+        """
+        Get an unambiguous representation of the operation.
+
+        Returns:
+            str: A representation useful in tracebacks and debuggers.
+        """
+        return f"Operation(name={self.name!r}, args={self.args!r})"
+
     def __str__(self) -> str:
         """
         Returns a string representation of the operation.
@@ -141,6 +166,9 @@ class ExecutionPlan:
         if not isinstance(plan, list):
             raise Exception("plan must be an array")
 
+        if len(plan) == 0:
+            raise ValueError("plan must contain at least one operation")
+
         if isinstance(plan[0], bytes):
             plan = [b.decode() for b in plan]
 
@@ -160,17 +188,7 @@ class ExecutionPlan:
         Returns:
             List[Operation]: All operations with the specified name
         """
-        if op_name in self.operations:
-            return self.operations[op_name]
-        return []
-
-        ops = []
-
-        for op in self.operations:
-            if op.name == op_name:
-                ops.append(op)
-
-        return ops
+        return self.operations.get(op_name, [])
 
     def __compare_operations(self, root_a, root_b) -> bool:
         """
@@ -282,14 +300,15 @@ class ExecutionPlan:
             name = args[0].strip()
             args.pop(0)
             if len(args) > 0 and "Records produced" in args[-1]:
-                records_produced = int(
-                    re.search("Records produced: (\\d+)", args[-1]).group(1)
+                records_match = re.search("Records produced: (\\d+)", args[-1])
+                time_match = re.search(
+                    "Execution time: (\\d+(?:\\.\\d+)?) ms", args[-1]
                 )
-                execution_time = float(
-                    re.search("Execution time: (\\d+.\\d+) ms", args[-1]).group(1)
-                )
-                profile_stats = ProfileStats(records_produced, execution_time)
-                args.pop(-1)
+                if records_match is not None and time_match is not None:
+                    profile_stats = ProfileStats(
+                        int(records_match.group(1)), float(time_match.group(1))
+                    )
+                    args.pop(-1)
             return Operation(
                 name, None if len(args) == 0 else args[0].strip(), profile_stats
             )
@@ -297,7 +316,10 @@ class ExecutionPlan:
         # iterate plan operations
         while i < len(self.plan):
             current_op = self.plan[i]
-            op_level = current_op.count("    ")
+            # measure leading indentation only, counting every 4-space run in
+            # the line would misread operations whose args contain spaces
+            # e.g. a label named "a    b"
+            op_level = (len(current_op) - len(current_op.lstrip(" "))) // 4
             if op_level == level:
                 # if the operation level equal to the current level
                 # set the current operation and move next

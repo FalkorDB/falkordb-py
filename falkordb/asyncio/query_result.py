@@ -1,8 +1,7 @@
-import sys
+import warnings
 from collections import OrderedDict
 from datetime import date, datetime, time, timezone
 from enum import Enum
-from typing import List
 
 from dateutil.relativedelta import relativedelta  # type: ignore[import-untyped]
 from redis import ResponseError  # type: ignore[import-not-found]
@@ -85,9 +84,29 @@ class ResultSetScalarTypes(Enum):
     VALUE_DURATION = 16
 
 
-async def __parse_unknown(value, graph):
+def __warn_unknown_scalar(detail: str) -> None:
     """
-    Parse a value of unknown type.
+    Warn that a scalar could not be parsed.
+
+    The value itself is deliberately left out. Warnings go to stderr by
+    default, which production deployments commonly ship to a log aggregator,
+    so echoing it there would disclose query data.
+
+    Args:
+        detail: How to identify the offending scalar type.
+    """
+    warnings.warn(
+        f"Unknown scalar type returned by the server ({detail}), value ignored. "
+        "This usually means the server is newer than the client, consider "
+        "upgrading the falkordb package.",
+        RuntimeWarning,
+        stacklevel=3,
+    )
+
+
+async def __parse_unknown(value, graph) -> None:
+    """
+    Parse a value the server tagged as an unknown type.
 
     Args:
         value: The value to parse.
@@ -96,7 +115,8 @@ async def __parse_unknown(value, graph):
     Returns:
         None
     """
-    sys.stderr.write("Unknown type\n")
+    __warn_unknown_scalar("type id 0")
+    return None
 
 
 async def __parse_null(value, graph) -> None:
@@ -176,7 +196,7 @@ async def __parse_double(value, graph) -> float:
     return float(value)
 
 
-async def __parse_array(value, graph) -> List:
+async def __parse_array(value, graph) -> list:
     """
     Parse an array of values.
 
@@ -191,7 +211,7 @@ async def __parse_array(value, graph) -> List:
     return scalar
 
 
-async def __parse_vectorf32(value, graph) -> List:
+async def __parse_vectorf32(value, graph) -> list:
     """
     Parse a vector32f.
 
@@ -349,9 +369,13 @@ async def parse_scalar(value, graph):
     """
     scalar_type = int(value[0])
     value = value[1]
-    scalar = await PARSE_SCALAR_TYPES[scalar_type](value, graph)
 
-    return scalar
+    if 0 <= scalar_type < len(PARSE_SCALAR_TYPES):
+        return await PARSE_SCALAR_TYPES[scalar_type](value, graph)
+
+    # a newer server may introduce scalar types this client does not know about
+    __warn_unknown_scalar(f"type id {scalar_type}")
+    return None
 
 
 PARSE_SCALAR_TYPES = [
@@ -392,6 +416,24 @@ class QueryResult:
         self.header = []
         self.result_set = []
         self._raw_stats = []
+
+    def __iter__(self):
+        """
+        Iterate over the rows of the result set.
+
+        Returns:
+            Iterator[list]: An iterator over each row returned from a query.
+        """
+        return iter(self.result_set)
+
+    def __len__(self) -> int:
+        """
+        Get the number of rows in the result set.
+
+        Returns:
+            int: The number of rows returned from a query.
+        """
+        return len(self.result_set)
 
     async def parse(self, response):
         """
@@ -465,6 +507,19 @@ class QueryResult:
 
         return 0
 
+    def __get_int_statistics(self, s) -> int:
+        """
+        Get the value of a specific statistical metric as an integer.
+
+        Args:
+            s (str): The statistical metric to retrieve.
+
+        Returns:
+            int: The value of the specified statistical metric.
+                Returns 0 if the metric is not found.
+        """
+        return int(self.__get_statistics(s))
+
     def __parse_header(self, raw_result_set):
         """
         Parse the header of the result.
@@ -491,9 +546,11 @@ class QueryResult:
         """
         records = []
         for row in raw_result_set[1]:
+            # a nested async comprehension here is a SyntaxError on Python
+            # 3.10, which this package still supports
             record = []
             for cell in row:
-                record.append(await parse_scalar(cell, self.graph))
+                record.append(await parse_scalar(cell, self.graph))  # noqa: PERF401
             records.append(record)
 
         return records
@@ -507,7 +564,7 @@ class QueryResult:
         int: The number of labels added.
         """
 
-        return self.__get_statistics(LABELS_ADDED)
+        return self.__get_int_statistics(LABELS_ADDED)
 
     @property
     def labels_removed(self) -> int:
@@ -517,7 +574,7 @@ class QueryResult:
         Returns:
             int: The number of labels removed.
         """
-        return self.__get_statistics(LABELS_REMOVED)
+        return self.__get_int_statistics(LABELS_REMOVED)
 
     @property
     def nodes_created(self) -> int:
@@ -527,7 +584,7 @@ class QueryResult:
         Returns:
             int: The number of nodes created.
         """
-        return self.__get_statistics(NODES_CREATED)
+        return self.__get_int_statistics(NODES_CREATED)
 
     @property
     def nodes_deleted(self) -> int:
@@ -537,7 +594,7 @@ class QueryResult:
         Returns:
             int: The number of nodes deleted.
         """
-        return self.__get_statistics(NODES_DELETED)
+        return self.__get_int_statistics(NODES_DELETED)
 
     @property
     def properties_set(self) -> int:
@@ -547,7 +604,7 @@ class QueryResult:
         Returns:
             int: The number of properties set.
         """
-        return self.__get_statistics(PROPERTIES_SET)
+        return self.__get_int_statistics(PROPERTIES_SET)
 
     @property
     def properties_removed(self) -> int:
@@ -557,7 +614,7 @@ class QueryResult:
         Returns:
             int: The number of properties removed.
         """
-        return self.__get_statistics(PROPERTIES_REMOVED)
+        return self.__get_int_statistics(PROPERTIES_REMOVED)
 
     @property
     def relationships_created(self) -> int:
@@ -567,7 +624,7 @@ class QueryResult:
         Returns:
             int: The number of relationships created.
         """
-        return self.__get_statistics(RELATIONSHIPS_CREATED)
+        return self.__get_int_statistics(RELATIONSHIPS_CREATED)
 
     @property
     def relationships_deleted(self) -> int:
@@ -577,7 +634,7 @@ class QueryResult:
         Returns:
             int: The number of relationships deleted.
         """
-        return self.__get_statistics(RELATIONSHIPS_DELETED)
+        return self.__get_int_statistics(RELATIONSHIPS_DELETED)
 
     @property
     def indices_created(self) -> int:
@@ -587,7 +644,7 @@ class QueryResult:
         Returns:
             int: The number of indices created.
         """
-        return self.__get_statistics(INDICES_CREATED)
+        return self.__get_int_statistics(INDICES_CREATED)
 
     @property
     def indices_deleted(self) -> int:
@@ -597,7 +654,7 @@ class QueryResult:
         Returns:
             int: The number of indices deleted.
         """
-        return self.__get_statistics(INDICES_DELETED)
+        return self.__get_int_statistics(INDICES_DELETED)
 
     @property
     def cached_execution(self) -> bool:

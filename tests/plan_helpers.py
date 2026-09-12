@@ -17,7 +17,7 @@ below it is identical. ``assert_plan_shape`` skips that root, so the expected
 tree is the part of the plan the query itself describes.
 """
 
-from typing import Iterator, List, Optional, Tuple
+from collections.abc import Iterator
 
 from falkordb.execution_plan import ExecutionPlan, Operation
 
@@ -27,7 +27,7 @@ INDENT = "    "
 ENGINE_ROOT_OPS = ("Results", "Commit")
 
 
-def iter_operations(op: Operation, depth: int = 0) -> Iterator[Tuple[int, Operation]]:
+def iter_operations(op: Operation, depth: int = 0) -> Iterator[tuple[int, Operation]]:
     """Yields (depth, operation) for the whole tree, depth first."""
 
     yield depth, op
@@ -41,7 +41,7 @@ def _render(op: Operation) -> str:
     return f"{op.name} | {op.args}" if op.args else op.name
 
 
-def _parse_expected(expected: str) -> List[Tuple[int, str]]:
+def _parse_expected(expected: str) -> list[tuple[int, str]]:
     """Turns an indented expected plan into (depth, text) pairs."""
 
     lines = [line for line in expected.split("\n") if line.strip()]
@@ -73,7 +73,7 @@ def assert_parsed_plan(
     assert len(parsed) == len(lines)
     assert len(parsed) >= min_operations
 
-    for (depth, op), line in zip(parsed, lines):
+    for (depth, op), line in zip(parsed, lines, strict=True):
         # the operation sits as deep in the tree as its line was indented,
         # which is what makes this a test of the parser rather than the engine
         assert depth == (len(line) - len(line.lstrip())) // len(INDENT)
@@ -122,15 +122,16 @@ def assert_plan_shape(plan: ExecutionPlan, expected: str) -> None:
 
     rendered = [
         (depth, _render(op) if "|" in text else op.name)
-        for (depth, op), (_, text) in zip(actual, expected_ops)
+        # lengths may differ, the assertion below reports that with the full
+        # plan rather than letting zip() raise
+        for (depth, op), (_, text) in zip(actual, expected_ops, strict=False)
     ]
 
+    expected_text = "\n".join(INDENT * d + t for d, t in expected_ops)
+    actual_text = "\n".join(INDENT * d + _render(op) for d, op in actual)
     assert len(actual) == len(expected_ops) and rendered == expected_ops, (
-        "unexpected execution plan\n\nexpected:\n%s\n\ngot:\n%s"
-        % (
-            "\n".join(INDENT * d + t for d, t in expected_ops),
-            "\n".join(INDENT * d + _render(op) for d, op in actual),
-        )
+        "unexpected execution plan\n\n"
+        f"expected:\n{expected_text}\n\ngot:\n{actual_text}"
     )
 
 
@@ -138,7 +139,7 @@ def assert_parsed_profile(
     plan: ExecutionPlan,
     min_operations: int = 1,
     expect_args: bool = False,
-    records_produced: Optional[int] = None,
+    records_produced: int | None = None,
 ) -> None:
     """Asserts the client parsed a profile reply, statistics included."""
 
@@ -149,7 +150,7 @@ def assert_parsed_profile(
 def assert_profile_shape(
     plan: ExecutionPlan,
     expected: str,
-    records_produced: Optional[int] = None,
+    records_produced: int | None = None,
 ) -> None:
     """Asserts an exact profile plan, statistics included."""
 
@@ -157,7 +158,7 @@ def assert_profile_shape(
     _assert_profile_stats(plan, records_produced)
 
 
-def _assert_profile_stats(plan: ExecutionPlan, records_produced: Optional[int]) -> None:
+def _assert_profile_stats(plan: ExecutionPlan, records_produced: int | None) -> None:
     parsed = list(iter_operations(plan.structured_plan))
     for _, op in parsed:
         assert op.profile_stats is not None

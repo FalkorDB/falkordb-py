@@ -1,10 +1,106 @@
-from typing import Any, Dict, List, Optional
+import contextlib
+import re
+from collections.abc import Iterator
+from typing import Any
+
+from redis import ResponseError  # type: ignore[import-not-found]
 
 from .exceptions import SchemaVersionMismatchException
 from .execution_plan import ExecutionPlan
 from .graph_schema import GraphSchema
-from .helpers import stringify_param_value
+from .helpers import quote_identifier, stringify_param_value
 from .query_result import QueryResult
+
+
+@contextlib.contextmanager
+def ignore_existing_index() -> Iterator[None]:
+    """Ignore the error raised when a range index is already present.
+
+    A unique constraint needs a range index over the same properties, so the
+    client creates one up front and treats "already there" as success. Any
+    other ``ResponseError`` -- an unsupported command or a rejected label, say
+    -- is re-raised rather than being mistaken for an existing index.
+    """
+
+    try:
+        yield
+    except ResponseError as e:
+        if "already indexed" not in str(e):
+            raise
+
+
+# a dotted name such as DB.LABELS or algo.pageRank
+_PROCEDURE_NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$")
+
+# a yielded name, optionally aliased: "label", "n.prop", "label AS l", "*"
+_YIELD_ITEM = re.compile(
+    r"^(\*|[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*"
+    r"(\s+[Aa][Ss]\s+[A-Za-z_][A-Za-z0-9_]*)?)$"
+)
+
+
+def _validate_procedure_name(procedure: str) -> str:
+    """Check a procedure name before it is spliced into query text.
+
+    Procedure names are part of the query itself, not parameters, so nothing
+    downstream quotes them.
+
+    Args:
+        procedure: The procedure name to validate.
+
+    Returns:
+        The normalized procedure name. It must be this value that reaches the
+        query: validating the argument and interpolating the original object
+        would let a str subclass pass the check and then render something
+        else through __format__.
+
+    Raises:
+        ValueError: If it is not a plain dotted identifier.
+    """
+
+    if not isinstance(procedure, str):
+        raise ValueError(f"invalid procedure name: {procedure!r}. expected a str")
+
+    name = str.__str__(procedure)
+    if not _PROCEDURE_NAME.fullmatch(name):
+        raise ValueError(
+            f"invalid procedure name: {procedure!r}. expected a name such as "
+            "'DB.LABELS', procedure names are not parameterized and so cannot "
+            "contain arbitrary Cypher"
+        )
+    return name
+
+
+def _validate_yield(emit: list) -> list:
+    """Check the names in a YIELD clause before they are spliced into a query.
+
+    Args:
+        emit: The names to yield.
+
+    Returns:
+        The normalized names. As with procedure names, the checked value is
+        the one that has to reach the query.
+
+    Raises:
+        ValueError: If any entry is not an identifier, dotted name, aliased
+            name or ``*``.
+    """
+
+    names = []
+    for name in emit:
+        if not isinstance(name, str):
+            raise ValueError(f"invalid YIELD name: {name!r}. expected a str")
+
+        normalized = str.__str__(name).strip()
+        if not _YIELD_ITEM.fullmatch(normalized):
+            raise ValueError(
+                f"invalid YIELD name: {name!r}. expected a name such as "
+                "'label' or 'label AS l', YIELD names are not parameterized "
+                "and so cannot contain arbitrary Cypher"
+            )
+        names.append(normalized)
+    return names
+
 
 # procedures
 GRAPH_INDEXES = "DB.INDEXES"
@@ -55,8 +151,8 @@ class Graph:
     def _query(
         self,
         q: str,
-        params: Optional[Dict[str, object]] = None,
-        timeout: Optional[int] = None,
+        params: dict[str, object] | None = None,
+        timeout: int | None = None,
         read_only: bool = False,
     ) -> QueryResult:
         """
@@ -84,7 +180,7 @@ class Graph:
         # ask for compact result-set format
         # specify known graph version
         cmd = RO_QUERY_CMD if read_only else QUERY_CMD
-        command: List[Any] = [cmd, self.name, query, "--compact"]
+        command: list[Any] = [cmd, self.name, query, "--compact"]
 
         # include timeout is specified
         if isinstance(timeout, int):
@@ -105,8 +201,8 @@ class Graph:
     def query(
         self,
         q: str,
-        params: Optional[Dict[str, object]] = None,
-        timeout: Optional[int] = None,
+        params: dict[str, object] | None = None,
+        timeout: int | None = None,
     ) -> QueryResult:
         """
         Executes a query against the graph.
@@ -127,8 +223,8 @@ class Graph:
     def ro_query(
         self,
         q: str,
-        params: Optional[Dict[str, object]] = None,
-        timeout: Optional[int] = None,
+        params: dict[str, object] | None = None,
+        timeout: int | None = None,
     ) -> QueryResult:
         """
         Executes a read-only query against the graph.
@@ -244,7 +340,7 @@ class Graph:
         plan = self.execute_command(EXPLAIN_CMD, self._name, query)
         return ExecutionPlan(plan)
 
-    def _build_params_header(self, params: Optional[dict]) -> str:
+    def _build_params_header(self, params: dict | None) -> str:
         """
         Build parameters header.
 
@@ -263,15 +359,7 @@ class Graph:
         # header starts with "CYPHER"
         params_header = "CYPHER "
         for key, value in params.items():
-            key_str = key.decode() if isinstance(key, bytes) else str(key)
-            if key_str == "":
-                raise ValueError("Cypher parameter name cannot be empty")
-            if "`" in key_str:
-                raise ValueError(
-                    "Cypher parameter name cannot contain a backtick: "
-                    f"{key_str!r} (FalkorDB does not support escaped "
-                    "backticks in identifiers)"
-                )
+            key_str = quote_identifier(key, "Cypher parameter name")
             params_header += f"`{key_str}`={stringify_param_value(value)} "
         return params_header
 
@@ -280,8 +368,8 @@ class Graph:
         self,
         procedure: str,
         read_only: bool = True,
-        args: Optional[List] = None,
-        emit: Optional[List[str]] = None,
+        args: list | None = None,
+        emit: list[str] | None = None,
     ) -> QueryResult:
         """
         Call a procedure.
@@ -297,9 +385,8 @@ class Graph:
 
         """
 
-        # make sure strings arguments are quoted
-        args = args or []
-        # args = [quote_string(arg) for arg in args]
+        # copy the caller's list, the placeholders below must not leak back out
+        args = list(args or [])
 
         params = None
         if len(args) > 0:
@@ -311,10 +398,10 @@ class Graph:
                 params[param_name] = arg
                 args[i] = "$" + param_name
 
-        q = f"CALL {procedure}({','.join(args)})"
+        q = f"CALL {_validate_procedure_name(procedure)}({','.join(args)})"
 
         if emit is not None and len(emit) > 0:
-            q += f"YIELD {','.join(emit)}"
+            q += f"YIELD {','.join(_validate_yield(emit))}"
 
         return self._query(q, params=params, read_only=read_only)
 
@@ -334,21 +421,26 @@ class Graph:
         Returns:
             Any: The result of the index dropping query.
         """
+        # backtick the identifiers, they are query text and a label such as
+        # "L) ON (e.other) //" would otherwise redirect the statement
+        label = quote_identifier(label, "label")
+        attribute = quote_identifier(attribute, "attribute name")
+
         # set pattern
         if entity_type == "NODE":
-            pattern = f"(e:{label})"
+            pattern = f"(e:`{label}`)"
         elif entity_type == "EDGE":
-            pattern = f"()-[e:{label}]->()"
+            pattern = f"()-[e:`{label}`]->()"
         else:
             raise ValueError("Invalid entity type")
 
         # build drop index command
         if idx_type == "RANGE":
-            q = f"DROP INDEX FOR {pattern} ON (e.{attribute})"
+            q = f"DROP INDEX FOR {pattern} ON (e.`{attribute}`)"
         elif idx_type == "VECTOR":
-            q = f"DROP VECTOR INDEX FOR {pattern} ON (e.{attribute})"
+            q = f"DROP VECTOR INDEX FOR {pattern} ON (e.`{attribute}`)"
         elif idx_type == "FULLTEXT":
-            q = f"DROP FULLTEXT INDEX FOR {pattern} ON (e.{attribute})"
+            q = f"DROP FULLTEXT INDEX FOR {pattern} ON (e.`{attribute}`)"
         else:
             raise ValueError("Invalid index type")
 
@@ -461,10 +553,15 @@ class Graph:
         Returns:
             Any: The result of the index creation query.
         """
+        # backtick the identifiers, they are query text and a property such as
+        # "age, e.secret" would otherwise widen the index
+        label = quote_identifier(label, "label")
+        quoted_properties = [quote_identifier(p, "property name") for p in properties]
+
         if entity_type == "NODE":
-            pattern = f"(e:{label})"
+            pattern = f"(e:`{label}`)"
         elif entity_type == "EDGE":
-            pattern = f"()-[e:{label}]->()"
+            pattern = f"()-[e:`{label}`]->()"
         else:
             raise ValueError("Invalid entity type")
 
@@ -472,19 +569,18 @@ class Graph:
             idx_type = ""
 
         q = f"CREATE {idx_type} INDEX FOR {pattern} ON ("
-        q += ",".join(map("e.{0}".format, properties))
+        q += ",".join(f"e.`{p}`" for p in quoted_properties)
         q += ")"
 
         if options is not None:
-            # convert options to a Cypher map
-            options_map = "{"
+            # convert options to a Cypher map. The values reach the query as
+            # literals, so they get the same treatment as query parameters
+            # rather than being pasted in with str()
+            parts = []
             for key, value in options.items():
-                if isinstance(value, str):
-                    options_map += key + ":'" + value + "',"
-                else:
-                    options_map += key + ":" + str(value) + ","
-            options_map = options_map[:-1] + "}"
-            q += f" OPTIONS {options_map}"
+                key_str = quote_identifier(key, "index option name")
+                parts.append(f"`{key_str}`:{stringify_param_value(value)}")
+            q += " OPTIONS {" + ",".join(parts) + "}"
 
         return self.query(q)
 
@@ -628,10 +724,8 @@ class Graph:
         """
 
         # create required range indices
-        try:
+        with ignore_existing_index():
             self.create_node_range_index(label, *properties)
-        except Exception:
-            pass
 
         # create constraint
         return self._create_constraint("UNIQUE", "NODE", label, *properties)
@@ -654,10 +748,8 @@ class Graph:
         """
 
         # create required range indices
-        try:
+        with ignore_existing_index():
             self.create_edge_range_index(relation, *properties)
-        except Exception:
-            pass
 
         return self._create_constraint("UNIQUE", "RELATIONSHIP", relation, *properties)
 
@@ -769,7 +861,7 @@ class Graph:
         """
         return self._drop_constraint("MANDATORY", "RELATIONSHIP", relation, *properties)
 
-    def list_constraints(self) -> List[Dict[str, object]]:
+    def list_constraints(self) -> list[dict[str, object]]:
         """
         Lists graph's constraints
 
@@ -781,15 +873,13 @@ class Graph:
 
         result = self.call_procedure(GRAPH_LIST_CONSTRAINTS).result_set
 
-        constraints = []
-        for row in result:
-            constraints.append(
-                {
-                    "type": row[0],
-                    "label": row[1],
-                    "properties": row[2],
-                    "entitytype": row[3],
-                    "status": row[4],
-                }
-            )
-        return constraints
+        return [
+            {
+                "type": row[0],
+                "label": row[1],
+                "properties": row[2],
+                "entitytype": row[3],
+                "status": row[4],
+            }
+            for row in result
+        ]

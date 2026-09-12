@@ -1,4 +1,5 @@
 import pytest
+from redis import ResponseError
 
 from falkordb import FalkorDB
 
@@ -72,8 +73,10 @@ def test_merge(client):
 
     try:
         g.create_node_range_index("person", "age")
-    except Exception:
-        pass
+    except ResponseError as e:
+        # an earlier run of this test already created the index, any other
+        # failure is a real one and must not be swallowed
+        assert "already indexed" in str(e), e
     plan = g.explain("MERGE (p1:person {age: 40}) MERGE (p2:person {age: 41})")
 
     # the two engines compile MERGE differently — Rust matches through an
