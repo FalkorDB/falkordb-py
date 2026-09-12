@@ -192,10 +192,12 @@ class FalkorDB:
         Returns:
             Graph: A new Graph instance associated with the selected graph.
         """
-        if not isinstance(graph_id, str) or graph_id == "":
+        if not isinstance(graph_id, str):
             raise TypeError(
                 f"Expected a string parameter, but received {type(graph_id)}."
             )
+        if graph_id == "":
+            raise TypeError("graph_id must be a non-empty string.")
 
         return Graph(self, graph_id)
 
