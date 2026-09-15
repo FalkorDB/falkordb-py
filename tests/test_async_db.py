@@ -26,6 +26,7 @@ async def async_client():
 def test_driver_info_version(kwargs, expected_version):
     with (
         patch("falkordb.asyncio.falkordb.redis.Redis") as mock_redis,
+        patch("falkordb.asyncio.falkordb.Is_Sentinel", return_value=False),
         patch("falkordb.asyncio.falkordb.Is_Cluster", return_value=False),
         patch(
             "falkordb.asyncio.falkordb.get_package_version",
@@ -134,8 +135,9 @@ async def test_from_url():
 
 
 @pytest.mark.asyncio
+@patch("falkordb.asyncio.falkordb.Is_Sentinel", return_value=False)
 @patch("falkordb.asyncio.falkordb.Is_Cluster", return_value=False)
-async def test_from_url_unix_socket(mock_cluster):
+async def test_from_url_unix_socket(mock_sentinel, mock_cluster):
     """Test that from_url correctly parses unix:// socket URLs."""
     db = FalkorDB.from_url("unix:///tmp/falkordb.sock")
     pool = db.connection.connection_pool
@@ -148,8 +150,9 @@ async def test_from_url_unix_socket(mock_cluster):
 
 
 @pytest.mark.asyncio
+@patch("falkordb.asyncio.falkordb.Is_Sentinel", return_value=False)
 @patch("falkordb.asyncio.falkordb.Is_Cluster", return_value=False)
-async def test_from_url_unix_socket_with_password(mock_cluster):
+async def test_from_url_unix_socket_with_password(mock_sentinel, mock_cluster):
     """Test that from_url handles unix:// URLs with credentials."""
     db = FalkorDB.from_url("unix://myuser:mypass@/tmp/falkordb.sock?db=2")
     pool = db.connection.connection_pool

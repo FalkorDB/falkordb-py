@@ -94,6 +94,9 @@ class Graph:
 
         # issue query
         try:
+            self.schema._dirty_labels = True
+            self.schema._dirty_properties = True
+            self.schema._dirty_relations = True
             response = self.execute_command(*command)
             return QueryResult(self, response)
         except SchemaVersionMismatchException as e:
@@ -101,6 +104,17 @@ class Graph:
             # set client version and refresh local schema
             self.schema.refresh(e.version)
             raise e
+        except Exception as e:
+            if "timed out" in str(e).lower() or "timeout" in str(e).lower():
+                self._disconnect_connection()
+            raise e
+
+    def _disconnect_connection(self):
+        """
+        Disconnects the underlying client connection
+        to purge dirty socket state after a timeout.
+        """
+        self.client._disconnect_connection()
 
     def query(
         self,
