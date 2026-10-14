@@ -386,3 +386,50 @@ def test_is_cluster_filters_unknown_connection_kwargs():
         return_value={"redis_mode": "cluster"},
     ):
         assert Is_Cluster(conn) is True
+
+
+@pytest.mark.asyncio
+async def test_is_cluster_does_not_crash_on_an_async_retry_policy():
+    """Is_Cluster must not crash when the async pool carries a ``retry`` policy.
+
+    The async pool stores a ``redis.asyncio.retry.Retry``, whose
+    ``call_with_retry`` is a coroutine. Is_Cluster forwarded it verbatim to the
+    synchronous ``redis.Redis`` probe, which then never awaited it and crashed
+    with ``TypeError: argument of type 'coroutine' is not iterable`` -- so a
+    documented ``retry=`` argument could not be passed to the async client at
+    all. After the fix the probe gets a synchronous Retry with the same policy,
+    and the only failure is the expected connection error against the
+    (absent) server -- never a ``TypeError``.
+    """
+    from redis.asyncio import Redis as AsyncRedis
+    from redis.asyncio.retry import Retry as AsyncRetry
+    from redis.backoff import NoBackoff
+
+    from falkordb.asyncio.cluster import Is_Cluster
+
+    conn = AsyncRedis(
+        host="localhost",
+        port=1,
+        retry=AsyncRetry(NoBackoff(), 0),
+        decode_responses=True,
+    )
+
+    with pytest.raises((redis.exceptions.ConnectionError, OSError)):
+        Is_Cluster(conn)
+    await conn.aclose()
+
+
+@pytest.mark.asyncio
+async def test_async_client_accepts_an_async_retry_policy():
+    """The documented ``retry=`` argument works on the async client end to end."""
+    from redis.asyncio.retry import Retry as AsyncRetry
+    from redis.backoff import NoBackoff
+
+    db = FalkorDB(retry=AsyncRetry(NoBackoff(), 0))
+    graph = db.select_graph("async_retry_policy")
+    try:
+        result = await graph.query("RETURN 1")
+        assert result.result_set == [[1]]
+    finally:
+        await graph.delete()
+        await db.aclose()
