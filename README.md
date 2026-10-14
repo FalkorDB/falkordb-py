@@ -18,6 +18,12 @@ see [docs](http://falkordb-py.readthedocs.io/)
 pip install FalkorDB
 ```
 
+For faster parsing of large results (for example vector properties), install the
+optional `hiredis` parser. `redis` uses it automatically:
+```sh
+pip install "FalkorDB[hiredis]"
+```
+
 ## Usage
 
 ### Run FalkorDB instance

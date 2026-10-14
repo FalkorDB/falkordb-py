@@ -34,6 +34,8 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# Faster reply parsing, less client CPU on large results (e.g. vectors)
+hiredis = ["redis[hiredis]>=8.0.0,<9"]
 test = [
     "pytest-cov>=7.0.0",
     "pytest>=9.0.2",
