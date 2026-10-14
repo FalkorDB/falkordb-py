@@ -179,17 +179,24 @@ class FalkorDB:
 
         return AsyncGraph(self, graph_id)
 
-    async def list_graphs(self) -> List[str]:
+    async def list_graphs(self, pattern: Optional[str] = None) -> List[str]:
         """
-        Lists all graph names.
+        Lists graph names, optionally filtered by a pattern.
         See: https://docs.falkordb.com/commands/graph.list.html
+
+        Args:
+            pattern (str, optional): Pattern used to filter graph names.
 
         Returns:
             List: List of graph names.
-
         """
 
-        return await self.connection.execute_command(LIST_CMD)
+        args = [LIST_CMD]
+
+        if pattern is not None:
+            args.append(pattern)
+
+        return await self.connection.execute_command(*args)
 
     async def config_get(self, name: str) -> Union[int, str]:
         """
