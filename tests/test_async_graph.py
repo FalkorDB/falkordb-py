@@ -56,7 +56,7 @@ async def test_graph_creation():
 
     query = "RETURN [1, 2.3, '4', true, false, null]"
     result = await graph.query(query)
-    assert [1, 2.3, "4", True, False, None] == result.result_set[0][0]
+    assert result.result_set[0][0] == [1, 2.3, "4", True, False, None]
 
     # close the connection pool
     await pool.aclose()
@@ -74,7 +74,7 @@ async def test_array_functions():
 
     query = """RETURN [0,1,2]"""
     result = await graph.query(query)
-    assert [0, 1, 2] == result.result_set[0][0]
+    assert result.result_set[0][0] == [0, 1, 2]
 
     a = Node(
         node_id=0,
@@ -170,7 +170,7 @@ async def test_param_non_identifier_keys():
     ]
     for key in edge_case_keys:
         result = await graph.query(f"RETURN ${quote_param_ref(key)}", {key: "ok"})
-        assert [["ok"]] == result.result_set, f"failed for key {key!r}"
+        assert result.result_set == [["ok"]], f"failed for key {key!r}"
 
     props = {key: i for i, key in enumerate(edge_case_keys)}
     result = await graph.query("RETURN $props", {"props": props})
@@ -283,13 +283,13 @@ async def test_index_response():
     g = db.select_graph("async_graph")
 
     result_set = await g.query("CREATE INDEX ON :person(age)")
-    assert 1 == result_set.indices_created
+    assert result_set.indices_created == 1
 
     with pytest.raises(ResponseError):
         await g.query("CREATE INDEX ON :person(age)")
 
     result_set = await g.query("DROP INDEX ON :person(age)")
-    assert 1 == result_set.indices_deleted
+    assert result_set.indices_deleted == 1
 
     with pytest.raises(ResponseError):
         await g.query("DROP INDEX ON :person(age)")

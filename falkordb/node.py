@@ -1,5 +1,3 @@
-from typing import List, Optional, Union
-
 from .helpers import quote_string
 
 
@@ -10,9 +8,9 @@ class Node:
 
     def __init__(
         self,
-        node_id: Optional[int] = None,
-        alias: Optional[str] = "",
-        labels: Optional[Union[str, List[str]]] = None,
+        node_id: int | None = None,
+        alias: str | None = "",
+        labels: str | list[str] | None = None,
         properties=None,
     ):
         """
@@ -79,6 +77,18 @@ class Node:
 
         return res
 
+    def __repr__(self) -> str:
+        """
+        Get an unambiguous representation of the node.
+
+        Returns:
+            str: A representation useful in tracebacks and debuggers.
+        """
+        return (
+            f"Node(id={self.id!r}, alias={self.alias!r}, "
+            f"labels={self.labels!r}, properties={self.properties!r})"
+        )
+
     def __eq__(self, rhs) -> bool:
         """
         Check if two nodes are equal.
@@ -106,7 +116,18 @@ class Node:
             return False
 
         # Compare properties.
-        if self.properties != rhs.properties:
-            return False
+        return self.properties == rhs.properties
 
-        return True
+    def __hash__(self) -> int:
+        """
+        Hash the node so it can be used in sets and as a dict key.
+
+        Only the labels take part. ``__eq__`` treats a node with an unset id as
+        equal to an otherwise identical node with one, so the id cannot be
+        hashed without breaking the rule that equal objects hash equally.
+        Properties are mutable and may hold unhashable values.
+
+        Returns:
+            int: The node hash.
+        """
+        return hash(tuple(self.labels) if self.labels else None)

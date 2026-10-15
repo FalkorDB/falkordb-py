@@ -1,5 +1,3 @@
-from typing import Optional, Union
-
 from .helpers import quote_string
 from .node import Node
 
@@ -11,11 +9,11 @@ class Edge:
 
     def __init__(
         self,
-        src_node: Union[Node, int],
+        src_node: Node | int,
         relation: str,
-        dest_node: Union[Node, int],
-        edge_id: Optional[int] = None,
-        alias: Optional[str] = "",
+        dest_node: Node | int,
+        edge_id: int | None = None,
+        alias: str | None = "",
         properties=None,
     ):
         """
@@ -70,10 +68,7 @@ class Edge:
             str: A string representation of the edge.
         """
         # Source node
-        if isinstance(self.src_node, Node):
-            res = f"({self.src_node.alias})"
-        else:
-            res = "()"
+        res = f"({self.src_node.alias})" if isinstance(self.src_node, Node) else "()"
 
         # Edge
         res += f"-[{self.alias}"
@@ -95,6 +90,19 @@ class Edge:
 
         return res
 
+    def __repr__(self) -> str:
+        """
+        Get an unambiguous representation of the edge.
+
+        Returns:
+            str: A representation useful in tracebacks and debuggers.
+        """
+        return (
+            f"Edge(id={self.id!r}, alias={self.alias!r}, "
+            f"relation={self.relation!r}, src_node={self.src_node!r}, "
+            f"dest_node={self.dest_node!r}, properties={self.properties!r})"
+        )
+
     def __eq__(self, rhs) -> bool:
         """
         Check if two edges are equal.
@@ -109,8 +117,17 @@ class Edge:
         if not isinstance(rhs, Edge):
             return False
 
-        # Quick positive check, if both IDs are set
-        if self.id is not None and rhs.id is not None and self.id == rhs.id:
+        # Quick positive check, if both IDs are set.
+        # The relation is checked too: two edges carrying the same id but a
+        # different relationship type do not describe the same edge, and
+        # returning True for them would leave __eq__ with no invariant for
+        # __hash__ to be built on.
+        if (
+            self.id is not None
+            and rhs.id is not None
+            and self.id == rhs.id
+            and self.relation == rhs.relation
+        ):
             return True
 
         # Source and destination nodes should match
@@ -129,7 +146,18 @@ class Edge:
             return False
 
         # Compare properties
-        if self.properties != rhs.properties:
-            return False
+        return self.properties == rhs.properties
 
-        return True
+    def __hash__(self) -> int:
+        """
+        Hash the edge so it can be used in sets and as a dict key.
+
+        Only the relationship type takes part. ``__eq__`` treats an edge with
+        an unset id as equal to an otherwise identical edge with one, so the id
+        cannot be hashed without breaking the rule that equal objects hash
+        equally. Properties are mutable and may hold unhashable values.
+
+        Returns:
+            int: The edge hash.
+        """
+        return hash(self.relation)

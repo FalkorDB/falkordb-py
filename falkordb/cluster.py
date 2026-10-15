@@ -22,7 +22,10 @@ def Cluster_Conn(
     dynamic_startup_nodes=True,
     url=None,
     address_remap=None,
+    load_balancing_strategy=None,
 ):
+    # copy, popping from the live pool dict would strip host/port/credentials
+    # from a pool the caller may still be using
     connection_kwargs = conn.connection_pool.connection_kwargs.copy()
     host = connection_kwargs.pop("host")
     port = connection_kwargs.pop("port")
@@ -41,6 +44,19 @@ def Cluster_Conn(
             redis_exceptions.ConnectionError,
         ],
     )
+
+    # redis-py deprecated these and warns for every one it receives, only
+    # forward them when the caller actually diverged from the default
+    optional: dict = {}
+    if cluster_error_retry_attempts != 3:
+        optional["cluster_error_retry_attempts"] = cluster_error_retry_attempts
+    if read_from_replicas:
+        optional["read_from_replicas"] = read_from_replicas
+    if retry_on_timeout is not None:
+        optional["retry_on_timeout"] = retry_on_timeout
+    if load_balancing_strategy is not None:
+        optional["load_balancing_strategy"] = load_balancing_strategy
+
     return RedisCluster(
         host=host,
         port=port,
@@ -49,14 +65,12 @@ def Cluster_Conn(
         decode_responses=True,
         ssl=ssl,
         retry=retry,
-        retry_on_timeout=retry_on_timeout,
         retry_on_error=retry_on_error,
         require_full_coverage=require_full_coverage,
         reinitialize_steps=reinitialize_steps,
-        read_from_replicas=read_from_replicas,
         dynamic_startup_nodes=dynamic_startup_nodes,
         url=url,
         address_remap=address_remap,
         startup_nodes=startup_nodes,
-        cluster_error_retry_attempts=cluster_error_retry_attempts,
+        **optional,
     )

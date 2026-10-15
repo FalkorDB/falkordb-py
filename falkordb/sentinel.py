@@ -17,7 +17,7 @@ def Sentinel_Conn(conn, ssl):
         raise Exception("Multiple masters, require service name")
 
     # monitored service name
-    service_name = list(masters.keys())[0]
+    service_name = next(iter(masters.keys()))
 
     # list of sentinels connection information
     sentinels_conns = []

@@ -1,10 +1,16 @@
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from falkordb.exceptions import SchemaVersionMismatchException
 from falkordb.execution_plan import ExecutionPlan
-from falkordb.graph import Graph
+from falkordb.graph import (
+    Graph,
+    _validate_procedure_name,
+    _validate_yield,
+    ignore_existing_index,
+)
+from falkordb.helpers import quote_identifier, stringify_param_value
 
-from .graph_schema import GraphSchema
+from .graph_schema import GraphSchema as AsyncGraphSchema
 from .query_result import QueryResult
 
 # procedures
@@ -26,6 +32,9 @@ class AsyncGraph(Graph):
     Graph, collection of nodes and edges.
     """
 
+    # the async schema is a distinct class from the sync one it shadows
+    schema: AsyncGraphSchema  # type: ignore[assignment]
+
     def __init__(self, client, name: str):
         """
         Create a new graph.
@@ -37,13 +46,13 @@ class AsyncGraph(Graph):
         """
 
         super().__init__(client, name)
-        self.schema: GraphSchema = GraphSchema(self)  # type: ignore[assignment]
+        self.schema = AsyncGraphSchema(self)
 
     async def _query(  # type: ignore[override]
         self,
         q: str,
-        params: Optional[Dict[str, object]] = None,
-        timeout: Optional[int] = None,
+        params: dict[str, object] | None = None,
+        timeout: int | None = None,
         read_only: bool = False,
     ) -> QueryResult:
         """
@@ -71,7 +80,7 @@ class AsyncGraph(Graph):
         # ask for compact result-set format
         # specify known graph version
         cmd = RO_QUERY_CMD if read_only else QUERY_CMD
-        command: List[Any] = [cmd, self.name, query, "--compact"]
+        command: list[Any] = [cmd, self.name, query, "--compact"]
 
         # include timeout is specified
         if isinstance(timeout, int):
@@ -94,8 +103,8 @@ class AsyncGraph(Graph):
     async def query(  # type: ignore[override]
         self,
         q: str,
-        params: Optional[Dict[str, object]] = None,
-        timeout: Optional[int] = None,
+        params: dict[str, object] | None = None,
+        timeout: int | None = None,
     ) -> QueryResult:
         """
         Executes a query asynchronously against the graph.
@@ -116,8 +125,8 @@ class AsyncGraph(Graph):
     async def ro_query(  # type: ignore[override]
         self,
         q: str,
-        params: Optional[Dict[str, object]] = None,
-        timeout: Optional[int] = None,
+        params: dict[str, object] | None = None,
+        timeout: int | None = None,
     ) -> QueryResult:
         """
         Executes a read-only query against the graph.
@@ -238,8 +247,8 @@ class AsyncGraph(Graph):
         self,
         procedure: str,
         read_only: bool = True,
-        args: Optional[List] = None,
-        emit: Optional[List[str]] = None,
+        args: list | None = None,
+        emit: list[str] | None = None,
     ) -> QueryResult:
         """
         Call a procedure.
@@ -255,9 +264,8 @@ class AsyncGraph(Graph):
 
         """
 
-        # make sure strings arguments are quoted
-        args = args or []
-        # args = [quote_string(arg) for arg in args]
+        # copy the caller's list, the placeholders below must not leak back out
+        args = list(args or [])
 
         params = None
         if len(args) > 0:
@@ -269,10 +277,10 @@ class AsyncGraph(Graph):
                 params[param_name] = arg
                 args[i] = "$" + param_name
 
-        q = f"CALL {procedure}({','.join(args)})"
+        q = f"CALL {_validate_procedure_name(procedure)}({','.join(args)})"
 
         if emit is not None and len(emit) > 0:
-            q += f"YIELD {','.join(emit)}"
+            q += f"YIELD {','.join(_validate_yield(emit))}"
 
         return await self._query(q, params=params, read_only=read_only)
 
@@ -296,21 +304,26 @@ class AsyncGraph(Graph):
         Returns:
             Any: The result of the index dropping query.
         """
+        # backtick the identifiers, they are query text and a label such as
+        # "L) ON (e.other) //" would otherwise redirect the statement
+        label = quote_identifier(label, "label")
+        attribute = quote_identifier(attribute, "attribute name")
+
         # set pattern
         if entity_type == "NODE":
-            pattern = f"(e:{label})"
+            pattern = f"(e:`{label}`)"
         elif entity_type == "EDGE":
-            pattern = f"()-[e:{label}]->()"
+            pattern = f"()-[e:`{label}`]->()"
         else:
             raise ValueError("Invalid entity type")
 
         # build drop index command
         if idx_type == "RANGE":
-            q = f"DROP INDEX FOR {pattern} ON (e.{attribute})"
+            q = f"DROP INDEX FOR {pattern} ON (e.`{attribute}`)"
         elif idx_type == "VECTOR":
-            q = f"DROP VECTOR INDEX FOR {pattern} ON (e.{attribute})"
+            q = f"DROP VECTOR INDEX FOR {pattern} ON (e.`{attribute}`)"
         elif idx_type == "FULLTEXT":
-            q = f"DROP FULLTEXT INDEX FOR {pattern} ON (e.{attribute})"
+            q = f"DROP FULLTEXT INDEX FOR {pattern} ON (e.`{attribute}`)"
         else:
             raise ValueError("Invalid index type")
 
@@ -423,10 +436,15 @@ class AsyncGraph(Graph):
         Returns:
             Any: The result of the index creation query.
         """
+        # backtick the identifiers, they are query text and a property such as
+        # "age, e.secret" would otherwise widen the index
+        label = quote_identifier(label, "label")
+        quoted_properties = [quote_identifier(p, "property name") for p in properties]
+
         if entity_type == "NODE":
-            pattern = f"(e:{label})"
+            pattern = f"(e:`{label}`)"
         elif entity_type == "EDGE":
-            pattern = f"()-[e:{label}]->()"
+            pattern = f"()-[e:`{label}`]->()"
         else:
             raise ValueError("Invalid entity type")
 
@@ -434,19 +452,18 @@ class AsyncGraph(Graph):
             idx_type = ""
 
         q = f"CREATE {idx_type} INDEX FOR {pattern} ON ("
-        q += ",".join(map("e.{0}".format, properties))
+        q += ",".join(f"e.`{p}`" for p in quoted_properties)
         q += ")"
 
         if options is not None:
-            # convert options to a Cypher map
-            options_map = "{"
+            # convert options to a Cypher map. The values reach the query as
+            # literals, so they get the same treatment as query parameters
+            # rather than being pasted in with str()
+            parts = []
             for key, value in options.items():
-                if isinstance(value, str):
-                    options_map += key + ":'" + value + "',"
-                else:
-                    options_map += key + ":" + str(value) + ","
-            options_map = options_map[:-1] + "}"
-            q += f" OPTIONS {options_map}"
+                key_str = quote_identifier(key, "index option name")
+                parts.append(f"`{key_str}`:{stringify_param_value(value)}")
+            q += " OPTIONS {" + ",".join(parts) + "}"
 
         return await self.query(q)
 
@@ -598,10 +615,8 @@ class AsyncGraph(Graph):
         """
 
         # create required range indices
-        try:
+        with ignore_existing_index():
             await self.create_node_range_index(label, *properties)
-        except Exception:
-            pass
 
         # create constraint
         return await self._create_constraint("UNIQUE", "NODE", label, *properties)
@@ -624,10 +639,8 @@ class AsyncGraph(Graph):
         """
 
         # create required range indices
-        try:
+        with ignore_existing_index():
             await self.create_edge_range_index(relation, *properties)
-        except Exception:
-            pass
 
         return await self._create_constraint(
             "UNIQUE", "RELATIONSHIP", relation, *properties
@@ -745,7 +758,7 @@ class AsyncGraph(Graph):
             "MANDATORY", "RELATIONSHIP", relation, *properties
         )
 
-    async def list_constraints(self) -> List[Dict[str, object]]:  # type: ignore[override]
+    async def list_constraints(self) -> list[dict[str, object]]:  # type: ignore[override]
         """
         Lists graph's constraints
 
@@ -757,15 +770,13 @@ class AsyncGraph(Graph):
 
         result = (await self.call_procedure(GRAPH_LIST_CONSTRAINTS)).result_set
 
-        constraints = []
-        for row in result:
-            constraints.append(
-                {
-                    "type": row[0],
-                    "label": row[1],
-                    "properties": row[2],
-                    "entitytype": row[3],
-                    "status": row[4],
-                }
-            )
-        return constraints
+        return [
+            {
+                "type": row[0],
+                "label": row[1],
+                "properties": row[2],
+                "entitytype": row[3],
+                "status": row[4],
+            }
+            for row in result
+        ]
