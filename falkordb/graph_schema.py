@@ -37,6 +37,9 @@ class GraphSchema:
         self.labels = []
         self.properties = []
         self.relationships = []
+        self._dirty_labels = True
+        self._dirty_properties = True
+        self._dirty_relations = True
 
     def refresh_labels(self) -> None:
         """
@@ -49,6 +52,7 @@ class GraphSchema:
 
         result_set = self.graph.call_procedure(DB_LABELS).result_set
         self.labels = [label[0] for label in result_set]
+        self._dirty_labels = False
 
     def refresh_relations(self) -> None:
         """
@@ -61,6 +65,7 @@ class GraphSchema:
 
         result_set = self.graph.call_procedure(DB_RELATIONSHIPTYPES).result_set
         self.relationships = [r[0] for r in result_set]
+        self._dirty_relations = False
 
     def refresh_properties(self) -> None:
         """
@@ -73,6 +78,7 @@ class GraphSchema:
 
         result_set = self.graph.call_procedure(DB_PROPERTYKEYS).result_set
         self.properties = [p[0] for p in result_set]
+        self._dirty_properties = False
 
     def refresh(self, version: int) -> None:
         """
@@ -104,13 +110,9 @@ class GraphSchema:
 
         """
 
-        try:
-            label = self.labels[idx]
-        except IndexError:
-            # refresh labels
+        if self._dirty_labels or not self.labels or idx >= len(self.labels):
             self.refresh_labels()
-            label = self.labels[idx]
-        return label
+        return self.labels[idx]
 
     def get_relation(self, idx: int) -> str:
         """
@@ -124,13 +126,13 @@ class GraphSchema:
 
         """
 
-        try:
-            r = self.relationships[idx]
-        except IndexError:
-            # refresh relationship types
+        if (
+            self._dirty_relations
+            or not self.relationships
+            or idx >= len(self.relationships)
+        ):
             self.refresh_relations()
-            r = self.relationships[idx]
-        return r
+        return self.relationships[idx]
 
     def get_property(self, idx: int) -> str:
         """
@@ -144,10 +146,6 @@ class GraphSchema:
 
         """
 
-        try:
-            p = self.properties[idx]
-        except IndexError:
-            # refresh properties
+        if self._dirty_properties or not self.properties or idx >= len(self.properties):
             self.refresh_properties()
-            p = self.properties[idx]
-        return p
+        return self.properties[idx]
