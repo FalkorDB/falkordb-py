@@ -19,7 +19,8 @@ class FalkorDBSentinelManagedConnection(SentinelManagedConnection):
     def connect_to(self, address):
         self.host, self.port = address
         # skip our override: the address was just resolved by sentinel
-        super(SentinelManagedConnection, self).connect_check_health(
+        SentinelManagedConnection.connect_check_health(
+            self,
             check_health=self.connection_pool.check_connection,
             retry_socket_connect=False,
         )

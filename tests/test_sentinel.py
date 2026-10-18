@@ -3,6 +3,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from redis.sentinel import Sentinel
 
+from falkordb import FalkorDB
 from falkordb.sentinel import (
     FalkorDBSentinelManagedConnection,
     FalkorDBSentinelManagedSSLConnection,
@@ -96,3 +97,16 @@ def test_connected_socket_is_kept(sentinel, connected_to):
 
     assert connected_to == [OLD_MASTER]
     sentinel.discover_master.assert_not_called()
+
+
+def test_falkordb_uses_rediscovering_connection(sentinel):
+    with (
+        patch("falkordb.falkordb.Is_Sentinel", return_value=True),
+        patch("falkordb.falkordb.Is_Cluster", return_value=False),
+        patch("falkordb.falkordb.Sentinel_Conn", return_value=(sentinel, "mymaster")),
+    ):
+        db = FalkorDB(port=26379)
+
+    pool = db.connection.connection_pool
+    assert pool.connection_class is FalkorDBSentinelManagedConnection
+    assert pool.service_name == "mymaster"
