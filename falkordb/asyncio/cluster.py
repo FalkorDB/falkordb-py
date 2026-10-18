@@ -7,15 +7,16 @@ import redis.exceptions as redis_exceptions  # type: ignore[import-not-found]
 from redis.asyncio.cluster import RedisCluster  # type: ignore[import-not-found]
 
 
-# detect if a connection is a cluster
-def Is_Cluster(conn: redis.Redis):
+# create a synchronous client with the same parameters as an async one,
+# used to probe the server while keeping the async constructor synchronous
+def Sync_Conn(conn: redis.Redis) -> sync_redis.Redis:
 
     pool = conn.connection_pool
     kwargs = pool.connection_kwargs.copy()
 
     # Check if the connection is using SSL and add it
     # this propery is not kept in the connection_kwargs
-    kwargs["ssl"] = pool.connection_class is redis.SSLConnection
+    kwargs["ssl"] = issubclass(pool.connection_class, redis.SSLConnection)
 
     # The async Unix-domain-socket pool stores the socket path under "path",
     # but the synchronous redis.Redis constructor expects "unix_socket_path".
@@ -30,9 +31,14 @@ def Is_Cluster(conn: redis.Redis):
     accepted = inspect.signature(sync_redis.Redis.__init__).parameters
     kwargs = {k: v for k, v in kwargs.items() if k in accepted}
 
-    # Create a synchronous Redis client with the same parameters
-    # as the connection pool just to keep Is_Cluster synchronous
-    info = sync_redis.Redis(**kwargs).info(section="server")
+    return sync_redis.Redis(**kwargs)
+
+
+# detect if a connection is a cluster
+def Is_Cluster(conn: redis.Redis):
+
+    with Sync_Conn(conn) as probe:
+        info = probe.info(section="server")
 
     return "redis_mode" in info and info["redis_mode"] == "cluster"
 
