@@ -139,3 +139,5 @@ db = FalkorDB(
     retry_writes=True,
 )
 ```
+
+The async client `falkordb.asyncio.FalkorDB` supports Sentinel the same way and takes the same arguments. Pass it a `Retry` from `redis.asyncio.retry` instead of `redis.retry`.

@@ -6,7 +6,6 @@ from redis.asyncio.sentinel import (  # type: ignore[import-not-found]
     Sentinel,
     SentinelManagedConnection,
 )
-from redis.commands import READ_COMMANDS  # type: ignore[attr-defined]
 from redis.exceptions import (
     ConnectionError,
     ReadOnlyError,
@@ -14,47 +13,8 @@ from redis.exceptions import (
     TimeoutError,
 )
 
+from ..sentinel import NOT_EXECUTED, Is_Write
 from .cluster import Sync_Conn
-
-# commands that never modify data, safe to resend after a connection drop
-READ_ONLY_COMMANDS = READ_COMMANDS | {
-    "GRAPH.RO_QUERY",
-    "GRAPH.EXPLAIN",
-    "GRAPH.LIST",
-    "GRAPH.INFO",
-    "GRAPH.MEMORY",
-    "PING",
-    "INFO",
-}
-
-# read-only subcommands of commands that can also write
-READ_ONLY_SUBCOMMANDS = {
-    "GRAPH.CONFIG": {"GET"},
-    "GRAPH.UDF": {"LIST"},
-    "GRAPH.CONSTRAINT": {"LIST"},
-}
-
-# marks an error raised before the command could run on the server
-NOT_EXECUTED = "_falkordb_not_executed"
-
-
-def _token(arg):
-    # commands may be sent as bytes, e.g. b"GET"
-    return (arg.decode() if isinstance(arg, bytes) else str(arg)).upper()
-
-
-def Is_Write(args):
-    command = _token(args[0])
-    if command in READ_ONLY_COMMANDS:
-        return False
-    if command == "GRAPH.SLOWLOG":
-        # GRAPH.SLOWLOG <graph> [RESET]
-        return len(args) > 2 and _token(args[2]) == "RESET"
-    subcommands = READ_ONLY_SUBCOMMANDS.get(command)
-    if subcommands is not None and len(args) > 1:
-        return _token(args[1]) not in subcommands
-    # unknown commands are treated as writes
-    return True
 
 
 class FalkorDBSentinelManagedConnection(SentinelManagedConnection):
