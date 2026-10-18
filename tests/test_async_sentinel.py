@@ -3,13 +3,18 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from redis.asyncio import ConnectionPool, SSLConnection
+from redis.asyncio.retry import Retry
 from redis.asyncio.sentinel import Sentinel
+from redis.backoff import NoBackoff
+from redis.exceptions import ConnectionError, ReadOnlyError, TimeoutError
 
 from falkordb.asyncio import FalkorDB
 from falkordb.asyncio.sentinel import (
+    NOT_EXECUTED,
     FalkorDBSentinelManagedConnection,
     FalkorDBSentinelManagedSSLConnection,
     Is_Sentinel,
+    Is_Write,
     Sentinel_Conn,
     Sentinel_Master,
 )
@@ -211,4 +216,148 @@ async def test_falkordb_udf_on_sentinel_runs_on_master(sentinel):
 
     is_cluster.assert_not_called()
     db.connection.execute_command.assert_awaited_once_with("GRAPH.UDF", "FLUSH")
+    await db.aclose()
+
+
+@pytest.mark.parametrize(
+    ("args", "expected"),
+    [
+        (("GRAPH.QUERY", "g", "CREATE ()"), True),
+        (("GRAPH.RO_QUERY", "g", "MATCH (n) RETURN n"), False),
+        (("graph.ro_query", "g", "MATCH (n) RETURN n"), False),
+        (("GRAPH.DELETE", "g"), True),
+        (("GRAPH.CONFIG", "GET", "TIMEOUT"), False),
+        (("GRAPH.CONFIG", "SET", "TIMEOUT", 10), True),
+        (("GRAPH.UDF", "LIST"), False),
+        (("GRAPH.UDF", "LOAD", "lib", "code"), True),
+        (("SET", "k", "v"), True),
+        (("GET", "k"), False),
+        (("UNKNOWN.COMMAND",), True),
+    ],
+)
+def test_is_write(args, expected):
+    assert Is_Write(args) is expected
+
+
+@pytest.fixture
+def server_errors():
+    """Make the server side fail with the queued errors, then answer OK."""
+    errors = []
+    calls = []
+
+    async def fake_send(self, conn, command_name, *args, **options):
+        calls.append(args)
+        if errors:
+            raise errors.pop(0)
+        return "OK"
+
+    with (
+        patch("redis.asyncio.client.Redis._send_command_parse_response", fake_send),
+        # the fake socket has no pending data for the pool to find
+        patch(
+            "redis.asyncio.connection.AbstractConnection.can_read",
+            AsyncMock(return_value=False),
+        ),
+    ):
+        yield errors, calls
+
+
+def get_client(sentinel, retry_writes=False):
+    client = Sentinel_Master(sentinel, "mymaster", False, retry_writes)
+    client.connection_pool.connection_kwargs["retry"] = Retry(NoBackoff(), 3)
+    return client
+
+
+async def test_write_not_resent_after_ambiguous_error(
+    sentinel, connected_to, server_errors
+):
+    errors, calls = server_errors
+    errors.append(ConnectionError("Connection closed by server."))
+
+    with pytest.raises(ConnectionError, match="Connection closed"):
+        await get_client(sentinel).execute_command("GRAPH.QUERY", "g", "CREATE ()")
+
+    assert len(calls) == 1
+
+
+async def test_write_timeout_not_resent(sentinel, connected_to, server_errors):
+    errors, calls = server_errors
+    errors.append(TimeoutError("Timeout reading from socket"))
+
+    with pytest.raises(TimeoutError):
+        await get_client(sentinel).execute_command("GRAPH.QUERY", "g", "CREATE ()")
+
+    assert len(calls) == 1
+
+
+async def test_write_resent_when_opted_in(sentinel, connected_to, server_errors):
+    errors, calls = server_errors
+    errors.append(ConnectionError("Connection closed by server."))
+
+    client = get_client(sentinel, retry_writes=True)
+    assert await client.execute_command("GRAPH.QUERY", "g", "CREATE ()") == "OK"
+    assert len(calls) == 2
+
+
+async def test_read_resent_after_ambiguous_error(sentinel, connected_to, server_errors):
+    errors, calls = server_errors
+    errors.append(ConnectionError("Connection closed by server."))
+
+    client = get_client(sentinel)
+    assert await client.execute_command("GRAPH.RO_QUERY", "g", "RETURN 1") == "OK"
+    assert len(calls) == 2
+
+
+async def test_write_resent_when_it_never_ran(sentinel, connected_to, server_errors):
+    errors, calls = server_errors
+    error = ConnectionError("The previous master is now a slave")
+    setattr(error, NOT_EXECUTED, True)
+    errors.append(error)
+
+    client = get_client(sentinel)
+    assert await client.execute_command("GRAPH.QUERY", "g", "CREATE ()") == "OK"
+    assert len(calls) == 2
+
+
+async def test_readonly_marks_error_not_executed(sentinel, connected_to):
+    _pool, conn = get_connection(sentinel)
+    await conn.connect()
+
+    with patch(
+        "redis.asyncio.connection.AbstractConnection.read_response",
+        AsyncMock(side_effect=ReadOnlyError("You can't write against a replica.")),
+    ):
+        with pytest.raises(ConnectionError) as info:
+            await conn.read_response()
+
+    assert getattr(info.value, NOT_EXECUTED, False)
+
+
+async def test_connect_failure_marks_error_not_executed(sentinel):
+    _pool, conn = get_connection(sentinel)
+
+    with patch(
+        "redis.asyncio.connection.Connection._connect",
+        AsyncMock(side_effect=ConnectionError("Connection refused")),
+    ):
+        with pytest.raises(ConnectionError) as info:
+            await conn.connect_check_health(
+                check_health=False, retry_socket_connect=False
+            )
+
+    assert getattr(info.value, NOT_EXECUTED, False)
+
+
+async def test_falkordb_from_url_passes_retry_writes(sentinel):
+    with (
+        patch("falkordb.asyncio.falkordb.Is_Sentinel", return_value=True),
+        patch("falkordb.asyncio.falkordb.Is_Cluster", return_value=False),
+        patch(
+            "falkordb.asyncio.falkordb.Sentinel_Conn",
+            return_value=(sentinel, "mymaster"),
+        ),
+    ):
+        db = FalkorDB.from_url("falkor://localhost:26379", retry_writes=True)
+
+    assert db.connection.retry_writes is True
     await db.aclose()
