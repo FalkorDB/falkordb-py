@@ -22,3 +22,5 @@ sexualized
 socio
 wordlist
 www
+failover
+Failover
