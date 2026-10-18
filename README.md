@@ -114,7 +114,7 @@ if __name__ == "__main__":
 
 ### Sentinel Failover
 
-Point the client at a Sentinel and it connects to the monitored master. After a failover, it reconnects to the new master:
+Point the client at a Sentinel and it connects to the monitored master. The Sentinel must monitor exactly one master; the client raises an error otherwise. After a failover, it reconnects to the new master:
 
 ```python
 from falkordb import FalkorDB
@@ -122,10 +122,20 @@ from falkordb import FalkorDB
 db = FalkorDB(host="localhost", port=26379)
 ```
 
-A dropped connection or a timeout does not tell whether a write already ran on the server, so a write that fails this way is not sent again: the error is raised to the caller. Reads, and writes that provably never ran (the connection could not be opened, or a demoted master rejected the write as read-only), are retried according to the client's `retry` settings.
+A dropped connection or a timeout does not tell whether a write already ran on the server, so a write that fails this way is not sent again: the error is raised to the caller. Reads, and writes that provably never ran (the connection could not be opened, or a demoted master rejected the write as read-only), are retried according to the client's `retry` settings. `FalkorDB` does not retry by default, so pass a `retry` policy to ride out a failover.
 
 To resend writes as well, pass `retry_writes=True`. A resent write may then run twice, so only enable it when your write queries are safe to repeat, for example `MERGE` instead of `CREATE`:
 
 ```python
-db = FalkorDB(host="localhost", port=26379, retry_writes=True)
+from redis.backoff import ExponentialBackoff
+from redis.exceptions import ConnectionError, ReadOnlyError, TimeoutError
+from redis.retry import Retry
+
+db = FalkorDB(
+    host="localhost",
+    port=26379,
+    retry=Retry(ExponentialBackoff(cap=1, base=0.1), 15),
+    retry_on_error=[ConnectionError, TimeoutError, ReadOnlyError],
+    retry_writes=True,
+)
 ```

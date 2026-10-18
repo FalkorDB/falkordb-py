@@ -1,4 +1,5 @@
 from redis import Redis
+from redis.commands import READ_COMMANDS  # type: ignore[attr-defined]
 from redis.connection import SSLConnection
 from redis.exceptions import ConnectionError, ReadOnlyError, TimeoutError
 from redis.sentinel import (  # type: ignore[import-not-found]
@@ -7,22 +8,14 @@ from redis.sentinel import (  # type: ignore[import-not-found]
 )
 
 # commands that never modify data, safe to resend after a connection drop
-READ_ONLY_COMMANDS = {
+READ_ONLY_COMMANDS = READ_COMMANDS | {
     "GRAPH.RO_QUERY",
     "GRAPH.EXPLAIN",
     "GRAPH.LIST",
     "GRAPH.INFO",
     "GRAPH.MEMORY",
-    "GRAPH.SLOWLOG",
     "PING",
     "INFO",
-    "EXISTS",
-    "TYPE",
-    "GET",
-    "MGET",
-    "KEYS",
-    "SCAN",
-    "DBSIZE",
 }
 
 # read-only subcommands of commands that can also write
@@ -40,6 +33,9 @@ def Is_Write(args):
     command = str(args[0]).upper()
     if command in READ_ONLY_COMMANDS:
         return False
+    if command == "GRAPH.SLOWLOG":
+        # GRAPH.SLOWLOG <graph> [RESET]
+        return len(args) > 2 and str(args[2]).upper() == "RESET"
     subcommands = READ_ONLY_SUBCOMMANDS.get(command)
     if subcommands is not None and len(args) > 1:
         return str(args[1]).upper() not in subcommands

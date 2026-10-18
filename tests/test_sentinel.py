@@ -148,6 +148,9 @@ def test_falkordb_from_tls_url_uses_ssl_connection(sentinel):
         (("GRAPH.UDF", "LOAD", "lib", "code"), True),
         (("SET", "k", "v"), True),
         (("GET", "k"), False),
+        (("HGETALL", "k"), False),
+        (("GRAPH.SLOWLOG", "g"), False),
+        (("GRAPH.SLOWLOG", "g", "RESET"), True),
         (("UNKNOWN.COMMAND",), True),
     ],
 )
