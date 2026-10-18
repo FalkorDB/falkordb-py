@@ -84,6 +84,8 @@ class FalkorDB:
         dynamic_startup_nodes=True,
         url=None,
         address_remap=None,
+        # FalkorDB Sentinel Params
+        retry_writes=False,
     ):
 
         conn = redis.Redis(
@@ -135,7 +137,7 @@ class FalkorDB:
                 conn.connection_pool.connection_class, redis.SSLConnection
             )
             self.sentinel, self.service_name = Sentinel_Conn(conn, ssl)
-            conn = Sentinel_Master(self.sentinel, self.service_name, ssl)
+            conn = Sentinel_Master(self.sentinel, self.service_name, ssl, retry_writes)
 
         if Is_Cluster(conn):
             conn = Cluster_Conn(
@@ -181,10 +183,11 @@ class FalkorDB:
         elif url.startswith("falkors://"):
             url = "rediss://" + url[len("falkors://") :]
 
+        retry_writes = kwargs.pop("retry_writes", False)
         kwargs["decode_responses"] = True
         conn = redis.from_url(url, **kwargs)
 
-        return cls(connection_pool=conn.connection_pool)
+        return cls(connection_pool=conn.connection_pool, retry_writes=retry_writes)
 
     def select_graph(self, graph_id: str) -> Graph:
         """

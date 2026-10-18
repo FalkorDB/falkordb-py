@@ -111,3 +111,21 @@ async def main():
 if __name__ == "__main__":
     asyncio.run(main())
 ```
+
+### Sentinel Failover
+
+Point the client at a Sentinel and it connects to the monitored master. After a failover, it reconnects to the new master:
+
+```python
+from falkordb import FalkorDB
+
+db = FalkorDB(host="localhost", port=26379)
+```
+
+A dropped connection or a timeout does not tell whether a write already ran on the server, so a write that fails this way is not sent again: the error is raised to the caller. Reads, and writes that provably never ran (the connection could not be opened, or a demoted master rejected the write as read-only), are retried according to the client's `retry` settings.
+
+To resend writes as well, pass `retry_writes=True`. A resent write may then run twice, so only enable it when your write queries are safe to repeat, for example `MERGE` instead of `CREATE`:
+
+```python
+db = FalkorDB(host="localhost", port=26379, retry_writes=True)
+```
