@@ -243,11 +243,15 @@ class FalkorDB:
 
         try:
             await self.connection.aclose()
-            if hasattr(self, "sentinel"):
-                await self.sentinel.aclose()
         except RedisError:
             # best-effort close — don't raise on Redis errors
             pass
+
+        if hasattr(self, "sentinel"):
+            try:
+                await self.sentinel.aclose()
+            except RedisError:
+                pass
 
     async def __aenter__(self) -> "FalkorDB":
         """Return self to support async with-statement usage."""

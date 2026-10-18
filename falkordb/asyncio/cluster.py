@@ -21,7 +21,7 @@ def Sync_Conn(conn: redis.Redis) -> sync_redis.Redis:
     # The async Unix-domain-socket pool stores the socket path under "path",
     # but the synchronous redis.Redis constructor expects "unix_socket_path".
     # Translate the key so the sync probe can be built for unix:// connections.
-    if pool.connection_class is redis.UnixDomainSocketConnection:
+    if issubclass(pool.connection_class, redis.UnixDomainSocketConnection):
         kwargs["unix_socket_path"] = kwargs.pop("path")
 
     # Keep only the parameters the synchronous constructor actually accepts.

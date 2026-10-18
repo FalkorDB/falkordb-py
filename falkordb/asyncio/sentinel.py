@@ -1,3 +1,5 @@
+import inspect
+
 from redis.asyncio import Redis  # type: ignore[import-not-found]
 from redis.asyncio.connection import SSLConnection  # type: ignore[import-not-found]
 from redis.asyncio.sentinel import (  # type: ignore[import-not-found]
@@ -178,6 +180,13 @@ def Sentinel_Conn(conn, ssl):
         sentinel_kwargs["password"] = connection_kwargs["password"]
     if ssl:
         sentinel_kwargs["ssl"] = True
+        # verify sentinels with the same certificates as the master
+        accepted = inspect.signature(Redis.__init__).parameters
+        sentinel_kwargs.update(
+            (k, v)
+            for k, v in connection_kwargs.items()
+            if k.startswith("ssl_") and k in accepted
+        )
 
     return (
         Sentinel(sentinels_conns, sentinel_kwargs=sentinel_kwargs, **connection_kwargs),

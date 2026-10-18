@@ -417,3 +417,23 @@ async def test_udf_propagates_to_cluster_primaries(method, args, expected):
     for node in nodes:
         node.execute_command.assert_awaited_once_with(*expected)
     db.connection.execute_command.assert_not_called()
+
+
+def test_sync_conn_unix_socket_subclass():
+    """A pool using a UnixDomainSocketConnection subclass probes the socket."""
+    from redis.asyncio import ConnectionPool
+    from redis.asyncio.connection import UnixDomainSocketConnection
+
+    from falkordb.asyncio.cluster import Sync_Conn
+
+    class CustomUnixConnection(UnixDomainSocketConnection):
+        pass
+
+    pool = ConnectionPool(
+        connection_class=CustomUnixConnection, path="/tmp/falkordb.sock"
+    )
+    probe = Sync_Conn(SimpleNamespace(connection_pool=pool))
+
+    kwargs = probe.connection_pool.connection_kwargs
+    assert kwargs["path"] == "/tmp/falkordb.sock"
+    probe.close()

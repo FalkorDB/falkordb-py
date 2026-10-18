@@ -6,7 +6,12 @@ from redis.asyncio import ConnectionPool, SSLConnection
 from redis.asyncio.retry import Retry
 from redis.asyncio.sentinel import Sentinel
 from redis.backoff import NoBackoff
-from redis.exceptions import ConnectionError, ReadOnlyError, TimeoutError
+from redis.exceptions import (
+    ConnectionError,
+    ReadOnlyError,
+    RedisError,
+    TimeoutError,
+)
 
 from falkordb.asyncio import FalkorDB
 from falkordb.asyncio.sentinel import (
@@ -153,6 +158,22 @@ def test_sentinel_conn(ssl):
     assert issubclass(sentinel_pool.connection_class, SSLConnection) is ssl
 
 
+def test_sentinel_conn_forwards_tls_options():
+    pool = ConnectionPool.from_url(
+        "rediss://sentinel-host:26379", ssl_ca_certs="/certs/ca.pem"
+    )
+    conn = SimpleNamespace(connection_pool=pool)
+
+    with patch(
+        "falkordb.asyncio.cluster.sync_redis.Redis.sentinel_masters",
+        return_value={"mymaster": {}},
+    ):
+        sentinel, _ = Sentinel_Conn(conn, True)
+
+    sentinel_pool = sentinel.sentinels[0].connection_pool
+    assert sentinel_pool.connection_kwargs["ssl_ca_certs"] == "/certs/ca.pem"
+
+
 def test_sentinel_conn_multiple_masters():
     conn = SimpleNamespace(connection_pool=ConnectionPool(host="localhost"))
 
@@ -180,7 +201,26 @@ async def test_falkordb_uses_rediscovering_connection(sentinel):
     pool = db.connection.connection_pool
     assert pool.connection_class is FalkorDBSentinelManagedConnection
     assert pool.service_name == "mymaster"
+
+    sentinel.aclose = AsyncMock()
     await db.aclose()
+    sentinel.aclose.assert_awaited_once()
+
+
+async def test_falkordb_aclose_closes_sentinel_when_master_close_fails(sentinel):
+    with (
+        patch("falkordb.asyncio.falkordb.Is_Sentinel", return_value=True),
+        patch(
+            "falkordb.asyncio.falkordb.Sentinel_Conn",
+            return_value=(sentinel, "mymaster"),
+        ),
+    ):
+        db = FalkorDB(port=26379)
+
+    db.connection.aclose = AsyncMock(side_effect=RedisError("close failed"))
+    sentinel.aclose = AsyncMock()
+    await db.aclose()
+    sentinel.aclose.assert_awaited_once()
 
 
 async def test_falkordb_from_tls_url_uses_ssl_connection(sentinel):
