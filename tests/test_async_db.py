@@ -1,9 +1,10 @@
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 import redis.exceptions
 from redis.asyncio import BlockingConnectionPool
+from redis.asyncio.cluster import RedisCluster
 
 from falkordb.asyncio import FalkorDB
 
@@ -389,3 +390,30 @@ def test_is_cluster_filters_unknown_connection_kwargs():
         return_value={"redis_mode": "cluster"},
     ):
         assert Is_Cluster(conn) is True
+
+
+@pytest.mark.parametrize(
+    ("method", "args", "expected"),
+    [
+        ("udf_load", ("lib", "script"), ("GRAPH.UDF", "LOAD", "lib", "script")),
+        ("udf_flush", (), ("GRAPH.UDF", "FLUSH")),
+        ("udf_delete", ("lib",), ("GRAPH.UDF", "DELETE", "lib")),
+    ],
+)
+async def test_udf_propagates_to_cluster_primaries(method, args, expected):
+    """UDF commands that change state run on every primary of a cluster."""
+    with (
+        patch("falkordb.asyncio.falkordb.Is_Sentinel", return_value=False),
+        patch("falkordb.asyncio.falkordb.Is_Cluster", return_value=False),
+    ):
+        db = FalkorDB()
+
+    nodes = [MagicMock(execute_command=AsyncMock(return_value="OK")) for _ in "ab"]
+    db.connection = MagicMock(spec=RedisCluster)
+    db.connection.get_primaries.return_value = nodes
+
+    assert await getattr(db, method)(*args) == "OK"
+
+    for node in nodes:
+        node.execute_command.assert_awaited_once_with(*expected)
+    db.connection.execute_command.assert_not_called()
