@@ -7,7 +7,7 @@ from redis.exceptions import RedisError
 from ._version import get_package_version
 from .cluster import Cluster_Conn, Is_Cluster
 from .graph import Graph
-from .sentinel import Is_Sentinel, Sentinel_Conn
+from .sentinel import Is_Sentinel, Sentinel_Conn, Sentinel_Master
 
 # config commands
 UDF_CMD = "GRAPH.UDF"
@@ -131,7 +131,7 @@ class FalkorDB:
 
         if Is_Sentinel(conn):
             self.sentinel, self.service_name = Sentinel_Conn(conn, ssl)
-            conn = self.sentinel.master_for(self.service_name, ssl=ssl)
+            conn = Sentinel_Master(self.sentinel, self.service_name, ssl)
 
         if Is_Cluster(conn):
             conn = Cluster_Conn(

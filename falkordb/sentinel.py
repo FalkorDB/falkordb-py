@@ -1,4 +1,39 @@
-from redis.sentinel import Sentinel  # type: ignore[import-not-found]
+from redis.connection import SSLConnection
+from redis.sentinel import (  # type: ignore[import-not-found]
+    Sentinel,
+    SentinelManagedConnection,
+)
+
+
+class FalkorDBSentinelManagedConnection(SentinelManagedConnection):
+    """
+    Sentinel managed connection that asks sentinel for the current master
+    on every reconnect.
+
+    redis-py only queries sentinel in ``connect()``. A command retried inside
+    redis-py reconnects through ``connect_check_health()`` instead, which
+    reuses the last known host: the old master, after a failover. This class
+    re-discovers the master on that path as well.
+    """
+
+    def connect_to(self, address):
+        self.host, self.port = address
+        # skip our override: the address was just resolved by sentinel
+        super(SentinelManagedConnection, self).connect_check_health(
+            check_health=self.connection_pool.check_connection,
+            retry_socket_connect=False,
+        )
+
+    def connect_check_health(self, *args, **kwargs):
+        if not self._sock and self.connection_pool.is_master:
+            self.host, self.port = self.connection_pool.get_master_address()
+        return super().connect_check_health(*args, **kwargs)
+
+
+class FalkorDBSentinelManagedSSLConnection(
+    FalkorDBSentinelManagedConnection, SSLConnection
+):
+    pass
 
 
 # detect if a connection is a sentinel
@@ -50,3 +85,13 @@ def Sentinel_Conn(conn, ssl):
         Sentinel(sentinels_conns, sentinel_kwargs=sentinel_kwargs, **connection_kwargs),
         service_name,
     )
+
+
+# create a client for the monitored master
+def Sentinel_Master(sentinel, service_name, ssl):
+    connection_class = (
+        FalkorDBSentinelManagedSSLConnection
+        if ssl
+        else FalkorDBSentinelManagedConnection
+    )
+    return sentinel.master_for(service_name, connection_class=connection_class)
