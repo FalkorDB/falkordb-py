@@ -275,6 +275,10 @@ async def test_falkordb_udf_on_sentinel_runs_on_master(sentinel):
         (("HGETALL", "k"), False),
         (("GRAPH.SLOWLOG", "g"), False),
         (("GRAPH.SLOWLOG", "g", "RESET"), True),
+        ((b"GET", b"k"), False),
+        ((b"GRAPH.CONFIG", b"GET", b"TIMEOUT"), False),
+        ((b"GRAPH.SLOWLOG", b"g", b"RESET"), True),
+        ((b"SET", b"k", b"v"), True),
         (("UNKNOWN.COMMAND",), True),
     ],
 )
