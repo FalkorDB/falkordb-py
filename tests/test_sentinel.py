@@ -152,6 +152,9 @@ def test_falkordb_from_tls_url_uses_ssl_connection(sentinel):
         (("GRAPH.SLOWLOG", "g"), False),
         (("GRAPH.SLOWLOG", "g", "RESET"), True),
         (("UNKNOWN.COMMAND",), True),
+        ((b"GET", b"k"), False),
+        ((b"GRAPH.CONFIG", b"GET", b"TIMEOUT"), False),
+        ((b"GRAPH.SLOWLOG", b"g", b"RESET"), True),
     ],
 )
 def test_is_write(args, expected):

@@ -29,16 +29,22 @@ READ_ONLY_SUBCOMMANDS = {
 NOT_EXECUTED = "_falkordb_not_executed"
 
 
+def _Name(arg):
+    if isinstance(arg, (bytes, bytearray, memoryview)):
+        arg = bytes(arg).decode("utf-8", errors="replace")
+    return str(arg).upper()
+
+
 def Is_Write(args):
-    command = str(args[0]).upper()
+    command = _Name(args[0])
     if command in READ_ONLY_COMMANDS:
         return False
     if command == "GRAPH.SLOWLOG":
         # GRAPH.SLOWLOG <graph> [RESET]
-        return len(args) > 2 and str(args[2]).upper() == "RESET"
+        return len(args) > 2 and _Name(args[2]) == "RESET"
     subcommands = READ_ONLY_SUBCOMMANDS.get(command)
     if subcommands is not None and len(args) > 1:
-        return str(args[1]).upper() not in subcommands
+        return _Name(args[1]) not in subcommands
     # unknown commands are treated as writes
     return True
 
