@@ -251,6 +251,7 @@ class FalkorDB:
             try:
                 await self.sentinel.aclose()
             except RedisError:
+                # best-effort close — don't raise on Redis errors
                 pass
 
     async def __aenter__(self) -> "FalkorDB":
