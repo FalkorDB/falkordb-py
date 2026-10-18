@@ -10,6 +10,7 @@ from redis.exceptions import (
     ConnectionError,
     ReadOnlyError,
     RedisError,
+    ResponseError,
     TimeoutError,
 )
 
@@ -135,18 +136,40 @@ def test_is_sentinel(mode, expected):
         assert Is_Sentinel(conn) is expected
 
 
+@pytest.fixture
+def sentinel_probe():
+    """Stub the sentinel queries made while probing the seed sentinel."""
+    with (
+        patch(
+            "falkordb.asyncio.cluster.sync_redis.Redis.sentinel_masters",
+            return_value={"mymaster": {}},
+        ) as masters,
+        patch(
+            "falkordb.asyncio.cluster.sync_redis.Redis.sentinel_sentinels",
+            return_value=[],
+        ) as peers,
+    ):
+        yield masters, peers
+
+
+def sentinel_addresses(sentinel):
+    return [
+        (
+            s.connection_pool.connection_kwargs["host"],
+            s.connection_pool.connection_kwargs["port"],
+        )
+        for s in sentinel.sentinels
+    ]
+
+
 @pytest.mark.parametrize("ssl", [False, True])
-def test_sentinel_conn(ssl):
+def test_sentinel_conn(sentinel_probe, ssl):
     pool = ConnectionPool(
         host="sentinel-host", port=26379, username="user", password="pass"
     )
     conn = SimpleNamespace(connection_pool=pool)
 
-    with patch(
-        "falkordb.asyncio.cluster.sync_redis.Redis.sentinel_masters",
-        return_value={"mymaster": {}},
-    ):
-        sentinel, service_name = Sentinel_Conn(conn, ssl)
+    sentinel, service_name = Sentinel_Conn(conn, ssl)
 
     assert isinstance(sentinel, Sentinel)
     assert service_name == "mymaster"
@@ -158,31 +181,72 @@ def test_sentinel_conn(ssl):
     assert issubclass(sentinel_pool.connection_class, SSLConnection) is ssl
 
 
-def test_sentinel_conn_forwards_tls_options():
+def test_sentinel_conn_forwards_tls_options(sentinel_probe):
     pool = ConnectionPool.from_url(
         "rediss://sentinel-host:26379", ssl_ca_certs="/certs/ca.pem"
     )
     conn = SimpleNamespace(connection_pool=pool)
 
-    with patch(
-        "falkordb.asyncio.cluster.sync_redis.Redis.sentinel_masters",
-        return_value={"mymaster": {}},
-    ):
-        sentinel, _ = Sentinel_Conn(conn, True)
+    sentinel, _ = Sentinel_Conn(conn, True)
 
     sentinel_pool = sentinel.sentinels[0].connection_pool
     assert sentinel_pool.connection_kwargs["ssl_ca_certs"] == "/certs/ca.pem"
 
 
-def test_sentinel_conn_multiple_masters():
+def test_sentinel_conn_forwards_socket_options(sentinel_probe):
+    pool = ConnectionPool(
+        host="sentinel-host", port=26379, socket_timeout=2, socket_connect_timeout=1
+    )
+    conn = SimpleNamespace(connection_pool=pool)
+
+    sentinel, _ = Sentinel_Conn(conn, False)
+
+    kwargs = sentinel.sentinels[0].connection_pool.connection_kwargs
+    assert kwargs["socket_timeout"] == 2
+    assert kwargs["socket_connect_timeout"] == 1
+
+
+def test_sentinel_conn_adds_peer_sentinels(sentinel_probe):
+    _, peers = sentinel_probe
+    peers.return_value = [
+        {"ip": "10.0.0.11", "port": 26379},
+        {"ip": "10.0.0.12", "port": 26379},
+        # the seed sentinel may list itself under the same address
+        {"ip": "sentinel-host", "port": 26379},
+    ]
+    conn = SimpleNamespace(
+        connection_pool=ConnectionPool(host="sentinel-host", port=26379)
+    )
+
+    sentinel, _ = Sentinel_Conn(conn, False)
+
+    peers.assert_called_once_with("mymaster")
+    assert sentinel_addresses(sentinel) == [
+        ("sentinel-host", 26379),
+        ("10.0.0.11", 26379),
+        ("10.0.0.12", 26379),
+    ]
+
+
+def test_sentinel_conn_without_peer_access(sentinel_probe):
+    _, peers = sentinel_probe
+    peers.side_effect = ResponseError("NOPERM")
+    conn = SimpleNamespace(
+        connection_pool=ConnectionPool(host="sentinel-host", port=26379)
+    )
+
+    sentinel, _ = Sentinel_Conn(conn, False)
+
+    assert sentinel_addresses(sentinel) == [("sentinel-host", 26379)]
+
+
+def test_sentinel_conn_multiple_masters(sentinel_probe):
+    masters, _ = sentinel_probe
+    masters.return_value = {"a": {}, "b": {}}
     conn = SimpleNamespace(connection_pool=ConnectionPool(host="localhost"))
 
-    with patch(
-        "falkordb.asyncio.cluster.sync_redis.Redis.sentinel_masters",
-        return_value={"a": {}, "b": {}},
-    ):
-        with pytest.raises(Exception, match="Multiple masters"):
-            Sentinel_Conn(conn, False)
+    with pytest.raises(Exception, match="Multiple masters"):
+        Sentinel_Conn(conn, False)
 
 
 async def test_falkordb_uses_rediscovering_connection(sentinel):

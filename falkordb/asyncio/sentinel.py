@@ -7,7 +7,12 @@ from redis.asyncio.sentinel import (  # type: ignore[import-not-found]
     SentinelManagedConnection,
 )
 from redis.commands import READ_COMMANDS  # type: ignore[attr-defined]
-from redis.exceptions import ConnectionError, ReadOnlyError, TimeoutError
+from redis.exceptions import (
+    ConnectionError,
+    ReadOnlyError,
+    RedisError,
+    TimeoutError,
+)
 
 from .cluster import Sync_Conn
 
@@ -151,30 +156,46 @@ def Is_Sentinel(conn):
 
 # create a sentinel connection from a Redis connection
 def Sentinel_Conn(conn, ssl):
-    # collect masters
     with Sync_Conn(conn) as probe:
+        # collect masters
         masters = probe.sentinel_masters()
 
-    # abort if multiple masters are detected
-    if len(masters) != 1:
-        raise Exception("Multiple masters, require service name")
+        # abort if multiple masters are detected
+        if len(masters) != 1:
+            raise Exception("Multiple masters, require service name")
 
-    # monitored service name
-    service_name = list(masters.keys())[0]
+        # monitored service name
+        service_name = list(masters.keys())[0]
+
+        # other sentinels monitoring the service, so master discovery does not
+        # depend on the sentinel the client was pointed at
+        try:
+            peers = probe.sentinel_sentinels(service_name)
+        except RedisError:
+            peers = []
 
     # list of sentinels connection information
     sentinels_conns = []
 
-    # current sentinel
+    # current sentinel first
     host = conn.connection_pool.connection_kwargs["host"]
     port = conn.connection_pool.connection_kwargs["port"]
     sentinels_conns.append((host, port))
 
+    # additional sentinels
+    for peer in peers:
+        address = (peer["ip"], peer["port"])
+        if address not in sentinels_conns:
+            sentinels_conns.append(address)
+
     # use the same connection arguments e.g. username and password
     connection_kwargs = conn.connection_pool.connection_kwargs
 
-    # construct sentinel arguments
-    sentinel_kwargs = {}
+    # construct sentinel arguments, with the socket options (e.g. timeouts)
+    # redis-py would copy if sentinel_kwargs were not given
+    sentinel_kwargs = {
+        k: v for k, v in connection_kwargs.items() if k.startswith("socket_")
+    }
     if "username" in connection_kwargs:
         sentinel_kwargs["username"] = connection_kwargs["username"]
     if "password" in connection_kwargs:
