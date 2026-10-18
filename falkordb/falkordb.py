@@ -130,6 +130,10 @@ class FalkorDB:
         )
 
         if Is_Sentinel(conn):
+            # from_url("falkors://...") passes a TLS pool, not ssl=True
+            ssl = ssl or issubclass(
+                conn.connection_pool.connection_class, redis.SSLConnection
+            )
             self.sentinel, self.service_name = Sentinel_Conn(conn, ssl)
             conn = Sentinel_Master(self.sentinel, self.service_name, ssl)
 

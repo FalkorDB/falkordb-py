@@ -32,6 +32,7 @@ def connected_to():
 
     with (
         patch("redis.connection.Connection._connect", fake_connect),
+        patch("redis.connection.SSLConnection._connect", fake_connect),
         patch("redis.connection.AbstractConnection.on_connect_check_health"),
     ):
         yield addresses
@@ -62,8 +63,9 @@ def test_connect_discovers_master_once(sentinel, connected_to):
     sentinel.discover_master.assert_called_once_with("mymaster")
 
 
-def test_reconnect_rediscovers_master(sentinel, connected_to):
-    conn = get_connection(sentinel)
+@pytest.mark.parametrize("ssl", [False, True])
+def test_reconnect_rediscovers_master(sentinel, connected_to, ssl):
+    conn = get_connection(sentinel, ssl)
     conn.connect()
 
     # failover: sentinel now reports a new master, connection dropped
@@ -77,8 +79,9 @@ def test_reconnect_rediscovers_master(sentinel, connected_to):
     assert (conn.host, conn.port) == NEW_MASTER
 
 
-def test_send_command_after_failover_reaches_new_master(sentinel, connected_to):
-    conn = get_connection(sentinel)
+@pytest.mark.parametrize("ssl", [False, True])
+def test_send_command_after_failover_reaches_new_master(sentinel, connected_to, ssl):
+    conn = get_connection(sentinel, ssl)
     conn.connect()
 
     sentinel.discover_master.return_value = NEW_MASTER
@@ -110,3 +113,18 @@ def test_falkordb_uses_rediscovering_connection(sentinel):
     pool = db.connection.connection_pool
     assert pool.connection_class is FalkorDBSentinelManagedConnection
     assert pool.service_name == "mymaster"
+
+
+def test_falkordb_from_tls_url_uses_ssl_connection(sentinel):
+    with (
+        patch("falkordb.falkordb.Is_Sentinel", return_value=True),
+        patch("falkordb.falkordb.Is_Cluster", return_value=False),
+        patch(
+            "falkordb.falkordb.Sentinel_Conn", return_value=(sentinel, "mymaster")
+        ) as sentinel_conn,
+    ):
+        db = FalkorDB.from_url("falkors://localhost:26379")
+
+    assert sentinel_conn.call_args.args[1] is True
+    pool = db.connection.connection_pool
+    assert pool.connection_class is FalkorDBSentinelManagedSSLConnection
