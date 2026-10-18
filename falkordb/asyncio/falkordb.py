@@ -1,12 +1,14 @@
 from typing import List, Optional, Union
 
 import redis.asyncio as redis  # type: ignore[import-not-found]
+from redis.asyncio.cluster import RedisCluster  # type: ignore[import-not-found]
 from redis.driver_info import DriverInfo
 from redis.exceptions import RedisError
 
 from .._version import get_package_version
 from .cluster import Cluster_Conn, Is_Cluster
 from .graph import AsyncGraph
+from .sentinel import Is_Sentinel, Sentinel_Conn, Sentinel_Master
 
 # config command
 UDF_CMD = "GRAPH.UDF"
@@ -76,6 +78,8 @@ class FalkorDB:
         reinitialize_steps=5,
         read_from_replicas=False,
         address_remap=None,
+        # FalkorDB Sentinel Params
+        retry_writes=False,
     ):
 
         conn = redis.Redis(
@@ -115,7 +119,15 @@ class FalkorDB:
             protocol=protocol,
         )
 
-        if Is_Cluster(conn):
+        if Is_Sentinel(conn):
+            # from_url("falkors://...") passes a TLS pool, not ssl=True
+            ssl = ssl or issubclass(
+                conn.connection_pool.connection_class, redis.SSLConnection
+            )
+            self.sentinel, self.service_name = Sentinel_Conn(conn, ssl)
+            conn = Sentinel_Master(self.sentinel, self.service_name, ssl, retry_writes)
+
+        elif Is_Cluster(conn):
             conn = Cluster_Conn(
                 conn,
                 ssl,
@@ -157,10 +169,11 @@ class FalkorDB:
         elif url.startswith("falkors://"):
             url = "rediss://" + url[len("falkors://") :]
 
+        retry_writes = kwargs.pop("retry_writes", False)
         kwargs["decode_responses"] = True
         conn = redis.from_url(url, **kwargs)
 
-        return cls(connection_pool=conn.connection_pool)
+        return cls(connection_pool=conn.connection_pool, retry_writes=retry_writes)
 
     def select_graph(self, graph_id: str) -> AsyncGraph:
         """
@@ -234,6 +247,13 @@ class FalkorDB:
             # best-effort close — don't raise on Redis errors
             pass
 
+        if hasattr(self, "sentinel"):
+            try:
+                await self.sentinel.aclose()
+            except RedisError:
+                # best-effort close — don't raise on Redis errors
+                pass
+
     async def __aenter__(self) -> "FalkorDB":
         """Return self to support async with-statement usage."""
 
@@ -263,11 +283,9 @@ class FalkorDB:
         args.extend([name, script])
 
         # propagate command in cluster mode
-        if Is_Cluster(self.connection):
+        if isinstance(self.connection, RedisCluster):
             for node in self.connection.get_primaries():
-                # create a direct connection to this node
-                client = self.connection.get_redis_connection(node)
-                resp = await client.execute_command(*args)
+                resp = await node.execute_command(*args)
         else:
             resp = await self.connection.execute_command(*args)
 
@@ -304,11 +322,9 @@ class FalkorDB:
         """
 
         # propagate command in cluster mode
-        if Is_Cluster(self.connection):
+        if isinstance(self.connection, RedisCluster):
             for node in self.connection.get_primaries():
-                # create a direct connection to this node
-                client = self.connection.get_redis_connection(node)
-                resp = await client.execute_command(UDF_CMD, "FLUSH")
+                resp = await node.execute_command(UDF_CMD, "FLUSH")
         else:
             resp = await self.connection.execute_command(UDF_CMD, "FLUSH")
 
@@ -324,11 +340,9 @@ class FalkorDB:
         """
 
         # propagate command in cluster mode
-        if Is_Cluster(self.connection):
+        if isinstance(self.connection, RedisCluster):
             for node in self.connection.get_primaries():
-                # create a direct connection to this node
-                client = self.connection.get_redis_connection(node)
-                resp = await client.execute_command(UDF_CMD, "DELETE", lib)
+                resp = await node.execute_command(UDF_CMD, "DELETE", lib)
         else:
             resp = await self.connection.execute_command(UDF_CMD, "DELETE", lib)
 

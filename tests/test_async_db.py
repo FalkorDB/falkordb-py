@@ -1,9 +1,10 @@
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 import redis.exceptions
 from redis.asyncio import BlockingConnectionPool
+from redis.asyncio.cluster import RedisCluster
 
 from falkordb.asyncio import FalkorDB
 
@@ -26,6 +27,7 @@ async def async_client():
 def test_driver_info_version(kwargs, expected_version):
     with (
         patch("falkordb.asyncio.falkordb.redis.Redis") as mock_redis,
+        patch("falkordb.asyncio.falkordb.Is_Sentinel", return_value=False),
         patch("falkordb.asyncio.falkordb.Is_Cluster", return_value=False),
         patch(
             "falkordb.asyncio.falkordb.get_package_version",
@@ -134,8 +136,9 @@ async def test_from_url():
 
 
 @pytest.mark.asyncio
+@patch("falkordb.asyncio.falkordb.Is_Sentinel", return_value=False)
 @patch("falkordb.asyncio.falkordb.Is_Cluster", return_value=False)
-async def test_from_url_unix_socket(mock_cluster):
+async def test_from_url_unix_socket(mock_cluster, mock_sentinel):
     """Test that from_url correctly parses unix:// socket URLs."""
     db = FalkorDB.from_url("unix:///tmp/falkordb.sock")
     pool = db.connection.connection_pool
@@ -148,8 +151,9 @@ async def test_from_url_unix_socket(mock_cluster):
 
 
 @pytest.mark.asyncio
+@patch("falkordb.asyncio.falkordb.Is_Sentinel", return_value=False)
 @patch("falkordb.asyncio.falkordb.Is_Cluster", return_value=False)
-async def test_from_url_unix_socket_with_password(mock_cluster):
+async def test_from_url_unix_socket_with_password(mock_cluster, mock_sentinel):
     """Test that from_url handles unix:// URLs with credentials."""
     db = FalkorDB.from_url("unix://myuser:mypass@/tmp/falkordb.sock?db=2")
     pool = db.connection.connection_pool
@@ -386,3 +390,50 @@ def test_is_cluster_filters_unknown_connection_kwargs():
         return_value={"redis_mode": "cluster"},
     ):
         assert Is_Cluster(conn) is True
+
+
+@pytest.mark.parametrize(
+    ("method", "args", "expected"),
+    [
+        ("udf_load", ("lib", "script"), ("GRAPH.UDF", "LOAD", "lib", "script")),
+        ("udf_flush", (), ("GRAPH.UDF", "FLUSH")),
+        ("udf_delete", ("lib",), ("GRAPH.UDF", "DELETE", "lib")),
+    ],
+)
+async def test_udf_propagates_to_cluster_primaries(method, args, expected):
+    """UDF commands that change state run on every primary of a cluster."""
+    with (
+        patch("falkordb.asyncio.falkordb.Is_Sentinel", return_value=False),
+        patch("falkordb.asyncio.falkordb.Is_Cluster", return_value=False),
+    ):
+        db = FalkorDB()
+
+    nodes = [MagicMock(execute_command=AsyncMock(return_value="OK")) for _ in "ab"]
+    db.connection = MagicMock(spec=RedisCluster)
+    db.connection.get_primaries.return_value = nodes
+
+    assert await getattr(db, method)(*args) == "OK"
+
+    for node in nodes:
+        node.execute_command.assert_awaited_once_with(*expected)
+    db.connection.execute_command.assert_not_called()
+
+
+def test_sync_conn_unix_socket_subclass():
+    """A pool using a UnixDomainSocketConnection subclass probes the socket."""
+    from redis.asyncio import ConnectionPool
+    from redis.asyncio.connection import UnixDomainSocketConnection
+
+    from falkordb.asyncio.cluster import Sync_Conn
+
+    class CustomUnixConnection(UnixDomainSocketConnection):
+        pass
+
+    pool = ConnectionPool(
+        connection_class=CustomUnixConnection, path="/tmp/falkordb.sock"
+    )
+    probe = Sync_Conn(SimpleNamespace(connection_pool=pool))
+
+    kwargs = probe.connection_pool.connection_kwargs
+    assert kwargs["path"] == "/tmp/falkordb.sock"
+    probe.close()
