@@ -65,8 +65,10 @@ def test_query_recovery_after_timeout():
 
     output = result.stdout + "\n" + result.stderr
 
+    
     if "QUERY_DID_NOT_TIMEOUT" in output and result.returncode == 0:
-        pytest.skip("The expensive query did not reach the timeout")
+        pytest.fail("Expected the expensive query to time out, but it completed")
+
 
     assert result.returncode == 0, (
         f"Worker failed after timeout. Exit: {result.returncode}\n{output}"
