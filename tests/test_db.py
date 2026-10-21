@@ -65,6 +65,18 @@ def test_config(client):
         db.config_set(config_name, "invalid value")
 
 
+def test_select_graph_invalid_id(client):
+    db = client
+
+    # graph_id must be a string
+    with pytest.raises(TypeError, match="Expected a string parameter"):
+        db.select_graph(None)
+
+    # graph_id must be a non-empty string
+    with pytest.raises(TypeError, match="non-empty string"):
+        db.select_graph("")
+
+
 def test_connect_via_url():
     # make sure we're able to connect via url
 
