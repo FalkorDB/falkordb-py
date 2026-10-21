@@ -1,9 +1,13 @@
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
+
 import pytest
 from redis.exceptions import RedisError
+
 from falkordb.asyncio.falkordb import FalkorDB as AsyncFalkorDB
 from falkordb.falkordb import FalkorDB as SyncFalkorDB
+
+
 def test_sync_close_suppresses_redis_error():
     db = object.__new__(SyncFalkorDB)
     close_mock = Mock(side_effect=RedisError("Connection already closed"))
