@@ -14,6 +14,8 @@ def test_sync_close_suppresses_redis_error():
     db.connection = SimpleNamespace(close=close_mock)
     db.close()
     close_mock.assert_called_once_with()
+
+
 @pytest.mark.asyncio
 async def test_async_aclose_suppresses_redis_error():
     db = object.__new__(AsyncFalkorDB)
@@ -21,6 +23,8 @@ async def test_async_aclose_suppresses_redis_error():
     db.connection = SimpleNamespace(aclose=close_mock)
     await db.aclose()
     close_mock.assert_awaited_once_with()
+
+
 def test_sync_context_manager_closes_when_body_raises():
     db = object.__new__(SyncFalkorDB)
     close_mock = Mock()
@@ -29,6 +33,8 @@ def test_sync_context_manager_closes_when_body_raises():
         with db:
             raise ValueError("Application failure")
     close_mock.assert_called_once_with()
+
+
 @pytest.mark.asyncio
 async def test_async_context_manager_closes_when_body_raises():
     db = object.__new__(AsyncFalkorDB)
