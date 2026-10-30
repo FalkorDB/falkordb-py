@@ -78,8 +78,12 @@ jobs:
       - name: Install dependencies
         run: uv sync --extra test
 
+      
       - name: Run Tests
+        env:
+          FALKORDB_TIMEOUT_TEST_PORT: "6379"
         run: uv run pytest --cov --cov-report=xml
+
 
       - name: Upload coverage
         uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v6
