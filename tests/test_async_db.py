@@ -1,5 +1,5 @@
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 import redis.exceptions
@@ -17,6 +17,42 @@ async def async_client():
     db = FalkorDB(connection_pool=pool)
     yield db
     await pool.aclose()
+
+
+@pytest.mark.asyncio
+async def test_list_graphs_with_pattern():
+    with (
+        patch("falkordb.asyncio.falkordb.redis.Redis") as mock_redis,
+        patch("falkordb.asyncio.falkordb.Is_Cluster", return_value=False),
+    ):
+        mock_redis.return_value.execute_command = AsyncMock(
+            return_value=["alpha1", "alpha2"]
+        )
+
+        db = FalkorDB()
+        result = await db.list_graphs("alpha*")
+
+    assert result == ["alpha1", "alpha2"]
+    mock_redis.return_value.execute_command.assert_awaited_once_with(
+        "GRAPH.LIST", "alpha*"
+    )
+
+
+@pytest.mark.asyncio
+async def test_list_graphs_without_pattern():
+    with (
+        patch("falkordb.asyncio.falkordb.redis.Redis") as mock_redis,
+        patch("falkordb.asyncio.falkordb.Is_Cluster", return_value=False),
+    ):
+        mock_redis.return_value.execute_command = AsyncMock(
+            return_value=["alpha1", "beta1"]
+        )
+
+        db = FalkorDB()
+        result = await db.list_graphs()
+
+    assert result == ["alpha1", "beta1"]
+    mock_redis.return_value.execute_command.assert_awaited_once_with("GRAPH.LIST")
 
 
 @pytest.mark.parametrize(
