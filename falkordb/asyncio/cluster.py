@@ -5,6 +5,8 @@ import redis as sync_redis  # type: ignore[import-not-found]
 import redis.asyncio as redis  # type: ignore[import-not-found]
 import redis.exceptions as redis_exceptions  # type: ignore[import-not-found]
 from redis.asyncio.cluster import RedisCluster  # type: ignore[import-not-found]
+from redis.asyncio.retry import Retry as AsyncRetry  # type: ignore[import-not-found]
+from redis.retry import Retry as SyncRetry  # type: ignore[import-not-found]
 
 
 # detect if a connection is a cluster
@@ -29,6 +31,20 @@ def Is_Cluster(conn: redis.Redis):
     # there — and forwarding those raises TypeError before any I/O happens.
     accepted = inspect.signature(sync_redis.Redis.__init__).parameters
     kwargs = {k: v for k, v in kwargs.items() if k in accepted}
+
+    # The async pool carries a ``redis.asyncio.retry.Retry`` when the caller
+    # passed ``retry=``. Its ``call_with_retry`` is a coroutine, which the
+    # synchronous probe would never await. Give the probe a synchronous Retry
+    # with the same backoff, retry count and supported errors instead. These are
+    # the fields redis-py's own AbstractRetry hashes on; types-redis predates
+    # AbstractRetry, hence the ignore.
+    retry = kwargs.get("retry")
+    if isinstance(retry, AsyncRetry):
+        kwargs["retry"] = SyncRetry(
+            retry._backoff,  # type: ignore[attr-defined]
+            retry.get_retries(),  # type: ignore[attr-defined]
+            retry._supported_errors,  # type: ignore[attr-defined]
+        )
 
     # Create a synchronous Redis client with the same parameters
     # as the connection pool just to keep Is_Cluster synchronous
