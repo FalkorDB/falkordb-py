@@ -14,6 +14,9 @@ def quote_string(v):
 
     v = v.replace("\\", "\\\\")
     v = v.replace('"', '\\"')
+    v = v.replace("\n", "\\n")
+    v = v.replace("\r", "\\r")
+    v = v.replace("\t", "\\t")
 
     return f'"{v}"'
 
