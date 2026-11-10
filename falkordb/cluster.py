@@ -3,11 +3,13 @@ import socket
 import redis.exceptions as redis_exceptions  # type: ignore[import-not-found]
 from redis.cluster import RedisCluster  # type: ignore[import-not-found]
 
+from .helpers import is_server_mode
+
 
 # detect if a connection is a Cluster
 def Is_Cluster(conn):
     info = conn.info(section="server")
-    return "redis_mode" in info and info["redis_mode"] == "cluster"
+    return is_server_mode(info, "cluster")
 
 
 # create a cluster connection from a Redis connection

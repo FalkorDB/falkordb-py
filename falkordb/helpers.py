@@ -62,3 +62,19 @@ def stringify_param_value(value):
         return "{" + ",".join(parts) + "}"
 
     return str(value)
+
+
+def is_server_mode(info, mode):
+    """
+    Tell whether a parsed ``INFO server`` reply reports the given mode.
+
+    Redis reports the mode as ``redis_mode``. Valkey reports it as
+    ``server_mode``, or as ``redis_mode`` when
+    ``extended-redis-compatibility`` is on. Both fields are read.
+
+    :param info: the parsed ``INFO server`` reply
+    :param mode: ``"cluster"``, ``"sentinel"`` or ``"standalone"``
+    :return: bool
+    """
+
+    return mode in (info.get("redis_mode"), info.get("server_mode"))
