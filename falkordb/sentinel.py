@@ -7,6 +7,8 @@ from redis.sentinel import (  # type: ignore[import-not-found]
     SentinelManagedConnection,
 )
 
+from .helpers import is_server_mode
+
 # commands that never modify data, safe to resend after a connection drop
 READ_ONLY_COMMANDS = READ_COMMANDS | {
     "GRAPH.RO_QUERY",
@@ -140,7 +142,7 @@ class FalkorDBSentinelRedis(Redis):
 # detect if a connection is a sentinel
 def Is_Sentinel(conn):
     info = conn.info(section="server")
-    return "redis_mode" in info and info["redis_mode"] == "sentinel"
+    return is_server_mode(info, "sentinel")
 
 
 # create a sentinel connection from a Redis connection

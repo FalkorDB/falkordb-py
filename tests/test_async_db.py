@@ -386,3 +386,37 @@ def test_is_cluster_filters_unknown_connection_kwargs():
         return_value={"redis_mode": "cluster"},
     ):
         assert Is_Cluster(conn) is True
+
+
+# INFO server replies and the mode each one reports. Redis prints redis_mode.
+# Valkey prints server_mode, or redis_mode instead when
+# extended-redis-compatibility is on.
+SERVER_MODE_INFO = [
+    pytest.param({"redis_mode": "cluster"}, "cluster", id="redis_mode-cluster"),
+    pytest.param({"redis_mode": "sentinel"}, "sentinel", id="redis_mode-sentinel"),
+    pytest.param(
+        {"redis_mode": "standalone"}, "standalone", id="redis_mode-standalone"
+    ),
+    pytest.param({"server_mode": "cluster"}, "cluster", id="server_mode-cluster"),
+    pytest.param({"server_mode": "sentinel"}, "sentinel", id="server_mode-sentinel"),
+    pytest.param(
+        {"server_mode": "standalone"}, "standalone", id="server_mode-standalone"
+    ),
+    pytest.param({}, "standalone", id="neither"),
+]
+
+
+@pytest.mark.parametrize(("info", "mode"), SERVER_MODE_INFO)
+def test_is_cluster(info, mode):
+    from redis.asyncio import ConnectionPool
+
+    from falkordb.asyncio.cluster import Is_Cluster
+
+    pool = ConnectionPool(host="localhost", port=6379, decode_responses=True)
+    conn = SimpleNamespace(connection_pool=pool)
+
+    with patch(
+        "falkordb.asyncio.cluster.sync_redis.Redis.info", return_value=info
+    ) as mock_info:
+        assert Is_Cluster(conn) is (mode == "cluster")
+    mock_info.assert_called_once_with(section="server")

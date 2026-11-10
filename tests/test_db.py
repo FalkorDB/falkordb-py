@@ -1,9 +1,11 @@
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 import redis.exceptions
 
 from falkordb import FalkorDB
+from falkordb.cluster import Is_Cluster
+from falkordb.sentinel import Is_Sentinel
 
 
 @pytest.fixture
@@ -317,3 +319,39 @@ def test_udf_flush(client):
     # Verify all UDFs are removed
     udfs = db.udf_list()
     assert udfs == []
+
+
+# INFO server replies and the mode each one reports. Redis prints redis_mode.
+# Valkey prints server_mode, or redis_mode instead when
+# extended-redis-compatibility is on.
+SERVER_MODE_INFO = [
+    pytest.param({"redis_mode": "cluster"}, "cluster", id="redis_mode-cluster"),
+    pytest.param({"redis_mode": "sentinel"}, "sentinel", id="redis_mode-sentinel"),
+    pytest.param(
+        {"redis_mode": "standalone"}, "standalone", id="redis_mode-standalone"
+    ),
+    pytest.param({"server_mode": "cluster"}, "cluster", id="server_mode-cluster"),
+    pytest.param({"server_mode": "sentinel"}, "sentinel", id="server_mode-sentinel"),
+    pytest.param(
+        {"server_mode": "standalone"}, "standalone", id="server_mode-standalone"
+    ),
+    pytest.param({}, "standalone", id="neither"),
+]
+
+
+@pytest.mark.parametrize(("info", "mode"), SERVER_MODE_INFO)
+def test_is_cluster(info, mode):
+    conn = MagicMock()
+    conn.info.return_value = info
+
+    assert Is_Cluster(conn) is (mode == "cluster")
+    conn.info.assert_called_once_with(section="server")
+
+
+@pytest.mark.parametrize(("info", "mode"), SERVER_MODE_INFO)
+def test_is_sentinel(info, mode):
+    conn = MagicMock()
+    conn.info.return_value = info
+
+    assert Is_Sentinel(conn) is (mode == "sentinel")
+    conn.info.assert_called_once_with(section="server")

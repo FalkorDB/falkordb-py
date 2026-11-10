@@ -6,6 +6,8 @@ import redis.asyncio as redis  # type: ignore[import-not-found]
 import redis.exceptions as redis_exceptions  # type: ignore[import-not-found]
 from redis.asyncio.cluster import RedisCluster  # type: ignore[import-not-found]
 
+from ..helpers import is_server_mode
+
 
 # detect if a connection is a cluster
 def Is_Cluster(conn: redis.Redis):
@@ -34,7 +36,7 @@ def Is_Cluster(conn: redis.Redis):
     # as the connection pool just to keep Is_Cluster synchronous
     info = sync_redis.Redis(**kwargs).info(section="server")
 
-    return "redis_mode" in info and info["redis_mode"] == "cluster"
+    return is_server_mode(info, "cluster")
 
 
 # create a cluster connection from a Redis connection
